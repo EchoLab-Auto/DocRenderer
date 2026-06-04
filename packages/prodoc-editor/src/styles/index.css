@@ -1,0 +1,34 @@
+/* ProDoc Editor Styles - powered by @echolab/ui-frame */
+
+/* Scrollbar styling */
+.prodoc-doc-editor .nm-layout__content::-webkit-scrollbar,
+.prodoc-editor-panel .preview-card :deep(.nm-card__body)::-webkit-scrollbar,
+.prodoc-editor-textarea::-webkit-scrollbar {
+  width: 5px;
+}
+
+.prodoc-doc-editor .nm-layout__content::-webkit-scrollbar-track,
+.prodoc-editor-panel .preview-card :deep(.nm-card__body)::-webkit-scrollbar-track,
+.prodoc-editor-textarea::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.prodoc-doc-editor .nm-layout__content::-webkit-scrollbar-thumb,
+.prodoc-editor-panel .preview-card :deep(.nm-card__body)::-webkit-scrollbar-thumb,
+.prodoc-editor-textarea::-webkit-scrollbar-thumb {
+  background: var(--nm-text-placeholder);
+  border-radius: 3px;
+  opacity: 0.25;
+}
+
+.prodoc-doc-editor .nm-layout__content::-webkit-scrollbar-thumb:hover,
+.prodoc-editor-panel .preview-card :deep(.nm-card__body)::-webkit-scrollbar-thumb:hover,
+.prodoc-editor-textarea::-webkit-scrollbar-thumb:hover {
+  background: var(--nm-text-secondary);
+  opacity: 0.5;
+}
+
+/* Focus states */
+.prodoc-editor-textarea:focus {
+  box-shadow: none;
+}

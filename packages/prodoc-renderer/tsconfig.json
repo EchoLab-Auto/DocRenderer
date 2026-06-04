@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "@prodoc/core": ["../prodoc-core/dist/index.d.ts"]
+    }
+  },
+  "include": ["src/**/*"]
+}
