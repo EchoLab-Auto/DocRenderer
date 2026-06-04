@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import type { FlowGraph, FlowNode } from '@prodoc/core'
 import {
+  NeumorphismCanvas,
   NeumorphismCard,
   NeumorphismButton,
   NeumorphismTooltip,
@@ -55,13 +56,6 @@ function handleNodeClick(node: FlowNode) {
   emit('nodeClick', node)
 }
 
-/** 滚轮缩放 */
-function handleWheel(e: WheelEvent) {
-  e.preventDefault()
-  const delta = e.deltaY > 0 ? -0.1 : 0.1
-  const next = Math.max(0.25, Math.min(3, zoom.value + delta))
-  zoom.value = Math.round(next * 10) / 10
-}
 
 /** 计算边的路径 */
 function calculateEdgePath(from: FlowNode, to: FlowNode) {
@@ -123,7 +117,7 @@ function findNode(id: string) {
 
 <template>
   <div :class="`prodoc-flow-renderer ${props.className}`">
-    <NeumorphismCard :elevation="-3" class="prodoc-flow-card">
+    <NeumorphismCard :elevation="-3" no-padding class="prodoc-flow-card">
       <!-- 工具栏 -->
       <div class="prodoc-flow-toolbar">
         <div class="prodoc-flow-toolbar__left">
@@ -157,16 +151,20 @@ function findNode(id: string) {
       </div>
 
       <!-- 画布 -->
-      <div
-        class="prodoc-flow-canvas"
-        style="height: 420px;"
-        @wheel.prevent="handleWheel"
+      <NeumorphismCanvas
+        v-model="zoom"
+        :show-grid="showGrid"
+        :grid-size="20"
+        :min-zoom="0.25"
+        :max-zoom="3"
+        :zoom-step="0.1"
+        height="420px"
       >
         <svg
           class="prodoc-flow-svg"
           :width="svgSize.width"
           :height="svgSize.height"
-          :viewBox="`${viewBox.x} ${viewBox.y} ${viewBox.w * zoom} ${viewBox.h * zoom}`"
+          :viewBox="`${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`"
         >
           <defs>
             <!-- Arrow marker -->
@@ -288,7 +286,7 @@ function findNode(id: string) {
             </g>
           </g>
         </svg>
-      </div>
+      </NeumorphismCanvas>
     </NeumorphismCard>
   </div>
 </template>
@@ -298,9 +296,7 @@ function findNode(id: string) {
   width: 100%;
 }
 
-.prodoc-flow-card :deep(.nm-card__body) {
-  padding: 0;
-  overflow: hidden;
+.prodoc-flow-card {
   background-color: var(--nm-surface-raised);
 }
 
@@ -311,8 +307,6 @@ function findNode(id: string) {
   padding: 12px 16px;
   background-color: var(--nm-surface-color);
   border-bottom: 1px solid rgba(128, 128, 128, 0.12);
-  box-shadow:
-    inset 0 -2px 4px var(--nm-shadow-dark);
 }
 
 .prodoc-flow-toolbar__left {
@@ -324,16 +318,6 @@ function findNode(id: string) {
 .prodoc-flow-toolbar__actions {
   display: flex;
   gap: 8px;
-}
-
-.prodoc-flow-canvas {
-  overflow: auto;
-  background-color: var(--nm-surface-raised);
-  cursor: grab;
-}
-
-.prodoc-flow-canvas:active {
-  cursor: grabbing;
 }
 
 .prodoc-flow-svg {

@@ -2,18 +2,19 @@
 import { ref, computed, watch } from 'vue'
 import type { ProDocNode } from '@prodoc/core'
 import { nodeToTreeData } from '@prodoc/core'
-import type { TreeNode } from './TreeNav.vue'
+import type { TreeNodeData } from '@echolab/ui-frame'
 import {
   NeumorphismLayout,
   NeumorphismButton,
   NeumorphismCard,
+  NeumorphismThemeToggle,
+  NeumorphismTree,
   NeumorphismDivider,
   NeumorphismTag,
   NeumorphismTooltip,
+  useTheme,
 } from '@echolab/ui-frame'
 import MarkdownRenderer from './MarkdownRenderer.vue'
-import TreeNav from './TreeNav.vue'
-import ThemeToggle from './ThemeToggle.vue'
 
 export interface DocViewerProps {
   /** 文档树根节点 */
@@ -37,7 +38,9 @@ const emit = defineEmits<{
 const selectedPath = ref(props.initialPath ?? props.root.children[0]?.path ?? '')
 const expandedKeys = ref<string[]>([])
 
-const treeData = computed<TreeNode[]>(() => props.root.children.map(nodeToTreeData))
+const { setTheme } = useTheme()
+
+const treeData = computed(() => props.root.children.map(nodeToTreeData) as TreeNodeData[])
 const selectedKeys = ref<string[]>(selectedPath.value ? [selectedPath.value] : [])
 
 watch(selectedPath, (path) => {
@@ -91,13 +94,13 @@ watch(() => props.initialPath, (newPath) => {
       </template>
 
       <template #header-right>
-        <ThemeToggle />
+        <NeumorphismThemeToggle size="small" @change="setTheme" />
       </template>
 
       <!-- Sider -->
       <template #sider="{ collapsed }">
         <div v-if="!collapsed" class="prodoc-sider">
-          <TreeNav
+          <NeumorphismTree
             :data="treeData"
             v-model:selected-keys="selectedKeys"
             v-model:expanded-keys="expandedKeys"
@@ -113,7 +116,7 @@ watch(() => props.initialPath, (newPath) => {
       <template #default>
         <main class="prodoc-content">
           <div class="prodoc-content-inner">
-            <NeumorphismCard :elevation="-3" class="prodoc-content-card">
+            <NeumorphismCard :elevation="-3" no-padding class="prodoc-content-card">
               <template v-if="displayNode">
                 <!-- Doc Header -->
                 <header class="prodoc-doc-header">
@@ -183,19 +186,13 @@ watch(() => props.initialPath, (newPath) => {
   color: var(--nm-text-primary);
 }
 
-/* Layout overrides */
-.prodoc-layout :deep(.nm-layout__body) {
-  overflow: hidden;
+/* Layout: content scroll via wrapper, not :deep override */
+.prodoc-layout {
+  background-color: var(--nm-bg-color);
 }
 
 .prodoc-layout :deep(.nm-layout__content) {
   overflow-y: auto;
-  background-color: var(--nm-bg-color);
-}
-
-.prodoc-layout :deep(.nm-layout__sider) {
-  border-right: none;
-  background-color: var(--nm-surface-color);
 }
 
 /* Brand */
@@ -297,10 +294,7 @@ watch(() => props.initialPath, (newPath) => {
   flex: 1;
 }
 
-/* Card body: keep padding 0 but let root bg + inset shadow show through */
-.prodoc-content-card :deep(.nm-card__body) {
-  padding: 0;
-}
+/* Card padding controlled by noPadding prop */
 
 /* Doc Body */
 .prodoc-doc-body {

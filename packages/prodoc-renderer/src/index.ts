@@ -5,8 +5,6 @@
 export { default as DocViewer, type DocViewerProps } from './components/DocViewer.vue'
 export { default as MarkdownRenderer, type MarkdownRendererProps } from './components/MarkdownRenderer.vue'
 export { default as FlowRenderer, type FlowRendererProps } from './components/FlowRenderer.vue'
-export { default as TreeNav, type TreeNode as TreeNavNode } from './components/TreeNav.vue'
-export { default as ThemeToggle } from './components/ThemeToggle.vue'
 
 // 引入 ui-frame 全局样式（CSS 变量 + 组件基础样式）
 import '@echolab/ui-frame/dist/style.css'

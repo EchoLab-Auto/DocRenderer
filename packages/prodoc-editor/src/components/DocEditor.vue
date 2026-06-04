@@ -2,18 +2,19 @@
 import { ref, computed, watch } from 'vue'
 import type { ProDocNode } from '@prodoc/core'
 import { nodeToTreeData } from '@prodoc/core'
-import type { TreeNavNode as TreeNode } from '@prodoc/renderer'
+import type { TreeNodeData } from '@echolab/ui-frame'
 import {
   NeumorphismLayout,
   NeumorphismButton,
   NeumorphismCard,
+  NeumorphismThemeToggle,
+  NeumorphismTree,
   NeumorphismDivider,
-  NeumorphismBadge,
   NeumorphismTag,
   NeumorphismTooltip,
+  useTheme,
 } from '@echolab/ui-frame'
 import MarkdownEditor from './MarkdownEditor.vue'
-import { TreeNav, ThemeToggle } from '@prodoc/renderer'
 
 export interface DocEditorProps {
   /** 文档树根节点 */
@@ -41,7 +42,9 @@ const selectedPath = ref(props.initialPath ?? '')
 const editedContent = ref<Record<string, string>>({})
 const expandedKeys = ref<string[]>([])
 
-const treeData = computed<TreeNode[]>(() => props.root.children.map(nodeToTreeData))
+const { setTheme } = useTheme()
+
+const treeData = computed(() => props.root.children.map(nodeToTreeData) as TreeNodeData[])
 
 const selectedKeys = ref<string[]>(selectedPath.value ? [selectedPath.value] : [])
 
@@ -124,16 +127,18 @@ function handleKeyDown(e: KeyboardEvent) {
       </template>
 
       <template #header-center>
-        <ThemeToggle />
+        <NeumorphismThemeToggle size="small" @change="setTheme" />
       </template>
 
       <template #header-right>
         <div class="prodoc-editor-actions">
-          <NeumorphismBadge
+          <NeumorphismTag
             v-if="hasChanges"
-            value="未保存"
             variant="warning"
-          />
+            size="small"
+          >
+            未保存
+          </NeumorphismTag>
           <NeumorphismTooltip content="保存 (Ctrl+S)" position="bottom">
             <NeumorphismButton
               variant="raised"
@@ -150,7 +155,7 @@ function handleKeyDown(e: KeyboardEvent) {
       <!-- Sider -->
       <template #sider="{ collapsed }">
         <div v-if="!collapsed" class="prodoc-editor-sider">
-          <TreeNav
+          <NeumorphismTree
             :data="treeData"
             v-model:selected-keys="selectedKeys"
             v-model:expanded-keys="expandedKeys"
@@ -165,7 +170,7 @@ function handleKeyDown(e: KeyboardEvent) {
       <!-- Main editing area -->
       <template #default>
         <main class="prodoc-editor-content">
-          <NeumorphismCard :elevation="-3" class="prodoc-editor-content-card">
+          <NeumorphismCard :elevation="-3" no-padding class="prodoc-editor-content-card">
             <div v-if="displayNode" class="prodoc-editor-workspace">
               <header class="prodoc-editor-doc-header">
                 <div class="prodoc-editor-doc-header__main">
@@ -179,12 +184,13 @@ function handleKeyDown(e: KeyboardEvent) {
                     >
                       {{ displayNode.path }}
                     </NeumorphismTag>
-                    <NeumorphismBadge
+                    <NeumorphismTag
                       v-if="hasChanges"
-                      value="已修改"
                       variant="warning"
                       size="small"
-                    />
+                    >
+                      已修改
+                    </NeumorphismTag>
                   </div>
                 </div>
                 <div class="prodoc-editor-doc-header__actions">
@@ -241,23 +247,13 @@ function handleKeyDown(e: KeyboardEvent) {
   color: var(--nm-text-primary);
 }
 
-/* Layout overrides */
-.prodoc-editor-layout :deep(.nm-layout__body) {
-  overflow: hidden;
+/* Layout */
+.prodoc-editor-layout {
+  background-color: var(--nm-bg-color);
 }
 
 .prodoc-editor-layout :deep(.nm-layout__content) {
   overflow-y: auto;
-  background-color: var(--nm-bg-color);
-}
-
-.prodoc-editor-layout :deep(.nm-layout__sider) {
-  border-right: none;
-  background-color: var(--nm-surface-color);
-}
-
-.prodoc-editor-layout :deep(.nm-layout__header) {
-  padding: 0 20px;
 }
 
 /* Brand */
@@ -317,12 +313,7 @@ function handleKeyDown(e: KeyboardEvent) {
   flex: 1;
 }
 
-/* Card body: keep padding 0 but let root bg + inset shadow show through */
-.prodoc-editor-content-card :deep(.nm-card__body) {
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-}
+/* Card padding controlled by noPadding prop */
 
 .prodoc-editor-workspace {
   flex: 1;

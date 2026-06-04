@@ -10,7 +10,6 @@ import {
   NeumorphismDivider,
   NeumorphismTooltip,
   NeumorphismTag,
-  NeumorphismBadge,
 } from '@echolab/ui-frame'
 
 export interface FlowEditorProps {
@@ -170,18 +169,18 @@ const shapeButtons = [
       </template>
 
       <div class="prodoc-flow-toolbar__stats">
-        <NeumorphismBadge
+        <NeumorphismTag
           v-if="graph.nodes.length"
-          :value="`${graph.nodes.length} 节点`"
-          variant="info"
           size="small"
-        />
-        <NeumorphismBadge
+        >
+          {{ graph.nodes.length }} 节点
+        </NeumorphismTag>
+        <NeumorphismTag
           v-if="graph.edges.length"
-          :value="`${graph.edges.length} 连线`"
-          variant="info"
           size="small"
-        />
+        >
+          {{ graph.edges.length }} 连线
+        </NeumorphismTag>
       </div>
     </div>
 
@@ -197,6 +196,7 @@ const shapeButtons = [
     <NeumorphismCard
       v-if="selectedNode"
       :elevation="-2"
+      no-padding
       class="prodoc-flow-properties"
     >
       <div class="prodoc-flow-properties__header">
@@ -250,8 +250,6 @@ const shapeButtons = [
   flex-wrap: wrap;
   background-color: var(--nm-surface-color);
   border-bottom: 1px solid rgba(128, 128, 128, 0.12);
-  box-shadow:
-    inset 0 -2px 4px var(--nm-shadow-dark);
 }
 
 .prodoc-flow-toolbar__group {
@@ -281,8 +279,7 @@ const shapeButtons = [
   flex-shrink: 0;
 }
 
-.prodoc-flow-properties :deep(.nm-card__body) {
-  padding: 16px 20px;
+.prodoc-flow-properties {
   background-color: var(--nm-surface-raised);
 }
 

@@ -7,7 +7,7 @@ import {
   NeumorphismRow,
   NeumorphismCol,
   NeumorphismTooltip,
-  NeumorphismBadge,
+  NeumorphismTextarea,
 } from '@echolab/ui-frame'
 
 export interface MarkdownEditorProps {
@@ -31,11 +31,6 @@ const emit = defineEmits<{
 }>()
 
 const mode = ref<'edit' | 'preview' | 'split'>('split')
-
-function handleChange(e: Event) {
-  const target = e.target as HTMLTextAreaElement
-  emit('change', target.value)
-}
 
 function handleDocLink(path: string) {
   emit('docLink', path)
@@ -74,16 +69,7 @@ const lineCount = computed(() => props.value.split('\n').length)
       </div>
 
       <div class="prodoc-editor-toolbar__right">
-        <NeumorphismBadge
-          :value="`${lineCount} 行`"
-          variant="info"
-          size="small"
-        />
-        <NeumorphismBadge
-          :value="`${charCount} 字`"
-          variant="info"
-          size="small"
-        />
+        <span class="editor-stat">{{ lineCount }} 行 · {{ charCount }} 字</span>
       </div>
     </div>
 
@@ -94,13 +80,14 @@ const lineCount = computed(() => props.value.split('\n').length)
         class="prodoc-editor-panel prodoc-editor-panel--edit"
         :class="{ hidden: mode === 'preview' }"
       >
-        <NeumorphismCard :elevation="-3" class="edit-card">
-          <textarea
+        <NeumorphismCard :elevation="-3" no-padding class="edit-card">
+          <NeumorphismTextarea
             class="prodoc-editor-textarea"
-            :value="props.value"
-            @input="handleChange"
+            :model-value="props.value"
             placeholder="在此输入 Markdown..."
-            spellcheck="false"
+            :auto-resize="false"
+            :show-count="false"
+            @update:model-value="(v) => emit('change', v)"
           />
         </NeumorphismCard>
       </div>
@@ -110,7 +97,7 @@ const lineCount = computed(() => props.value.split('\n').length)
         class="prodoc-editor-panel prodoc-editor-panel--preview"
         :class="{ hidden: mode === 'edit' }"
       >
-        <NeumorphismCard :elevation="-2" class="preview-card">
+        <NeumorphismCard :elevation="-2" no-padding class="preview-card">
           <MarkdownRenderer
             :content="props.value"
             :show-toc="false"
@@ -138,7 +125,6 @@ const lineCount = computed(() => props.value.split('\n').length)
   flex-shrink: 0;
   background-color: var(--nm-surface-color);
   border-bottom: 1px solid rgba(128, 128, 128, 0.12);
-  box-shadow: inset 0 -2px 4px var(--nm-shadow-dark);
 }
 
 .prodoc-editor-toolbar__left {
@@ -149,7 +135,12 @@ const lineCount = computed(() => props.value.split('\n').length)
 .prodoc-editor-toolbar__right {
   display: flex;
   align-items: center;
-  gap: 8px;
+}
+
+.editor-stat {
+  font-size: 12px;
+  color: var(--nm-text-placeholder);
+  font-family: 'SF Mono', Monaco, monospace;
 }
 
 .mode-row {
@@ -189,38 +180,23 @@ const lineCount = computed(() => props.value.split('\n').length)
   flex-direction: column;
 }
 
-.edit-card :deep(.nm-card__body) {
-  height: 100%;
-  padding: 0;
+.edit-card {
   background-color: var(--nm-surface-raised);
 }
 
-.preview-card :deep(.nm-card__body) {
-  height: 100%;
+.preview-card {
+  background-color: var(--nm-surface-raised);
   padding: 24px;
   overflow-y: auto;
-  background-color: var(--nm-surface-raised);
 }
 
-.prodoc-editor-textarea {
-  width: 100%;
-  height: 100%;
-  padding: 20px;
-  border: none;
-  border-radius: var(--nm-border-radius-lg);
+/* Override NeumorphismTextarea to behave like a code editor */
+.prodoc-editor-textarea :deep(.nm-textarea__field) {
   font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
   font-size: 14px;
   line-height: 1.65;
   resize: none;
-  outline: none;
-  background-color: transparent;
-  color: var(--nm-text-primary);
-  caret-color: var(--nm-primary-color);
-  box-sizing: border-box;
-}
-
-.prodoc-editor-textarea::placeholder {
-  color: var(--nm-text-placeholder);
+  height: 100%;
 }
 
 /* Single mode adjustments */

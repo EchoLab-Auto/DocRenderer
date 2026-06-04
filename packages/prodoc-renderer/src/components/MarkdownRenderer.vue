@@ -6,6 +6,7 @@ import {
   NeumorphismCard,
   NeumorphismButton,
   NeumorphismTooltip,
+  NeumorphismBadge,
 } from '@echolab/ui-frame'
 import FlowRenderer from './FlowRenderer.vue'
 
@@ -270,7 +271,7 @@ onBeforeUnmount(() => {
   <div :class="`prodoc-markdown ${props.className}`">
     <!-- 目录侧边栏 -->
     <nav v-if="showToc && toc.length > 0" class="prodoc-toc">
-      <NeumorphismCard :elevation="-2" class="prodoc-toc-card">
+      <NeumorphismCard :elevation="-2" no-padding class="prodoc-toc-card">
         <div class="prodoc-toc-header">
           <span>📑 目录</span>
           <NeumorphismBadge :value="toc.length" size="small" />
@@ -322,8 +323,7 @@ onBeforeUnmount(() => {
   align-self: flex-start;
 }
 
-.prodoc-toc-card :deep(.nm-card__body) {
-  padding: 16px 0;
+.prodoc-toc-card {
   background-color: var(--nm-surface-raised);
 }
 
@@ -490,17 +490,13 @@ onBeforeUnmount(() => {
   border-radius: var(--nm-border-radius-sm);
   flex-shrink: 0;
   background-color: var(--nm-surface-color);
-  box-shadow:
-    inset 3px 3px 6px var(--nm-shadow-dark),
-    inset -2px -2px 4px var(--nm-shadow-light);
+  border: 1px solid rgba(128, 128, 128, 0.15);
   transition: all 0.2s ease;
 }
 
 .task-checkbox input:checked + .checkmark {
   background-color: var(--nm-primary-color);
-  box-shadow:
-    2px 2px 5px var(--nm-shadow-dark),
-    -2px -2px 5px var(--nm-shadow-light);
+  border-color: var(--nm-primary-color);
 }
 
 .checkmark::after {
@@ -534,9 +530,7 @@ onBeforeUnmount(() => {
   font-size: 0.88em;
   font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
   color: var(--nm-primary-color);
-  box-shadow:
-    inset 2px 2px 4px var(--nm-shadow-dark),
-    inset -2px -2px 4px var(--nm-shadow-light);
+  border: 1px solid rgba(128, 128, 128, 0.1);
 }
 
 .code-block-wrapper {
@@ -544,9 +538,7 @@ onBeforeUnmount(() => {
   border-radius: var(--nm-border-radius-lg);
   overflow: hidden;
   background-color: var(--nm-surface-color);
-  box-shadow:
-    inset 8px 8px 20px var(--nm-shadow-dark-deep),
-    inset -4px -4px 12px var(--nm-shadow-light-deep);
+  border: 1px solid rgba(128, 128, 128, 0.1);
 }
 
 .code-block-header {
@@ -582,24 +574,12 @@ onBeforeUnmount(() => {
   font-weight: 500;
   color: var(--nm-text-secondary);
   background-color: var(--nm-surface-color);
-  box-shadow:
-    2px 2px 4px var(--nm-shadow-dark),
-    -1px -1px 3px var(--nm-shadow-light);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .code-copy-btn:hover {
   color: var(--nm-primary-color);
-  box-shadow:
-    3px 3px 6px var(--nm-shadow-dark),
-    -2px -2px 4px var(--nm-shadow-light);
-}
-
-.code-copy-btn:active {
-  box-shadow:
-    inset 2px 2px 4px var(--nm-shadow-dark),
-    inset -1px -1px 3px var(--nm-shadow-light);
 }
 
 .code-block-body {
@@ -661,9 +641,6 @@ onBeforeUnmount(() => {
   background-color: var(--nm-surface-color);
   color: var(--nm-text-primary);
   border-radius: 0 var(--nm-border-radius-lg) var(--nm-border-radius-lg) 0;
-  box-shadow:
-    inset 4px 4px 10px var(--nm-shadow-dark),
-    inset -2px -2px 6px var(--nm-shadow-light);
 }
 
 .prodoc-markdown-content blockquote p:last-child {
@@ -678,9 +655,7 @@ onBeforeUnmount(() => {
   border-radius: var(--nm-border-radius-lg);
   overflow: hidden;
   background-color: var(--nm-surface-color);
-  box-shadow:
-    inset 6px 6px 16px var(--nm-shadow-dark-deep),
-    inset -3px -3px 10px var(--nm-shadow-light-deep);
+  border: 1px solid rgba(128, 128, 128, 0.1);
 }
 
 .prodoc-markdown-content th,
@@ -716,10 +691,6 @@ onBeforeUnmount(() => {
   max-width: 100%;
   height: auto;
   border-radius: var(--nm-border-radius-lg);
-  box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.04),
-    4px 4px 10px var(--nm-shadow-dark),
-    -2px -2px 6px var(--nm-shadow-light);
 }
 
 .prodoc-markdown-content hr {

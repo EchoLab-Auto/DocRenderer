@@ -29,6 +29,7 @@ export interface DocTreeNode {
   label: string;
   icon: string;
   children: DocTreeNode[];
+  [key: string]: any;
 }
 
 /**
