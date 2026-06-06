@@ -11,10 +11,12 @@
   },
   "scripts": {
     "build": "npm run build --workspaces",
+    "build:ui-frame": "node scripts/install-ui-frame.js",
     "type-check": "npm run type-check --workspaces",
     "clean": "npm run clean --workspaces",
     "view": "node ./packages/prodoc-cli/dist/index.js view",
-    "edit": "node ./packages/prodoc-cli/dist/index.js edit"
+    "edit": "node ./packages/prodoc-cli/dist/index.js edit",
+    "postinstall": "node scripts/install-ui-frame.js"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

@@ -75,19 +75,3 @@ export function getAncestors(node: ProDocNode, root: ProDocNode): ProDocNode[] {
   return ancestors;
 }
 
-/** 在文档树中查找包含流程图的节点 */
-export function findFlowNodes(root: ProDocNode): ProDocNode[] {
-  const result: ProDocNode[] = [];
-
-  function traverse(node: ProDocNode) {
-    if (/(?:^|\n)```prodoc-flow\n/.test(node.body)) {
-      result.push(node);
-    }
-    for (const child of node.children) {
-      traverse(child);
-    }
-  }
-
-  traverse(root);
-  return result;
-}

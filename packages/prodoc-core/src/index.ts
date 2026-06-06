@@ -5,12 +5,6 @@
 // 类型导出
 export type {
   ProDocNode,
-  FlowNode,
-  FlowEdge,
-  FlowGraph,
-  FlowNodeShape,
-  FlowNodeStyle,
-  FlowEdgeStyle,
   DocTree,
   ProDocOptions,
 } from './types.js';
@@ -24,18 +18,11 @@ export {
   buildDocTree,
 } from './parser.js';
 
-// 流程图导出
-export {
-  parseFlowDsl,
-  exportFlowDsl,
-} from './flow-parser.js';
-
 // 文档树工具导出
 export {
   createDocTree,
   flattenDocTree,
   getAncestors,
-  findFlowNodes,
 } from './doc-tree.js';
 
 // 树节点转换工具

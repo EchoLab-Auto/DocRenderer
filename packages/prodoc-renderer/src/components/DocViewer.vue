@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import type { Theme } from '@echolab/ui-frame'
 import type { ProDocNode } from '@prodoc/core'
 import { nodeToTreeData } from '@prodoc/core'
 import type { TreeNodeData } from '@echolab/ui-frame'
@@ -11,7 +12,7 @@ import {
   NeumorphismTree,
   NeumorphismDivider,
   NeumorphismTag,
-  NeumorphismTooltip,
+  NeumorphismContainer,
   useTheme,
 } from '@echolab/ui-frame'
 import MarkdownRenderer from './MarkdownRenderer.vue'
@@ -21,8 +22,6 @@ export interface DocViewerProps {
   root: ProDocNode
   /** 初始选中的文档路径 */
   initialPath?: string
-  /** 文档链接点击回调 */
-  onDocLink?: (path: string) => void
   /** 自定义样式类名 */
   className?: string
 }
@@ -38,7 +37,11 @@ const emit = defineEmits<{
 const selectedPath = ref(props.initialPath ?? props.root.children[0]?.path ?? '')
 const expandedKeys = ref<string[]>([])
 
-const { setTheme } = useTheme()
+const { theme, setTheme } = useTheme()
+const themeModel = computed<Theme>({
+  get: () => theme.value,
+  set: (val) => setTheme(val),
+})
 
 const treeData = computed(() => props.root.children.map(nodeToTreeData) as TreeNodeData[])
 const selectedKeys = ref<string[]>(selectedPath.value ? [selectedPath.value] : [])
@@ -83,23 +86,19 @@ watch(() => props.initialPath, (newPath) => {
       show-sider
       :sider-width="280"
       collapsible
-      class="prodoc-layout"
     >
       <!-- Header -->
       <template #header-left>
-        <div class="prodoc-brand">
-          <span class="prodoc-brand__logo">📚</span>
-          <span class="prodoc-brand__title">ProDoc</span>
-        </div>
+        <span style="font-weight: 700; font-size: 17px;">📚 ProDoc</span>
       </template>
 
       <template #header-right>
-        <NeumorphismThemeToggle size="small" @change="setTheme" />
+        <NeumorphismThemeToggle v-model="themeModel" size="small" />
       </template>
 
       <!-- Sider -->
       <template #sider="{ collapsed }">
-        <div v-if="!collapsed" class="prodoc-sider">
+        <div v-if="!collapsed" style="padding: 12px;">
           <NeumorphismTree
             :data="treeData"
             v-model:selected-keys="selectedKeys"
@@ -109,69 +108,65 @@ watch(() => props.initialPath, (newPath) => {
             @node-select="handleTreeSelect"
           />
         </div>
-        <div v-else class="prodoc-sider-collapsed">📚</div>
+        <div v-else style="display: flex; align-items: center; justify-content: center; height: 100%; padding-top: 16px; font-size: 20px;">📚</div>
       </template>
 
       <!-- Main Content -->
       <template #default>
-        <main class="prodoc-content">
-          <div class="prodoc-content-inner">
-            <NeumorphismCard :elevation="-3" no-padding class="prodoc-content-card">
-              <template v-if="displayNode">
-                <!-- Doc Header -->
-                <header class="prodoc-doc-header">
-                  <div class="prodoc-doc-header__main">
-                    <h1 class="prodoc-doc-header__title">{{ displayNode.title }}</h1>
-                    <div class="prodoc-doc-header__meta">
-                      <NeumorphismTag
-                        v-if="displayNode.path"
-                        variant="primary"
-                        size="small"
-                        rounded
-                      >
-                        {{ displayNode.path }}
-                      </NeumorphismTag>
-                      <NeumorphismTag
-                        v-if="displayNode.children.length > 0"
-                        variant="info"
-                        size="small"
-                        rounded
-                      >
-                        📁 {{ displayNode.children.length }} 个子项
-                      </NeumorphismTag>
-                    </div>
-                  </div>
-                </header>
-
-                <NeumorphismDivider />
-
-                <!-- Document Body -->
-                <div class="prodoc-doc-body">
-                  <MarkdownRenderer
-                    :content="displayNode.body"
-                    @doc-link="handleDocLink"
-                  />
-                </div>
-              </template>
-
-              <template v-else>
-                <div class="prodoc-empty-content">
-                  <NeumorphismCard :elevation="2" hoverable="bulge" class="prodoc-empty-icon-card">
-                    <span class="prodoc-empty-icon">📂</span>
-                  </NeumorphismCard>
-                  <p>请从左侧选择一篇文档</p>
-                  <NeumorphismButton
-                    variant="raised"
+        <NeumorphismContainer no-padding style="padding: 24px 20px;">
+          <NeumorphismCard :elevation="-3" no-padding>
+            <template v-if="displayNode">
+              <!-- Doc Header -->
+              <div style="padding: 20px 28px 0;">
+                <h1 style="margin: 0 0 12px; font-size: 28px; font-weight: 700; color: var(--nm-text-primary);">{{ displayNode.title }}</h1>
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                  <NeumorphismTag
+                    v-if="displayNode.path"
+                    variant="primary"
                     size="small"
-                    @click="selectedPath = treeData[0]?.key ?? ''"
+                    rounded
                   >
-                    打开第一篇
-                  </NeumorphismButton>
+                    {{ displayNode.path }}
+                  </NeumorphismTag>
+                  <NeumorphismTag
+                    v-if="displayNode.children.length > 0"
+                    variant="info"
+                    size="small"
+                    rounded
+                  >
+                    📁 {{ displayNode.children.length }} 个子项
+                  </NeumorphismTag>
                 </div>
-              </template>
-            </NeumorphismCard>
-          </div>
-        </main>
+              </div>
+
+              <NeumorphismDivider />
+
+              <!-- Document Body -->
+              <div style="padding: 32px 28px;">
+                <MarkdownRenderer
+                  :content="displayNode.body"
+                  @doc-link="handleDocLink"
+                />
+              </div>
+            </template>
+
+            <template v-else>
+              <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; min-height: 400px; text-align: center; color: var(--nm-text-placeholder);">
+                <NeumorphismCard :elevation="2" hoverable="bulge" style="width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;">
+                  <span style="font-size: 40px;">📂</span>
+                </NeumorphismCard>
+                <p>请从左侧选择一篇文档</p>
+                <NeumorphismButton
+                  variant="raised"
+                  size="small"
+                  @click="selectedPath = treeData[0]?.key ?? ''"
+                >
+                  打开第一篇
+                </NeumorphismButton>
+              </div>
+            </template>
+          </NeumorphismCard>
+        </NeumorphismContainer>
       </template>
     </NeumorphismLayout>
   </div>
@@ -182,164 +177,5 @@ watch(() => props.initialPath, (newPath) => {
   height: 100vh;
   width: 100vw;
   overflow: hidden;
-  background-color: var(--nm-bg-color);
-  color: var(--nm-text-primary);
-}
-
-/* Layout: content scroll via wrapper, not :deep override */
-.prodoc-layout {
-  background-color: var(--nm-bg-color);
-}
-
-.prodoc-layout :deep(.nm-layout__content) {
-  overflow-y: auto;
-}
-
-/* Brand */
-.prodoc-brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.prodoc-brand__logo {
-  font-size: 22px;
-  line-height: 1;
-}
-
-.prodoc-brand__title {
-  font-size: 17px;
-  font-weight: 700;
-  letter-spacing: -0.3px;
-  color: var(--nm-text-primary);
-}
-
-/* Sider: 极简样式，由 ui-frame Tree 处理内部搜索和外观 */
-.prodoc-sider {
-  padding: 12px;
-}
-
-.prodoc-sider-collapsed {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  padding-top: 16px;
-  font-size: 20px;
-}
-
-/* Doc Header */
-.prodoc-doc-header {
-  padding: 12px 0 20px;
-}
-
-.prodoc-doc-header__title {
-  margin: 0 0 12px 0;
-  font-size: 28px;
-  font-weight: 700;
-  letter-spacing: -0.5px;
-  color: var(--nm-text-primary);
-  line-height: 1.2;
-}
-
-@media (min-width: 768px) {
-  .prodoc-doc-header__title {
-    font-size: 32px;
-  }
-}
-
-@media (min-width: 1200px) {
-  .prodoc-doc-header__title {
-    font-size: 36px;
-    letter-spacing: -0.8px;
-  }
-}
-
-.prodoc-doc-header__meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-/* Content area: flex column so card fills available space */
-.prodoc-content {
-  display: flex;
-  flex-direction: column;
-}
-
-.prodoc-content-inner {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  margin: 0 auto;
-  padding: 24px 20px 64px;
-  max-width: 1200px;
-  width: 100%;
-}
-
-@media (min-width: 992px) {
-  .prodoc-content-inner {
-    padding: 32px 32px 72px;
-  }
-}
-
-@media (min-width: 1400px) {
-  .prodoc-content-inner {
-    padding: 40px 48px 80px;
-  }
-}
-
-.prodoc-content-card {
-  flex: 1;
-}
-
-/* Card padding controlled by noPadding prop */
-
-/* Doc Body */
-.prodoc-doc-body {
-  padding: 32px 28px;
-}
-
-@media (min-width: 768px) {
-  .prodoc-doc-body {
-    padding: 40px 36px;
-  }
-}
-
-@media (min-width: 1200px) {
-  .prodoc-doc-body {
-    padding: 48px 44px;
-  }
-}
-
-/* Empty state */
-.prodoc-empty-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  min-height: 400px;
-  padding: 48px;
-  text-align: center;
-  color: var(--nm-text-placeholder);
-}
-
-.prodoc-empty-icon-card {
-  width: 80px;
-  height: 80px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.prodoc-empty-icon {
-  font-size: 40px;
-}
-
-.prodoc-empty-content p {
-  margin: 0;
-  font-size: 15px;
 }
 </style>

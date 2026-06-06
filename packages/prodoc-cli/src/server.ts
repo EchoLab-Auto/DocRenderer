@@ -38,7 +38,7 @@ const DEFAULT_PORT = 3344;
 
 /** HTML 入口模板 — 完全内联，无需文件系统 */
 const INDEX_HTML = `<!DOCTYPE html>
-<html lang="zh-CN" data-theme="dark" style="background-color: #1c1c1c;">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -132,7 +132,7 @@ const docTree = buildDocTree(files);
 const app = createApp({
   render() {
     return h('div', { style: { height: '100vh', width: '100vw' } }, [
-      h(ThemeProvider, { defaultTheme: 'dark', followSystem: true }, {
+      h(ThemeProvider, { defaultTheme: 'auto', storageKey: 'prodoc-theme', followSystem: true }, {
         default: () => h(${componentName}, {
           root: docTree,
           ${eventProps.join(',\n          ')},
@@ -175,9 +175,9 @@ export async function startProDocServer(
     },
     resolve: {
       alias: [
-        { find: '@prodoc/core', replacement: resolvePkgDir('@prodoc/core') },
-        { find: '@prodoc/renderer', replacement: resolvePkgDir('@prodoc/renderer') },
-        { find: '@prodoc/editor', replacement: resolvePkgDir('@prodoc/editor') },
+        { find: '@prodoc/core', replacement: path.join(resolvePkgDir('@prodoc/core'), 'src', 'index.ts').replace(/\\/g, '/') },
+        { find: '@prodoc/renderer', replacement: path.join(resolvePkgDir('@prodoc/renderer'), 'src', 'index.ts').replace(/\\/g, '/') },
+        { find: '@prodoc/editor', replacement: path.join(resolvePkgDir('@prodoc/editor'), 'src', 'index.ts').replace(/\\/g, '/') },
       ],
     },
     plugins: [

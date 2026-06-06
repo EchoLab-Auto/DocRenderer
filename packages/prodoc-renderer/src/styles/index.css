@@ -3,21 +3,26 @@
    Powered by @echolab/ui-frame Neumorphism Design System
    ========================================== */
 
+/* Theme transition for all ProDoc elements */
+[class*="prodoc-"] {
+  transition: background-color var(--nm-transition-slow),
+              color var(--nm-transition-slow),
+              border-color var(--nm-transition-slow),
+              box-shadow var(--nm-transition-slow);
+}
+
 /* Scrollbar styling */
 .prodoc-doc-viewer .nm-layout__content::-webkit-scrollbar,
-.prodoc-sidebar-nav::-webkit-scrollbar,
 .prodoc-toc::-webkit-scrollbar {
   width: 5px;
 }
 
 .prodoc-doc-viewer .nm-layout__content::-webkit-scrollbar-track,
-.prodoc-sidebar-nav::-webkit-scrollbar-track,
 .prodoc-toc::-webkit-scrollbar-track {
   background: transparent;
 }
 
 .prodoc-doc-viewer .nm-layout__content::-webkit-scrollbar-thumb,
-.prodoc-sidebar-nav::-webkit-scrollbar-thumb,
 .prodoc-toc::-webkit-scrollbar-thumb {
   background: var(--nm-text-placeholder);
   border-radius: 3px;
@@ -25,7 +30,6 @@
 }
 
 .prodoc-doc-viewer .nm-layout__content::-webkit-scrollbar-thumb:hover,
-.prodoc-sidebar-nav::-webkit-scrollbar-thumb:hover,
 .prodoc-toc::-webkit-scrollbar-thumb:hover {
   background: var(--nm-text-secondary);
   opacity: 0.5;
@@ -37,38 +41,6 @@
 }
 
 /* Selection color */
-.prodoc-markdown-content ::selection,
-.prodoc-editor-textarea::selection {
+.prodoc-markdown-content ::selection {
   background-color: color-mix(in srgb, var(--nm-primary-color) 30%, transparent);
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .prodoc-layout .nm-layout__sider {
-    width: 260px !important;
-  }
-
-  .prodoc-content-inner {
-    padding: 16px !important;
-  }
-
-  .prodoc-doc-header__title {
-    font-size: 24px !important;
-  }
-
-  .prodoc-header-actions {
-    gap: 10px;
-  }
-
-  .prodoc-search-wrapper {
-    width: 160px;
-  }
-}
-
-/* Focus visible enhancements */
-.prodoc-markdown-content a:focus-visible,
-.prodoc-toc-item a:focus-visible {
-  outline: none;
-  border-radius: var(--nm-border-radius-sm);
-  box-shadow: 0 0 0 2px var(--nm-primary-color);
 }

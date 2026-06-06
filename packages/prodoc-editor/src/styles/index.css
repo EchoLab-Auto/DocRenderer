@@ -1,20 +1,25 @@
 /* ProDoc Editor Styles - powered by @echolab/ui-frame */
 
+/* Theme transition for all ProDoc elements */
+[class*="prodoc-"] {
+  transition: background-color var(--nm-transition-slow),
+              color var(--nm-transition-slow),
+              border-color var(--nm-transition-slow),
+              box-shadow var(--nm-transition-slow);
+}
+
 /* Scrollbar styling */
 .prodoc-doc-editor .nm-layout__content::-webkit-scrollbar,
-.prodoc-editor-panel .preview-card :deep(.nm-card__body)::-webkit-scrollbar,
 .prodoc-editor-textarea::-webkit-scrollbar {
   width: 5px;
 }
 
 .prodoc-doc-editor .nm-layout__content::-webkit-scrollbar-track,
-.prodoc-editor-panel .preview-card :deep(.nm-card__body)::-webkit-scrollbar-track,
 .prodoc-editor-textarea::-webkit-scrollbar-track {
   background: transparent;
 }
 
 .prodoc-doc-editor .nm-layout__content::-webkit-scrollbar-thumb,
-.prodoc-editor-panel .preview-card :deep(.nm-card__body)::-webkit-scrollbar-thumb,
 .prodoc-editor-textarea::-webkit-scrollbar-thumb {
   background: var(--nm-text-placeholder);
   border-radius: 3px;
@@ -22,13 +27,7 @@
 }
 
 .prodoc-doc-editor .nm-layout__content::-webkit-scrollbar-thumb:hover,
-.prodoc-editor-panel .preview-card :deep(.nm-card__body)::-webkit-scrollbar-thumb:hover,
 .prodoc-editor-textarea::-webkit-scrollbar-thumb:hover {
   background: var(--nm-text-secondary);
   opacity: 0.5;
-}
-
-/* Focus states */
-.prodoc-editor-textarea:focus {
-  box-shadow: none;
 }

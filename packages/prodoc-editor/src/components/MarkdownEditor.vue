@@ -2,21 +2,14 @@
 import { ref, computed } from 'vue'
 import { MarkdownRenderer } from '@prodoc/renderer'
 import {
-  NeumorphismButton,
+  NeumorphismTabs,
   NeumorphismCard,
-  NeumorphismRow,
-  NeumorphismCol,
-  NeumorphismTooltip,
   NeumorphismTextarea,
 } from '@echolab/ui-frame'
 
 export interface MarkdownEditorProps {
   /** Markdown 内容 */
   value: string
-  /** 内容变化回调 */
-  onChange?: (value: string) => void
-  /** 文档链接点击回调 */
-  onDocLink?: (path: string) => void
   /** 自定义样式类名 */
   className?: string
 }
@@ -36,10 +29,10 @@ function handleDocLink(path: string) {
   emit('docLink', path)
 }
 
-const modeButtons = [
-  { key: 'edit' as const, label: '✏️ 编辑', tip: '纯编辑模式' },
-  { key: 'split' as const, label: '⬌ 分栏', tip: '左右分栏预览' },
-  { key: 'preview' as const, label: '👁 预览', tip: '纯预览模式' },
+const tabs = [
+  { key: 'edit', label: '✏️ 编辑' },
+  { key: 'split', label: '⬌ 分栏' },
+  { key: 'preview', label: '👁 预览' },
 ]
 
 /** 内容字数统计 */
@@ -51,26 +44,13 @@ const lineCount = computed(() => props.value.split('\n').length)
   <div :class="`prodoc-markdown-editor ${props.className}`">
     <!-- Mode toolbar -->
     <div class="prodoc-editor-toolbar">
-      <div class="prodoc-editor-toolbar__left">
-        <NeumorphismRow :gutter="4" class="mode-row">
-          <NeumorphismCol v-for="btn in modeButtons" :key="btn.key" :span="8">
-            <NeumorphismTooltip :content="btn.tip" position="bottom">
-              <NeumorphismButton
-                :variant="mode === btn.key ? 'raised' : 'flat'"
-                size="small"
-                class="mode-btn"
-                @click="mode = btn.key"
-              >
-                {{ btn.label }}
-              </NeumorphismButton>
-            </NeumorphismTooltip>
-          </NeumorphismCol>
-        </NeumorphismRow>
-      </div>
-
-      <div class="prodoc-editor-toolbar__right">
-        <span class="editor-stat">{{ lineCount }} 行 · {{ charCount }} 字</span>
-      </div>
+      <NeumorphismTabs
+        v-model="mode"
+        :tabs="tabs"
+        size="small"
+        style="max-width: 280px;"
+      />
+      <span class="editor-stat">{{ lineCount }} 行 · {{ charCount }} 字</span>
     </div>
 
     <!-- Editor panels -->
@@ -87,7 +67,7 @@ const lineCount = computed(() => props.value.split('\n').length)
             placeholder="在此输入 Markdown..."
             :auto-resize="false"
             :show-count="false"
-            @update:model-value="(v) => emit('change', v)"
+            @update:model-value="(v: string) => emit('change', v)"
           />
         </NeumorphismCard>
       </div>
@@ -127,28 +107,10 @@ const lineCount = computed(() => props.value.split('\n').length)
   border-bottom: 1px solid rgba(128, 128, 128, 0.12);
 }
 
-.prodoc-editor-toolbar__left {
-  flex: 1;
-  max-width: 320px;
-}
-
-.prodoc-editor-toolbar__right {
-  display: flex;
-  align-items: center;
-}
-
 .editor-stat {
   font-size: 12px;
   color: var(--nm-text-placeholder);
   font-family: 'SF Mono', Monaco, monospace;
-}
-
-.mode-row {
-  margin: 0 !important;
-}
-
-.mode-btn {
-  width: 100%;
 }
 
 .prodoc-editor-panels {
@@ -218,10 +180,6 @@ const lineCount = computed(() => props.value.split('\n').length)
   .prodoc-editor-toolbar {
     flex-wrap: wrap;
     gap: 8px;
-  }
-
-  .prodoc-editor-toolbar__left {
-    max-width: 100%;
   }
 }
 </style>

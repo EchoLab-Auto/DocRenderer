@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import type { Theme } from '@echolab/ui-frame'
 import type { ProDocNode } from '@prodoc/core'
 import { nodeToTreeData } from '@prodoc/core'
 import type { TreeNodeData } from '@echolab/ui-frame'
@@ -11,7 +12,7 @@ import {
   NeumorphismTree,
   NeumorphismDivider,
   NeumorphismTag,
-  NeumorphismTooltip,
+  NeumorphismContainer,
   useTheme,
 } from '@echolab/ui-frame'
 import MarkdownEditor from './MarkdownEditor.vue'
@@ -21,10 +22,6 @@ export interface DocEditorProps {
   root: ProDocNode
   /** 初始选中的文档路径 */
   initialPath?: string
-  /** 保存回调 */
-  onSave?: (path: string, content: string) => void
-  /** 文档链接点击回调 */
-  onDocLink?: (path: string) => void
   /** 自定义样式类名 */
   className?: string
 }
@@ -42,7 +39,11 @@ const selectedPath = ref(props.initialPath ?? '')
 const editedContent = ref<Record<string, string>>({})
 const expandedKeys = ref<string[]>([])
 
-const { setTheme } = useTheme()
+const { theme, setTheme } = useTheme()
+const themeModel = computed<Theme>({
+  get: () => theme.value,
+  set: (val) => setTheme(val),
+})
 
 const treeData = computed(() => props.root.children.map(nodeToTreeData) as TreeNodeData[])
 
@@ -116,22 +117,18 @@ function handleKeyDown(e: KeyboardEvent) {
       show-sider
       :sider-width="280"
       collapsible
-      class="prodoc-editor-layout"
     >
       <!-- Header -->
       <template #header-left>
-        <div class="prodoc-editor-brand">
-          <span class="prodoc-editor-brand__logo">📝</span>
-          <span class="prodoc-editor-brand__title">ProDoc Editor</span>
-        </div>
+        <span style="font-weight: 700; font-size: 17px;">📝 ProDoc Editor</span>
       </template>
 
       <template #header-center>
-        <NeumorphismThemeToggle size="small" @change="setTheme" />
+        <NeumorphismThemeToggle v-model="themeModel" size="small" />
       </template>
 
       <template #header-right>
-        <div class="prodoc-editor-actions">
+        <div style="display: flex; align-items: center; gap: 14px;">
           <NeumorphismTag
             v-if="hasChanges"
             variant="warning"
@@ -139,22 +136,20 @@ function handleKeyDown(e: KeyboardEvent) {
           >
             未保存
           </NeumorphismTag>
-          <NeumorphismTooltip content="保存 (Ctrl+S)" position="bottom">
-            <NeumorphismButton
-              variant="raised"
-              size="small"
-              :disabled="!hasChanges"
-              @click="handleSave"
-            >
-              💾 保存
-            </NeumorphismButton>
-          </NeumorphismTooltip>
+          <NeumorphismButton
+            variant="raised"
+            size="small"
+            :disabled="!hasChanges"
+            @click="handleSave"
+          >
+            💾 保存
+          </NeumorphismButton>
         </div>
       </template>
 
       <!-- Sider -->
       <template #sider="{ collapsed }">
-        <div v-if="!collapsed" class="prodoc-editor-sider">
+        <div v-if="!collapsed" style="padding: 12px;">
           <NeumorphismTree
             :data="treeData"
             v-model:selected-keys="selectedKeys"
@@ -164,18 +159,18 @@ function handleKeyDown(e: KeyboardEvent) {
             @node-select="handleTreeSelect"
           />
         </div>
-        <div v-else class="prodoc-editor-sider--collapsed">📝</div>
+        <div v-else style="display: flex; align-items: center; justify-content: center; height: 100%; padding-top: 16px; font-size: 20px;">📝</div>
       </template>
 
       <!-- Main editing area -->
       <template #default>
-        <main class="prodoc-editor-content">
-          <NeumorphismCard :elevation="-3" no-padding class="prodoc-editor-content-card">
-            <div v-if="displayNode" class="prodoc-editor-workspace">
-              <header class="prodoc-editor-doc-header">
-                <div class="prodoc-editor-doc-header__main">
-                  <h1 class="prodoc-editor-doc-header__title">{{ displayNode.title }}</h1>
-                  <div class="prodoc-editor-doc-header__meta">
+        <NeumorphismContainer no-padding style="padding: 20px;">
+          <NeumorphismCard :elevation="-3" no-padding style="height: 100%;">
+            <div v-if="displayNode" style="display: flex; flex-direction: column; height: 100%;">
+              <header style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 20px 24px 16px;">
+                <div>
+                  <h1 style="margin: 0 0 10px; font-size: 22px; font-weight: 700; color: var(--nm-text-primary);">{{ displayNode.title }}</h1>
+                  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                     <NeumorphismTag
                       v-if="displayNode.path"
                       variant="primary"
@@ -193,23 +188,19 @@ function handleKeyDown(e: KeyboardEvent) {
                     </NeumorphismTag>
                   </div>
                 </div>
-                <div class="prodoc-editor-doc-header__actions">
-                  <NeumorphismTooltip content="保存 (Ctrl+S)" position="bottom">
-                    <NeumorphismButton
-                      variant="raised"
-                      size="small"
-                      :disabled="!hasChanges"
-                      @click="handleSave"
-                    >
-                      💾 保存
-                    </NeumorphismButton>
-                  </NeumorphismTooltip>
-                </div>
+                <NeumorphismButton
+                  variant="raised"
+                  size="small"
+                  :disabled="!hasChanges"
+                  @click="handleSave"
+                >
+                  💾 保存
+                </NeumorphismButton>
               </header>
 
               <NeumorphismDivider />
 
-              <div class="prodoc-editor-body">
+              <div style="flex: 1; overflow: hidden; display: flex; flex-direction: column; min-height: 0;">
                 <MarkdownEditor
                   :value="getCurrentContent(displayNode)"
                   @change="handleContentChange"
@@ -218,9 +209,9 @@ function handleKeyDown(e: KeyboardEvent) {
               </div>
             </div>
 
-            <div v-else class="prodoc-editor-empty__content">
-              <NeumorphismCard :elevation="2" hoverable="bulge" class="prodoc-empty-icon-card">
-                <span class="prodoc-editor-empty__icon">📂</span>
+            <div v-else style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; min-height: 400px; text-align: center; color: var(--nm-text-placeholder);">
+              <NeumorphismCard :elevation="2" hoverable="bulge" style="width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;">
+                <span style="font-size: 40px;">📂</span>
               </NeumorphismCard>
               <p>请从左侧选择一篇文档进行编辑</p>
               <NeumorphismButton
@@ -232,7 +223,7 @@ function handleKeyDown(e: KeyboardEvent) {
               </NeumorphismButton>
             </div>
           </NeumorphismCard>
-        </main>
+        </NeumorphismContainer>
       </template>
     </NeumorphismLayout>
   </div>
@@ -243,153 +234,5 @@ function handleKeyDown(e: KeyboardEvent) {
   height: 100vh;
   width: 100vw;
   overflow: hidden;
-  background-color: var(--nm-bg-color);
-  color: var(--nm-text-primary);
-}
-
-/* Layout */
-.prodoc-editor-layout {
-  background-color: var(--nm-bg-color);
-}
-
-.prodoc-editor-layout :deep(.nm-layout__content) {
-  overflow-y: auto;
-}
-
-/* Brand */
-.prodoc-editor-brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.prodoc-editor-brand__logo {
-  font-size: 22px;
-  line-height: 1;
-}
-
-.prodoc-editor-brand__title {
-  font-size: 17px;
-  font-weight: 700;
-  letter-spacing: -0.3px;
-  color: var(--nm-text-primary);
-}
-
-/* Header actions */
-.prodoc-editor-actions {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-/* Sider: 极简样式，由 ui-frame Tree 处理内部搜索和外观 */
-.prodoc-editor-sider {
-  padding: 12px;
-}
-
-.prodoc-editor-sider--collapsed {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  padding-top: 16px;
-  font-size: 20px;
-}
-
-/* Content */
-.prodoc-editor-content {
-  display: flex;
-  flex-direction: column;
-  padding: 20px;
-}
-
-@media (min-width: 992px) {
-  .prodoc-editor-content {
-    padding: 28px 32px 40px;
-  }
-}
-
-.prodoc-editor-content-card {
-  flex: 1;
-}
-
-/* Card padding controlled by noPadding prop */
-
-.prodoc-editor-workspace {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-/* Doc header */
-.prodoc-editor-doc-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  padding: 20px 24px 16px;
-}
-
-.prodoc-editor-doc-header__title {
-  margin: 0 0 10px 0;
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--nm-text-primary);
-  letter-spacing: -0.3px;
-}
-
-.prodoc-editor-doc-header__meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.prodoc-editor-doc-header__actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-}
-
-/* Editor body */
-.prodoc-editor-body {
-  flex: 1;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-/* Empty state */
-.prodoc-editor-empty__content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  min-height: 400px;
-  padding: 48px;
-  text-align: center;
-  color: var(--nm-text-placeholder);
-}
-
-.prodoc-empty-icon-card {
-  width: 80px;
-  height: 80px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.prodoc-editor-empty__icon {
-  font-size: 40px;
-}
-
-.prodoc-editor-empty__content p {
-  margin: 0;
-  font-size: 15px;
 }
 </style>

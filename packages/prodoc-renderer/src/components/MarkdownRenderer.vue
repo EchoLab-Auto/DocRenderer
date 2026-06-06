@@ -1,20 +1,14 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted, onUpdated, onBeforeUnmount, h, render } from 'vue'
+import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue'
 import { marked } from 'marked'
-import { parseFlowDsl, type FlowGraph } from '@prodoc/core'
 import {
   NeumorphismCard,
-  NeumorphismButton,
-  NeumorphismTooltip,
   NeumorphismBadge,
 } from '@echolab/ui-frame'
-import FlowRenderer from './FlowRenderer.vue'
 
 export interface MarkdownRendererProps {
   /** Markdown 内容 */
   content: string
-  /** 点击文档链接时的回调 */
-  onDocLink?: (path: string) => void
   /** 自定义样式类名 */
   className?: string
   /** 是否显示目录 */
@@ -86,71 +80,8 @@ function extractToc(content: string): { level: number; text: string; id: string 
   return headings
 }
 
-/** 流程图 placeholder 状态 */
-const flowBlocks = ref<{ id: string; graph: FlowGraph }[]>([])
-const flowVnodeMap = new Map<string, ReturnType<typeof h>>()
-
-/** 将 FlowRenderer 渲染到对应的 placeholder 位置 */
-function mountFlowBlocks() {
-  nextTick(() => {
-    const container = contentRef.value
-    if (!container) return
-
-    // 清理已不存在 placeholder 的 vnode
-    const existingIds = new Set<string>()
-    flowBlocks.value.forEach((block) => {
-      const placeholder = container.querySelector(`[data-flow-id="${block.id}"]`)
-      if (placeholder) existingIds.add(block.id)
-    })
-    flowVnodeMap.forEach((vnode, id) => {
-      if (!existingIds.has(id)) {
-        flowVnodeMap.delete(id)
-      }
-    })
-
-    // 渲染/更新每个 flow block
-    flowBlocks.value.forEach((block) => {
-      const placeholder = container.querySelector(`[data-flow-id="${block.id}"]`)
-      if (!placeholder) return
-
-      placeholder.innerHTML = ''
-      const vnode = h(FlowRenderer, {
-        graph: block.graph,
-        className: 'prodoc-flow-block',
-        onNodeClick: (node: any) => {
-          if (node.docPath) emit('docLink', node.docPath)
-        },
-      })
-      flowVnodeMap.set(block.id, vnode)
-      render(vnode, placeholder as HTMLElement)
-    })
-  })
-}
-
-onMounted(mountFlowBlocks)
-onUpdated(mountFlowBlocks)
-
 /** 渲染后的 HTML */
 const renderedHtml = computed(() => {
-  const blocks: { id: string; graph: FlowGraph }[] = []
-  let flowCounter = 0
-
-  const processedContent = props.content.replace(
-    /```prodoc-flow\n([\s\S]*?)\n```/g,
-    (_match, dsl: string) => {
-      const id = `prodoc-flow-${flowCounter++}`
-      try {
-        const graph = parseFlowDsl(dsl)
-        blocks.push({ id, graph })
-        return `<div class="prodoc-flow-placeholder" data-flow-id="${id}"></div>`
-      } catch {
-        return `<pre><code>Invalid flow DSL:\n${escapeHtml(dsl)}</code></pre>`
-      }
-    }
-  )
-
-  flowBlocks.value = blocks
-
   const renderer = new marked.Renderer()
   renderer.heading = ({ tokens, depth }) => {
     const text = extractTextFromTokens(tokens)
@@ -196,7 +127,7 @@ const renderedHtml = computed(() => {
     return `<li>${text}</li>`
   }
 
-  return marked.parse(processedContent, {
+  return marked.parse(props.content, {
     async: false,
     gfm: true,
     breaks: false,
@@ -259,11 +190,6 @@ watch(contentRef, (el) => {
 // 卸载时清理
 onBeforeUnmount(() => {
   scrollContainer?.removeEventListener('scroll', handleScroll)
-  flowVnodeMap.forEach((vnode, id) => {
-    const placeholder = document.querySelector(`[data-flow-id="${id}"]`)
-    if (placeholder) render(null, placeholder as HTMLElement)
-  })
-  flowVnodeMap.clear()
 })
 </script>
 
@@ -274,7 +200,7 @@ onBeforeUnmount(() => {
       <NeumorphismCard :elevation="-2" no-padding class="prodoc-toc-card">
         <div class="prodoc-toc-header">
           <span>📑 目录</span>
-          <NeumorphismBadge :value="toc.length" size="small" />
+          <NeumorphismBadge :value="toc.length" />
         </div>
         <ul class="prodoc-toc-list">
           <li
@@ -708,18 +634,6 @@ onBeforeUnmount(() => {
 .prodoc-markdown-content s {
   color: var(--nm-text-placeholder);
   text-decoration-color: var(--nm-text-secondary);
-}
-
-/* Flow block spacing */
-.prodoc-flow-placeholder {
-  margin: 24px 0;
-  min-height: 420px;
-  border-radius: var(--nm-border-radius-lg);
-  overflow: hidden;
-}
-
-.prodoc-flow-block {
-  margin: 24px 0;
 }
 
 @media (max-width: 1100px) {
