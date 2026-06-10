@@ -1,11 +1,17 @@
 /* ProDoc Editor Styles - powered by @echolab/ui-frame */
 
-/* Theme transition for all ProDoc elements */
-[class*="prodoc-"] {
+/* Theme transitions for editor elements */
+.prodoc-doc-editor,
+.prodoc-markdown-editor,
+.prodoc-editor-toolbar,
+.prodoc-editor-panels,
+.prodoc-editor-panel,
+.edit-card,
+.preview-card,
+.prodoc-editor-textarea {
   transition: background-color var(--nm-transition-slow),
               color var(--nm-transition-slow),
-              border-color var(--nm-transition-slow),
-              box-shadow var(--nm-transition-slow);
+              border-color var(--nm-transition-slow);
 }
 
 /* Scrollbar styling */
@@ -21,13 +27,11 @@
 
 .prodoc-doc-editor .nm-layout__content::-webkit-scrollbar-thumb,
 .prodoc-editor-textarea::-webkit-scrollbar-thumb {
-  background: var(--nm-text-placeholder);
+  background: color-mix(in srgb, var(--nm-text-placeholder) 25%, transparent);
   border-radius: 3px;
-  opacity: 0.25;
 }
 
 .prodoc-doc-editor .nm-layout__content::-webkit-scrollbar-thumb:hover,
 .prodoc-editor-textarea::-webkit-scrollbar-thumb:hover {
-  background: var(--nm-text-secondary);
-  opacity: 0.5;
+  background: color-mix(in srgb, var(--nm-text-secondary) 40%, transparent);
 }

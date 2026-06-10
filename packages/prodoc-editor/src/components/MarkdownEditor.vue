@@ -48,7 +48,7 @@ const lineCount = computed(() => props.value.split('\n').length)
         v-model="mode"
         :tabs="tabs"
         size="small"
-        style="max-width: 280px;"
+        class="prodoc-editor-mode-tabs"
       />
       <span class="editor-stat">{{ lineCount }} 行 · {{ charCount }} 字</span>
     </div>
@@ -104,7 +104,11 @@ const lineCount = computed(() => props.value.split('\n').length)
   padding: 10px 16px;
   flex-shrink: 0;
   background-color: var(--nm-surface-color);
-  border-bottom: 1px solid rgba(128, 128, 128, 0.12);
+  border-bottom: 1px solid var(--pd-border-subtle);
+}
+
+.prodoc-editor-mode-tabs {
+  max-width: 280px;
 }
 
 .editor-stat {

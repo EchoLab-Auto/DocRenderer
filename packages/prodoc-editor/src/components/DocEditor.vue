@@ -120,7 +120,7 @@ function handleKeyDown(e: KeyboardEvent) {
     >
       <!-- Header -->
       <template #header-left>
-        <span style="font-weight: 700; font-size: 17px;">📝 ProDoc Editor</span>
+        <span class="prodoc-editor-brand">📝 ProDoc Editor</span>
       </template>
 
       <template #header-center>
@@ -128,7 +128,7 @@ function handleKeyDown(e: KeyboardEvent) {
       </template>
 
       <template #header-right>
-        <div style="display: flex; align-items: center; gap: 14px;">
+        <div class="prodoc-editor-actions">
           <NeumorphismTag
             v-if="hasChanges"
             variant="warning"
@@ -149,7 +149,7 @@ function handleKeyDown(e: KeyboardEvent) {
 
       <!-- Sider -->
       <template #sider="{ collapsed }">
-        <div v-if="!collapsed" style="padding: 12px;">
+        <div v-if="!collapsed" class="prodoc-editor-sider">
           <NeumorphismTree
             :data="treeData"
             v-model:selected-keys="selectedKeys"
@@ -159,18 +159,18 @@ function handleKeyDown(e: KeyboardEvent) {
             @node-select="handleTreeSelect"
           />
         </div>
-        <div v-else style="display: flex; align-items: center; justify-content: center; height: 100%; padding-top: 16px; font-size: 20px;">📝</div>
+        <div v-else class="prodoc-editor-sider-collapsed">📝</div>
       </template>
 
       <!-- Main editing area -->
       <template #default>
-        <NeumorphismContainer no-padding style="padding: 20px;">
-          <NeumorphismCard :elevation="-3" no-padding style="height: 100%;">
-            <div v-if="displayNode" style="display: flex; flex-direction: column; height: 100%;">
-              <header style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 20px 24px 16px;">
+        <NeumorphismContainer no-padding class="prodoc-editor-container">
+          <NeumorphismCard :elevation="-3" no-padding class="prodoc-editor-card">
+            <div v-if="displayNode" class="prodoc-editor-layout">
+              <header class="prodoc-editor-header">
                 <div>
-                  <h1 style="margin: 0 0 10px; font-size: 22px; font-weight: 700; color: var(--nm-text-primary);">{{ displayNode.title }}</h1>
-                  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                  <h1 class="prodoc-editor-title">{{ displayNode.title }}</h1>
+                  <div class="prodoc-editor-meta">
                     <NeumorphismTag
                       v-if="displayNode.path"
                       variant="primary"
@@ -200,7 +200,7 @@ function handleKeyDown(e: KeyboardEvent) {
 
               <NeumorphismDivider />
 
-              <div style="flex: 1; overflow: hidden; display: flex; flex-direction: column; min-height: 0;">
+              <div class="prodoc-editor-body">
                 <MarkdownEditor
                   :value="getCurrentContent(displayNode)"
                   @change="handleContentChange"
@@ -209,9 +209,9 @@ function handleKeyDown(e: KeyboardEvent) {
               </div>
             </div>
 
-            <div v-else style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; min-height: 400px; text-align: center; color: var(--nm-text-placeholder);">
-              <NeumorphismCard :elevation="2" hoverable="bulge" style="width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;">
-                <span style="font-size: 40px;">📂</span>
+            <div v-else class="prodoc-editor-empty">
+              <NeumorphismCard :elevation="2" hoverable="bulge" class="prodoc-editor-empty-icon">
+                <span class="prodoc-editor-empty-emoji">📂</span>
               </NeumorphismCard>
               <p>请从左侧选择一篇文档进行编辑</p>
               <NeumorphismButton
@@ -234,5 +234,119 @@ function handleKeyDown(e: KeyboardEvent) {
   height: 100vh;
   width: 100vw;
   overflow: hidden;
+}
+
+/* Header */
+.prodoc-editor-brand {
+  font-weight: 700;
+  font-size: 17px;
+}
+
+.prodoc-editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* Sider */
+.prodoc-editor-sider {
+  padding: 12px;
+}
+
+.prodoc-editor-sider-collapsed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding-top: 16px;
+  font-size: 20px;
+}
+
+/* Main Container */
+.prodoc-editor-container {
+  padding: 20px;
+}
+
+.prodoc-editor-card {
+  height: 100%;
+}
+
+/* Editor Layout */
+.prodoc-editor-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Editor Header */
+.prodoc-editor-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 20px 24px 16px;
+}
+
+.prodoc-editor-title {
+  margin: 0 0 10px;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--nm-text-primary);
+}
+
+.prodoc-editor-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Editor Body */
+.prodoc-editor-body {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Empty State */
+.prodoc-editor-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 400px;
+  text-align: center;
+  color: var(--nm-text-placeholder);
+}
+
+.prodoc-editor-empty-icon {
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.prodoc-editor-empty-emoji {
+  font-size: 40px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .prodoc-editor-container {
+    padding: 12px;
+  }
+
+  .prodoc-editor-header {
+    padding: 16px;
+  }
+
+  .prodoc-editor-title {
+    font-size: 20px;
+  }
 }
 </style>

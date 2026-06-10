@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "skills": {
+    "before-develop": {
+      "source": "EchoLab-Auto/skill-before-develop",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "cf0a29c61bd1e4573b13a9f409ba1b99694535d07b034fa41170591b621e7f56"
+    },
+    "language-standards": {
+      "source": "EchoLab-Auto/skill-language-standards",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "9a250b872f4d0f344bf25f2829d7e5134e3163bb901bdb5dc87117ca0a0125aa"
+    }
+  }
+}

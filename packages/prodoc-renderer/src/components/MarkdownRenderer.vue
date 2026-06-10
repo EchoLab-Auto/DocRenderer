@@ -26,6 +26,7 @@ const emit = defineEmits<{
 
 const contentRef = ref<HTMLDivElement | null>(null)
 const activeHeading = ref('')
+const showMobileToc = ref(false)
 
 /** 简易代码高亮 */
 function highlightCode(code: string, lang?: string): string {
@@ -112,6 +113,9 @@ const renderedHtml = computed(() => {
   renderer.codespan = ({ text }) => {
     return `<code class="inline-code">${escapeHtml(text)}</code>`
   }
+  renderer.image = ({ href, title, text }) => {
+    return `<img src="${href}" alt="${text}" title="${title || ''}" loading="lazy" />`
+  }
   renderer.listitem = ({ text, task, checked }) => {
     if (task) {
       return `
@@ -141,6 +145,12 @@ const toc = computed(() => extractToc(props.content))
 /** 滚动到指定 heading */
 function scrollToHeading(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+}
+
+/** 滚动到指定 heading 并关闭移动端 TOC */
+function scrollToHeadingAndClose(id: string) {
+  scrollToHeading(id)
+  showMobileToc.value = false
 }
 
 /** 处理点击事件（拦截文档链接） */
@@ -195,27 +205,6 @@ onBeforeUnmount(() => {
 
 <template>
   <div :class="`prodoc-markdown ${props.className}`">
-    <!-- 目录侧边栏 -->
-    <nav v-if="showToc && toc.length > 0" class="prodoc-toc">
-      <NeumorphismCard :elevation="-2" no-padding class="prodoc-toc-card">
-        <div class="prodoc-toc-header">
-          <span>📑 目录</span>
-          <NeumorphismBadge :value="toc.length" />
-        </div>
-        <ul class="prodoc-toc-list">
-          <li
-            v-for="item in toc"
-            :key="item.id"
-            :class="`prodoc-toc-item level-${item.level} ${activeHeading === item.id ? 'active' : ''}`"
-          >
-            <a href="#" @click.prevent="scrollToHeading(item.id)">
-              {{ item.text }}
-            </a>
-          </li>
-        </ul>
-      </NeumorphismCard>
-    </nav>
-
     <!-- Markdown 内容 -->
     <div class="prodoc-markdown-body">
       <div
@@ -225,6 +214,79 @@ onBeforeUnmount(() => {
         @click="handleClick"
       />
     </div>
+
+    <!-- 目录侧边栏（桌面端） -->
+    <nav v-if="showToc && toc.length > 0" class="prodoc-toc" aria-label="文档目录">
+      <NeumorphismCard :elevation="-2" no-padding class="prodoc-toc-card">
+        <div class="prodoc-toc-header">
+          <span>📑 目录</span>
+          <NeumorphismBadge :value="toc.length" />
+        </div>
+        <ul class="prodoc-toc-list" role="list">
+          <li
+            v-for="item in toc"
+            :key="item.id"
+            :class="`prodoc-toc-item level-${item.level} ${activeHeading === item.id ? 'active' : ''}`"
+            role="listitem"
+          >
+            <a
+              href="#"
+              role="button"
+              :aria-current="activeHeading === item.id ? 'location' : undefined"
+              @click.prevent="scrollToHeading(item.id)"
+            >
+              {{ item.text }}
+            </a>
+          </li>
+        </ul>
+      </NeumorphismCard>
+    </nav>
+
+    <!-- 移动端 TOC 浮动按钮 -->
+    <button
+      v-if="showToc && toc.length > 0"
+      class="prodoc-toc-mobile-btn"
+      :class="{ active: showMobileToc }"
+      aria-label="切换目录"
+      @click="showMobileToc = !showMobileToc"
+    >
+      📑
+    </button>
+
+    <!-- 移动端 TOC 面板 -->
+    <Transition name="prodoc-toc-drawer">
+      <div
+        v-if="showToc && toc.length > 0 && showMobileToc"
+        class="prodoc-toc-mobile-overlay"
+        @click.self="showMobileToc = false"
+      >
+        <NeumorphismCard :elevation="0" class="prodoc-toc-mobile-panel">
+          <div class="prodoc-toc-mobile-header">
+            <span class="prodoc-toc-mobile-title">📑 目录</span>
+            <button class="prodoc-toc-mobile-close" aria-label="关闭目录" @click="showMobileToc = false">
+              ✕
+            </button>
+          </div>
+          <ul class="prodoc-toc-list" role="list">
+            <li
+              v-for="item in toc"
+              :key="item.id"
+              :class="`prodoc-toc-item level-${item.level} ${activeHeading === item.id ? 'active' : ''}`"
+              role="listitem"
+            >
+              <a
+                href="#"
+                role="button"
+                :aria-current="activeHeading === item.id ? 'location' : undefined"
+                @click.prevent="scrollToHeadingAndClose(item.id)"
+              >
+                {{ item.text }}
+              </a>
+            </li>
+          </ul>
+        </NeumorphismCard>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -263,7 +325,7 @@ onBeforeUnmount(() => {
   color: var(--nm-text-placeholder);
   text-transform: uppercase;
   letter-spacing: 1px;
-  border-bottom: 1px solid rgba(128, 128, 128, 0.12);
+  border-bottom: 1px solid var(--pd-border-subtle);
   margin-bottom: 8px;
 }
 
@@ -279,28 +341,28 @@ onBeforeUnmount(() => {
   font-size: 13px;
   color: var(--nm-text-secondary);
   text-decoration: none;
-  border-left: 2px solid transparent;
-  transition: all 0.2s ease;
+  border-right: 2px solid transparent;
+  transition: color 0.2s ease, border-right-color 0.2s ease, background-color 0.2s ease;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.prodoc-toc-item.level-1 a { padding-left: 16px; }
-.prodoc-toc-item.level-2 a { padding-left: 24px; }
-.prodoc-toc-item.level-3 a { padding-left: 32px; }
-.prodoc-toc-item.level-4 a { padding-left: 40px; }
-.prodoc-toc-item.level-5 a { padding-left: 48px; }
-.prodoc-toc-item.level-6 a { padding-left: 56px; }
+.prodoc-toc-item.level-1 a { padding-right: 16px; }
+.prodoc-toc-item.level-2 a { padding-right: 24px; }
+.prodoc-toc-item.level-3 a { padding-right: 32px; }
+.prodoc-toc-item.level-4 a { padding-right: 40px; }
+.prodoc-toc-item.level-5 a { padding-right: 48px; }
+.prodoc-toc-item.level-6 a { padding-right: 56px; }
 
 .prodoc-toc-item a:hover {
   color: var(--nm-primary-color);
-  border-left-color: color-mix(in srgb, var(--nm-primary-color) 15%, transparent);
+  border-right-color: color-mix(in srgb, var(--nm-primary-color) 15%, transparent);
 }
 
 .prodoc-toc-item.active a {
   color: var(--nm-primary-color);
-  border-left-color: var(--nm-primary-color);
+  border-right-color: var(--nm-primary-color);
   background: color-mix(in srgb, var(--nm-primary-color) 12%, transparent);
 }
 
@@ -335,7 +397,7 @@ onBeforeUnmount(() => {
 
 .heading-anchor {
   position: absolute;
-  left: -22px;
+  right: -22px;
   top: 50%;
   transform: translateY(-50%);
   color: var(--nm-text-placeholder);
@@ -404,7 +466,10 @@ onBeforeUnmount(() => {
 }
 
 .task-checkbox input {
-  display: none;
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
 }
 
 .checkmark {
@@ -416,8 +481,8 @@ onBeforeUnmount(() => {
   border-radius: var(--nm-border-radius-sm);
   flex-shrink: 0;
   background-color: var(--nm-surface-color);
-  border: 1px solid rgba(128, 128, 128, 0.15);
-  transition: all 0.2s ease;
+  border: 1px solid var(--pd-border-medium);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .task-checkbox input:checked + .checkmark {
@@ -454,9 +519,9 @@ onBeforeUnmount(() => {
   padding: 3px 8px;
   border-radius: var(--nm-border-radius-sm);
   font-size: 0.88em;
-  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-family: var(--pd-font-mono);
   color: var(--nm-primary-color);
-  border: 1px solid rgba(128, 128, 128, 0.1);
+  border: 1px solid var(--pd-border-subtle);
 }
 
 .code-block-wrapper {
@@ -464,7 +529,7 @@ onBeforeUnmount(() => {
   border-radius: var(--nm-border-radius-lg);
   overflow: hidden;
   background-color: var(--nm-surface-color);
-  border: 1px solid rgba(128, 128, 128, 0.1);
+  border: 1px solid var(--pd-border-subtle);
 }
 
 .code-block-header {
@@ -472,7 +537,7 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   padding: 10px 20px;
-  border-bottom: 1px solid rgba(128, 128, 128, 0.12);
+  border-bottom: 1px solid var(--pd-border-subtle);
 }
 
 .code-lang {
@@ -481,13 +546,13 @@ onBeforeUnmount(() => {
   color: var(--nm-primary-color);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  font-family: 'SF Mono', Monaco, monospace;
+  font-family: var(--pd-font-mono);
 }
 
 .code-lines {
   font-size: 11px;
   color: var(--nm-text-placeholder);
-  font-family: 'SF Mono', Monaco, monospace;
+  font-family: var(--pd-font-mono);
   margin-left: auto;
   margin-right: 12px;
 }
@@ -501,11 +566,16 @@ onBeforeUnmount(() => {
   color: var(--nm-text-secondary);
   background-color: var(--nm-surface-color);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: color 0.2s ease, background-color 0.2s ease;
 }
 
 .code-copy-btn:hover {
   color: var(--nm-primary-color);
+}
+
+.code-copy-btn.copied {
+  background-color: var(--nm-primary-color);
+  color: #fff;
 }
 
 .code-block-body {
@@ -519,14 +589,14 @@ onBeforeUnmount(() => {
   padding: 14px 0 14px 14px;
   flex-shrink: 0;
   user-select: none;
-  border-right: 1px solid rgba(128, 128, 128, 0.12);
+  border-right: 1px solid var(--pd-border-subtle);
 }
 
 .line-num {
   font-size: 12px;
   line-height: 1.65;
   color: var(--nm-text-placeholder);
-  font-family: 'SF Mono', Monaco, monospace;
+  font-family: var(--pd-font-mono);
   text-align: right;
   padding-right: 14px;
   min-width: 28px;
@@ -545,20 +615,20 @@ onBeforeUnmount(() => {
   display: block;
   font-size: 13px;
   line-height: 1.65;
-  font-family: 'SF Mono', 'Cascadia Code', monospace;
+  font-family: var(--pd-font-mono);
   background: transparent;
   padding: 0;
   box-shadow: none;
 }
 
-.token-comment { color: #6a9955; font-style: italic; }
-.token-string { color: #ce9178; }
-.token-keyword { color: #569cd6; font-weight: 600; }
-.token-function { color: #dcdcaa; }
-.token-number { color: #b5cea8; }
-.token-type { color: #4ec9b0; }
-.token-operator { color: #d4d4d4; }
-.token-punctuation { color: #808080; }
+.token-comment { color: var(--pd-code-comment); font-style: italic; }
+.token-string { color: var(--pd-code-string); }
+.token-keyword { color: var(--pd-code-keyword); font-weight: 600; }
+.token-function { color: var(--pd-code-function); }
+.token-number { color: var(--pd-code-number); }
+.token-type { color: var(--pd-code-type); }
+.token-operator { color: var(--pd-code-operator); }
+.token-punctuation { color: var(--pd-code-punctuation); }
 
 .prodoc-markdown-content blockquote {
   margin: 0 0 18px 0;
@@ -581,13 +651,13 @@ onBeforeUnmount(() => {
   border-radius: var(--nm-border-radius-lg);
   overflow: hidden;
   background-color: var(--nm-surface-color);
-  border: 1px solid rgba(128, 128, 128, 0.1);
+  border: 1px solid var(--pd-border-subtle);
 }
 
 .prodoc-markdown-content th,
 .prodoc-markdown-content td {
   padding: 12px 16px;
-  border-bottom: 1px solid rgba(128, 128, 128, 0.12);
+  border-bottom: 1px solid var(--pd-border-subtle);
   text-align: left;
 }
 
@@ -610,7 +680,7 @@ onBeforeUnmount(() => {
 }
 
 .prodoc-markdown-content tr:nth-child(even) td {
-  background-color: rgba(128, 128, 128, 0.03);
+  background-color: color-mix(in srgb, var(--nm-text-placeholder) 4%, transparent);
 }
 
 .prodoc-markdown-content img {
@@ -621,7 +691,7 @@ onBeforeUnmount(() => {
 
 .prodoc-markdown-content hr {
   border: none;
-  border-top: 1px solid rgba(128, 128, 128, 0.12);
+  border-top: 1px solid var(--pd-border-subtle);
   margin: 32px 0;
 }
 
@@ -636,9 +706,168 @@ onBeforeUnmount(() => {
   text-decoration-color: var(--nm-text-secondary);
 }
 
+/* ==========================================
+   Focus-visible for accessibility
+   ========================================== */
+.prodoc-toc-item a:focus-visible,
+.prodoc-markdown-content a:focus-visible,
+.code-copy-btn:focus-visible,
+.heading-anchor:focus-visible,
+.prodoc-toc-mobile-btn:focus-visible,
+.prodoc-toc-mobile-close:focus-visible {
+  outline: 2px solid var(--nm-primary-color);
+  outline-offset: 2px;
+  border-radius: var(--nm-border-radius-sm);
+}
+
+.prodoc-markdown-content a:focus-visible {
+  border-radius: 2px;
+}
+
+/* ==========================================
+   Mobile TOC
+   ========================================== */
+.prodoc-toc-mobile-btn {
+  display: none;
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 100;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  background-color: var(--nm-surface-color);
+  box-shadow:
+    6px 6px 12px var(--nm-shadow-dark),
+    -6px -6px 12px var(--nm-shadow-light);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.prodoc-toc-mobile-btn:hover {
+  transform: scale(1.05);
+}
+
+.prodoc-toc-mobile-btn.active {
+  background-color: var(--nm-primary-color);
+}
+
+.prodoc-toc-mobile-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 99;
+  background-color: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(2px);
+}
+
+.prodoc-toc-mobile-panel {
+  position: absolute;
+  right: 16px;
+  bottom: 80px;
+  width: 280px;
+  max-height: 60vh;
+  overflow-y: auto;
+  background-color: var(--nm-surface-raised);
+}
+
+.prodoc-toc-mobile-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--pd-border-subtle);
+}
+
+.prodoc-toc-mobile-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--nm-text-placeholder);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.prodoc-toc-mobile-close {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background-color: var(--nm-surface-color);
+  color: var(--nm-text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.prodoc-toc-mobile-close:hover {
+  color: var(--nm-primary-color);
+}
+
+/* ==========================================
+   TOC Drawer transition
+   ========================================== */
+.prodoc-toc-drawer-enter-active,
+.prodoc-toc-drawer-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.prodoc-toc-drawer-enter-from,
+.prodoc-toc-drawer-leave-to {
+  opacity: 0;
+}
+
+/* ==========================================
+   Table horizontal scroll on mobile
+   ========================================== */
+.prodoc-markdown-content table {
+  display: block;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.prodoc-markdown-content th,
+.prodoc-markdown-content td {
+  white-space: normal;
+}
+
+/* ==========================================
+   Responsive
+   ========================================== */
 @media (max-width: 1100px) {
   .prodoc-toc {
     display: none;
+  }
+
+  .prodoc-toc-mobile-btn,
+  .prodoc-toc-mobile-overlay {
+    display: block;
+  }
+}
+
+/* ==========================================
+   prefers-reduced-motion
+   ========================================== */
+@media (prefers-reduced-motion: reduce) {
+  .prodoc-toc-item a,
+  .heading-anchor,
+  .code-copy-btn,
+  .checkmark,
+  .prodoc-toc-mobile-btn,
+  .prodoc-doc-viewer .nm-layout__content,
+  .prodoc-toc-drawer-enter-active,
+  .prodoc-toc-drawer-leave-active {
+    transition: none !important;
+  }
+
+  .prodoc-toc-drawer-enter-from,
+  .prodoc-toc-drawer-leave-to {
+    opacity: 1;
   }
 }
 </style>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import type { Theme } from '@echolab/ui-frame'
 import type { ProDocNode } from '@prodoc/core'
 import { nodeToTreeData } from '@prodoc/core'
@@ -89,7 +89,7 @@ watch(() => props.initialPath, (newPath) => {
     >
       <!-- Header -->
       <template #header-left>
-        <span style="font-weight: 700; font-size: 17px;">📚 ProDoc</span>
+        <span class="prodoc-header-brand">📚 ProDoc</span>
       </template>
 
       <template #header-right>
@@ -98,7 +98,7 @@ watch(() => props.initialPath, (newPath) => {
 
       <!-- Sider -->
       <template #sider="{ collapsed }">
-        <div v-if="!collapsed" style="padding: 12px;">
+        <div v-if="!collapsed" class="prodoc-sider-content">
           <NeumorphismTree
             :data="treeData"
             v-model:selected-keys="selectedKeys"
@@ -108,18 +108,18 @@ watch(() => props.initialPath, (newPath) => {
             @node-select="handleTreeSelect"
           />
         </div>
-        <div v-else style="display: flex; align-items: center; justify-content: center; height: 100%; padding-top: 16px; font-size: 20px;">📚</div>
+        <div v-else class="prodoc-sider-collapsed">📚</div>
       </template>
 
       <!-- Main Content -->
       <template #default>
-        <NeumorphismContainer no-padding style="padding: 24px 20px;">
-          <NeumorphismCard :elevation="-3" no-padding>
+        <NeumorphismContainer no-padding class="prodoc-main-container">
+          <NeumorphismCard :elevation="-3" no-padding class="prodoc-content-card">
             <template v-if="displayNode">
               <!-- Doc Header -->
-              <div style="padding: 20px 28px 0;">
-                <h1 style="margin: 0 0 12px; font-size: 28px; font-weight: 700; color: var(--nm-text-primary);">{{ displayNode.title }}</h1>
-                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <div class="prodoc-doc-header">
+                <h1 class="prodoc-doc-title">{{ displayNode.title }}</h1>
+                <div class="prodoc-doc-meta">
                   <NeumorphismTag
                     v-if="displayNode.path"
                     variant="primary"
@@ -142,18 +142,21 @@ watch(() => props.initialPath, (newPath) => {
               <NeumorphismDivider />
 
               <!-- Document Body -->
-              <div style="padding: 32px 28px;">
-                <MarkdownRenderer
-                  :content="displayNode.body"
-                  @doc-link="handleDocLink"
-                />
+              <div class="prodoc-doc-body">
+                <Transition name="prodoc-doc-switch" mode="out-in">
+                  <MarkdownRenderer
+                    :key="displayNode.path"
+                    :content="displayNode.body"
+                    @doc-link="handleDocLink"
+                  />
+                </Transition>
               </div>
             </template>
 
             <template v-else>
-              <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; min-height: 400px; text-align: center; color: var(--nm-text-placeholder);">
-                <NeumorphismCard :elevation="2" hoverable="bulge" style="width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;">
-                  <span style="font-size: 40px;">📂</span>
+              <div class="prodoc-empty-state">
+                <NeumorphismCard :elevation="2" hoverable="bulge" class="prodoc-empty-icon">
+                  <span class="prodoc-empty-emoji">📂</span>
                 </NeumorphismCard>
                 <p>请从左侧选择一篇文档</p>
                 <NeumorphismButton
@@ -177,5 +180,131 @@ watch(() => props.initialPath, (newPath) => {
   height: 100vh;
   width: 100vw;
   overflow: hidden;
+}
+
+/* Header */
+.prodoc-header-brand {
+  font-weight: 700;
+  font-size: 17px;
+}
+
+/* Sider */
+.prodoc-sider-content {
+  padding: 12px;
+}
+
+.prodoc-sider-collapsed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding-top: 16px;
+  font-size: 20px;
+}
+
+/* Main Content */
+.prodoc-main-container {
+  padding: 24px 20px;
+}
+
+.prodoc-content-card {
+  min-height: 100%;
+}
+
+/* Document Header */
+.prodoc-doc-header {
+  padding: 20px 28px 0;
+}
+
+.prodoc-doc-title {
+  margin: 0 0 12px;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--nm-text-primary);
+}
+
+.prodoc-doc-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Document Body */
+.prodoc-doc-body {
+  padding: 32px 28px;
+}
+
+/* Empty State */
+.prodoc-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 400px;
+  text-align: center;
+  color: var(--nm-text-placeholder);
+}
+
+.prodoc-empty-icon {
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.prodoc-empty-emoji {
+  font-size: 40px;
+}
+
+/* Document switch transition */
+.prodoc-doc-switch-enter-active,
+.prodoc-doc-switch-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.prodoc-doc-switch-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.prodoc-doc-switch-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .prodoc-main-container {
+    padding: 16px 12px;
+  }
+
+  .prodoc-doc-header {
+    padding: 16px 20px 0;
+  }
+
+  .prodoc-doc-title {
+    font-size: 22px;
+  }
+
+  .prodoc-doc-body {
+    padding: 20px;
+  }
+}
+
+/* prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .prodoc-doc-switch-enter-active,
+  .prodoc-doc-switch-leave-active {
+    transition: none !important;
+  }
+
+  .prodoc-doc-switch-enter-from,
+  .prodoc-doc-switch-leave-to {
+    opacity: 1;
+    transform: none;
+  }
 }
 </style>

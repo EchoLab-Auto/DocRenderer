@@ -3,15 +3,79 @@
    Powered by @echolab/ui-frame Neumorphism Design System
    ========================================== */
 
-/* Theme transition for all ProDoc elements */
-[class*="prodoc-"] {
-  transition: background-color var(--nm-transition-slow),
-              color var(--nm-transition-slow),
-              border-color var(--nm-transition-slow),
-              box-shadow var(--nm-transition-slow);
+/* ==========================================
+   1. CSS Variables - Code Highlighting (Theme Aware)
+   ========================================== */
+:root {
+  /* Light theme code colors */
+  --pd-code-comment: #008000;
+  --pd-code-string: #a31515;
+  --pd-code-keyword: #0000ff;
+  --pd-code-function: #795e26;
+  --pd-code-number: #098658;
+  --pd-code-type: #267f99;
+  --pd-code-operator: #000000;
+  --pd-code-punctuation: #000000;
+
+  /* Shared design tokens */
+  --pd-border-subtle: color-mix(in srgb, var(--nm-text-placeholder) 12%, transparent);
+  --pd-border-medium: color-mix(in srgb, var(--nm-text-placeholder) 15%, transparent);
+  --pd-selection-bg: color-mix(in srgb, var(--nm-primary-color) 30%, transparent);
+  --pd-transition-fast: 0.2s ease;
+  --pd-transition-medium: 0.25s ease;
+  --pd-font-mono: 'SF Mono', 'Cascadia Code', Monaco, 'Fira Code', 'Cousine', monospace;
 }
 
-/* Scrollbar styling */
+[data-theme="dark"] {
+  /* Dark theme code colors - VS Code Dark+ palette */
+  --pd-code-comment: #6a9955;
+  --pd-code-string: #ce9178;
+  --pd-code-keyword: #569cd6;
+  --pd-code-function: #dcdcaa;
+  --pd-code-number: #b5cea8;
+  --pd-code-type: #4ec9b0;
+  --pd-code-operator: #d4d4d4;
+  --pd-code-punctuation: #808080;
+
+  --pd-selection-bg: color-mix(in srgb, var(--nm-primary-color) 50%, transparent);
+}
+
+/* ==========================================
+   2. Theme Transitions
+   ========================================== */
+.prodoc-doc-viewer,
+.prodoc-markdown,
+.prodoc-toc,
+.prodoc-markdown-content,
+.prodoc-markdown-content h1,
+.prodoc-markdown-content h2,
+.prodoc-markdown-content h3,
+.prodoc-markdown-content h4,
+.prodoc-markdown-content h5,
+.prodoc-markdown-content h6,
+.prodoc-markdown-content p,
+.prodoc-markdown-content a,
+.prodoc-markdown-content ul,
+.prodoc-markdown-content ol,
+.prodoc-markdown-content li,
+.prodoc-markdown-content blockquote,
+.prodoc-markdown-content table,
+.prodoc-markdown-content th,
+.prodoc-markdown-content td,
+.prodoc-toc-item a,
+.code-block-wrapper,
+.code-block-header,
+.code-copy-btn,
+.inline-code,
+.line-num {
+  transition: background-color var(--nm-transition-slow),
+              color var(--nm-transition-slow),
+              border-color var(--nm-transition-slow);
+}
+
+/* ==========================================
+   3. Scrollbar Styling
+   ========================================== */
 .prodoc-doc-viewer .nm-layout__content::-webkit-scrollbar,
 .prodoc-toc::-webkit-scrollbar {
   width: 5px;
@@ -24,15 +88,13 @@
 
 .prodoc-doc-viewer .nm-layout__content::-webkit-scrollbar-thumb,
 .prodoc-toc::-webkit-scrollbar-thumb {
-  background: var(--nm-text-placeholder);
+  background: color-mix(in srgb, var(--nm-text-placeholder) 25%, transparent);
   border-radius: 3px;
-  opacity: 0.25;
 }
 
 .prodoc-doc-viewer .nm-layout__content::-webkit-scrollbar-thumb:hover,
 .prodoc-toc::-webkit-scrollbar-thumb:hover {
-  background: var(--nm-text-secondary);
-  opacity: 0.5;
+  background: color-mix(in srgb, var(--nm-text-secondary) 40%, transparent);
 }
 
 /* Smooth scroll */
@@ -42,5 +104,5 @@
 
 /* Selection color */
 .prodoc-markdown-content ::selection {
-  background-color: color-mix(in srgb, var(--nm-primary-color) 30%, transparent);
+  background-color: var(--pd-selection-bg);
 }
