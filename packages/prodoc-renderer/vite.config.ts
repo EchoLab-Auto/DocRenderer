@@ -12,7 +12,7 @@ export default defineConfig({
       formats: ['es', 'cjs'],
     },
     rollupOptions: {
-      external: ['vue', '@prodoc/core', '@echolab/ui-frame'],
+      external: ['vue', 'marked', /^@echolab\/ui-frame(\/.*)?$/],
     },
     sourcemap: true,
     cssCodeSplit: false,

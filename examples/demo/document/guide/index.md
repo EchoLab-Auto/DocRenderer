@@ -15,10 +15,19 @@ npm install @prodoc/core @prodoc/renderer @prodoc/editor
 
 ## 基本用法
 
-```tsx
-import { DocViewer } from '@prodoc/renderer';
+```ts
+import { createApp, h } from 'vue'
+import uiFrame, { ThemeProvider } from '@echolab/ui-frame'
+import { DocViewer } from '@prodoc/renderer'
 
-function App() {
-  return <DocViewer root={docTree} />;
-}
+const app = createApp({
+  render() {
+    return h(ThemeProvider, { defaultTheme: 'auto' }, {
+      default: () => h(DocViewer, { root: docTree }),
+    })
+  },
+})
+
+app.use(uiFrame)
+app.mount('#app')
 ```

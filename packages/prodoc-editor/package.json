@@ -26,8 +26,7 @@
   },
   "dependencies": {
     "@echolab/ui-frame": "github:EchoLab-Auto/ui-frame#cb443076fb6de8537c71399680482f3971d15363",
-    "@prodoc/core": "file:../prodoc-core",
-    "@prodoc/renderer": "file:../prodoc-renderer"
+    "@prodoc/core": "file:../prodoc-core"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.0",

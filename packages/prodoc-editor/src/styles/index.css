@@ -1,37 +1,47 @@
-/* ProDoc Editor Styles - powered by @echolab/ui-frame */
+/* ==========================================
+   ProDoc Editor Styles
+   Powered by @echolab/ui-frame Neumorphism Design System
 
-/* Theme transitions for editor elements */
-.prodoc-doc-editor,
-.prodoc-markdown-editor,
-.prodoc-editor-toolbar,
-.prodoc-editor-panels,
-.prodoc-editor-panel,
+   ui-frame 的 tokens.scss 已定义主题变量，
+   此文件仅保留 ProDoc Editor 特有的主题过渡和滚动条覆盖。
+   ========================================== */
+
+/* ==========================================
+   1. Theme Transitions
+   ========================================== */
+.neumorphism-doc-editor,
+.neumorphism-markdown-editor,
+.neumorphism-editor-toolbar,
+.neumorphism-editor-panels,
+.neumorphism-editor-panel,
 .edit-card,
 .preview-card,
-.prodoc-editor-textarea {
+.neumorphism-editor-textarea {
   transition: background-color var(--nm-transition-slow),
               color var(--nm-transition-slow),
               border-color var(--nm-transition-slow);
 }
 
-/* Scrollbar styling */
-.prodoc-doc-editor .nm-layout__content::-webkit-scrollbar,
-.prodoc-editor-textarea::-webkit-scrollbar {
+/* ==========================================
+   2. Scrollbar Styling
+   ========================================== */
+.neumorphism-doc-editor .nm-layout__content::-webkit-scrollbar,
+.neumorphism-editor-textarea::-webkit-scrollbar {
   width: 5px;
 }
 
-.prodoc-doc-editor .nm-layout__content::-webkit-scrollbar-track,
-.prodoc-editor-textarea::-webkit-scrollbar-track {
+.neumorphism-doc-editor .nm-layout__content::-webkit-scrollbar-track,
+.neumorphism-editor-textarea::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.prodoc-doc-editor .nm-layout__content::-webkit-scrollbar-thumb,
-.prodoc-editor-textarea::-webkit-scrollbar-thumb {
+.neumorphism-doc-editor .nm-layout__content::-webkit-scrollbar-thumb,
+.neumorphism-editor-textarea::-webkit-scrollbar-thumb {
   background: color-mix(in srgb, var(--nm-text-placeholder) 25%, transparent);
   border-radius: 3px;
 }
 
-.prodoc-doc-editor .nm-layout__content::-webkit-scrollbar-thumb:hover,
-.prodoc-editor-textarea::-webkit-scrollbar-thumb:hover {
+.neumorphism-doc-editor .nm-layout__content::-webkit-scrollbar-thumb:hover,
+.neumorphism-editor-textarea::-webkit-scrollbar-thumb:hover {
   background: color-mix(in srgb, var(--nm-text-secondary) 40%, transparent);
 }

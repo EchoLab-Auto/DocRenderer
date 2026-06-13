@@ -180,6 +180,9 @@ export async function startProDocServer(
         { find: '@prodoc/editor', replacement: path.join(resolvePkgDir('@prodoc/editor'), 'src', 'index.ts').replace(/\\/g, '/') },
       ],
     },
+    optimizeDeps: {
+      include: ['marked'],
+    },
     plugins: [
       vue(),
 

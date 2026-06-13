@@ -178,6 +178,20 @@ function main() {
   fs.rmSync(TARGET_DIST, { recursive: true, force: true });
   copyDir(cacheDist, TARGET_DIST);
 
+  // 8. 注入 ./doc 子路径导出（ui-frame 的 exports 默认未包含 doc 模块）
+  const pkgJsonPath = path.join(TARGET_DIR, 'package.json');
+  if (fs.existsSync(pkgJsonPath)) {
+    const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
+    if (!pkg.exports['./doc']) {
+      pkg.exports['./doc'] = {
+        import: './dist/doc/index.js',
+        types: './dist/doc/index.d.ts',
+      };
+      fs.writeFileSync(pkgJsonPath, JSON.stringify(pkg, null, 2) + '\n');
+      console.log('📋 Injected ./doc export into ui-frame package.json');
+    }
+  }
+
   console.log('\n✅ @echolab/ui-frame installed successfully!');
 }
 

@@ -1,8 +1,11 @@
 /**
  * ProDoc Renderer - Vue 3 渲染组件库
+ *
+ * 组件实现来自 @echolab/ui-frame/doc，此处只做重新导出。
+ * 保留 ProDoc 特有的样式定制（主题过渡、滚动条、选中颜色等）。
  */
-export { default as DocViewer, type DocViewerProps } from './components/DocViewer.vue';
-export { default as MarkdownRenderer, type MarkdownRendererProps } from './components/MarkdownRenderer.vue';
+export { DocViewer, type DocViewerProps } from '@echolab/ui-frame/doc';
+export { MarkdownRenderer, type MarkdownRendererProps } from '@echolab/ui-frame/doc';
 import '@echolab/ui-frame/dist/style.css';
 import './styles/index.css';
 //# sourceMappingURL=index.d.ts.map

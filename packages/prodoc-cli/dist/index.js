@@ -126,6 +126,9 @@ async function _(o, r, e = {}) {
         { find: "@prodoc/editor", replacement: n.join(h("@prodoc/editor"), "src", "index.ts").replace(/\\/g, "/") }
       ]
     },
+    optimizeDeps: {
+      include: ["marked"]
+    },
     plugins: [
       E(),
       // 插件：提供 HTML 入口

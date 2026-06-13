@@ -35,6 +35,7 @@
   },
   "dependencies": {
     "@echolab/ui-frame": "github:EchoLab-Auto/ui-frame#cb443076fb6de8537c71399680482f3971d15363",
+    "marked": "^18.0.5",
     "@prodoc/core": "file:packages/prodoc-core",
     "@prodoc/editor": "file:packages/prodoc-editor",
     "@prodoc/renderer": "file:packages/prodoc-renderer",
