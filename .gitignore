@@ -2,8 +2,7 @@
 node_modules/
 .pnpm-store/
 
-# Build outputs
-dist/
+# Build outputs (dist is committed for direct npm install support)
 *.tsbuildinfo
 
 # Logs
@@ -25,3 +24,5 @@ coverage/
 
 # Misc
 *.local
+*.tgz
+.cache/

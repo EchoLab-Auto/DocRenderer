@@ -1,14 +1,21 @@
 {
-  "name": "prodoc",
+  "name": "echo-prodoc",
   "version": "0.1.0",
   "description": "ProDoc - 文档渲染与编辑框架",
-  "private": true,
   "workspaces": [
     "packages/*"
   ],
   "bin": {
     "echo-prodoc": "./packages/prodoc-cli/dist/index.js"
   },
+  "files": [
+    "packages/*/dist/**",
+    "packages/*/src/**",
+    "packages/*/package.json",
+    "packages/*/tsconfig.json",
+    "packages/*/vite.config.ts",
+    "scripts/"
+  ],
   "scripts": {
     "build": "npm run build --workspaces",
     "build:ui-frame": "node scripts/install-ui-frame.js",
@@ -27,10 +34,10 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@echolab/ui-frame": "github:EchoLab-Auto/ui-frame#main",
-    "@prodoc/core": "^0.1.0",
-    "@prodoc/editor": "^0.1.0",
-    "@prodoc/renderer": "^0.1.0",
+    "@echolab/ui-frame": "github:EchoLab-Auto/ui-frame#cb443076fb6de8537c71399680482f3971d15363",
+    "@prodoc/core": "file:packages/prodoc-core",
+    "@prodoc/editor": "file:packages/prodoc-editor",
+    "@prodoc/renderer": "file:packages/prodoc-renderer",
     "@vitejs/plugin-vue": "^5.2.4",
     "vue": "^3.5.35",
     "vue-tsc": "^2.2.12"

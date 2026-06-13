@@ -90,11 +90,20 @@ echo-prodoc edit ./docs
 echo-prodoc view ./docs --port 8080
 ```
 
-#### 方式二：从 Git 仓库源码安装
+#### 方式二：从 GitHub 全局安装（无需克隆）
+
+```bash
+# 直接从 GitHub 全局安装 CLI
+npm install -g github:EchoLab-Auto/DocRenderer
+```
+
+安装后即可使用 `echo-prodoc` 命令。
+
+#### 方式三：从 Git 仓库源码安装
 
 ```bash
 # 克隆仓库
-git clone https://github.com/echo-tech/DocRenderer.git
+git clone https://github.com/EchoLab-Auto/DocRenderer.git
 cd DocRenderer
 
 # 安装依赖并构建
@@ -102,11 +111,10 @@ npm install
 npm run build
 
 # 将 CLI 链接到全局（可选）
-cd packages/prodoc-cli
 npm link
 
 # 运行
-echo-prodoc  view ./examples/demo/document
+echo-prodoc view ./examples/demo/document
 # 或直接运行构建产物
 node ./packages/prodoc-cli/dist/index.js view ./examples/demo/document
 

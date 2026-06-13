@@ -23,9 +23,9 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@prodoc/core": "*",
-    "@prodoc/renderer": "*",
-    "@prodoc/editor": "*",
+    "@prodoc/core": "file:../prodoc-core",
+    "@prodoc/renderer": "file:../prodoc-renderer",
+    "@prodoc/editor": "file:../prodoc-editor",
     "@vitejs/plugin-vue": "^5.0.0",
     "vite": "^6.0.0",
     "vue": "^3.4.0"
