@@ -14,11 +14,16 @@
  *   - 源码缓存在 .cache/ui-frame-src/
  *   - 每次运行都会 fetch 远程并比对 commit hash
  *   - 仅当远程有更新或本地 dist 缺失时才重新构建
+ *
+ * 构建隔离：
+ *   - npm install 在 workspace 根下会触发依赖 hoisting，导致子目录
+ *     node_modules 不完整。因此将源码复制到系统临时目录中执行构建。
  */
 
 const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 const REPO_URL = 'https://github.com/EchoLab-Auto/ui-frame.git';
 const PROJECT_ROOT = path.resolve(__dirname, '..');
@@ -74,12 +79,26 @@ function copyDir(src, dest) {
   }
 }
 
+/** 递归复制目录，排除指定名称的子目录 */
+function copyDirExcluding(src, dest, exclude) {
+  fs.mkdirSync(dest, { recursive: true });
+  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    if (exclude.includes(entry.name)) continue;
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    if (entry.isDirectory()) {
+      copyDirExcluding(srcPath, destPath, exclude);
+    } else {
+      fs.copyFileSync(srcPath, destPath);
+    }
+  }
+}
+
 /** 检查缓存中的 dist 是否完整 */
 function hasValidDist(dir) {
   if (!fs.existsSync(dir)) return false;
   try {
     const files = fs.readdirSync(dir);
-    // 至少包含 style.css, ui-frame.js, ui-frame.umd.cjs, index.d.ts
     return files.length >= 4;
   } catch {
     return false;
@@ -106,7 +125,7 @@ function main() {
     run(`git clone --depth 1 ${REPO_URL} "${CACHE_DIR}"`);
   }
 
-  // 3. 获取远程最新版本信息（网络失败时优雅降级，使用本地缓存）
+  // 3. 获取远程最新版本信息
   console.log('🔍 Checking for updates from remote...');
   const fetchResult = runSilent('git fetch origin main', CACHE_DIR);
   const fetchSuccess = fetchResult !== '' || fs.existsSync(path.join(CACHE_DIR, '.git', 'FETCH_HEAD'));
@@ -148,24 +167,19 @@ function main() {
     console.log('📦 Target dist missing, will copy from cache.');
   }
 
-  // 5. 安装依赖
-  // 全局安装的 postinstall 子进程中，npm 可能因 hoisting 或 allow-scripts
-  // 等机制不会完整安装 devDependencies。因此改为直接解析 package.json，
-  // 显式安装所有 deps + devDeps，确保构建工具链（vue-tsc, vite 等）完整。
-  const cacheNodeModules = path.join(CACHE_DIR, 'node_modules');
-  const cachePkgLock = path.join(CACHE_DIR, 'package-lock.json');
-  const pkgJsonPath = path.join(CACHE_DIR, 'package.json');
+  // 5. 在隔离的临时目录中构建
+  // 关键：npm install 必须脱离 workspace 根，否则依赖会被 hoist
+  // 到根 node_modules 而非本地（导致 vite/vue-tsc 等 bin 找不到）。
+  console.log('🔨 Building ui-frame in isolated directory...');
 
-  if (!fs.existsSync(cacheNodeModules) || hasUpdate || mtime(pkgJsonPath) > mtime(cachePkgLock)) {
-    // 直接传包名给 npm install 在已有 package.json 的目录中，npm 可能
-    // 将依赖 hoist 到 workspace 根而非本地 node_modules。
-    // 改为生成一个完整临时 package.json，所有 deps+devDeps 作为直接依赖，
-    // npm install 后恢复原 package.json，确保依赖装在本地 node_modules。
-    console.log('📥 Installing ui-frame dependencies...');
+  const buildDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ui-frame-build-'));
+  try {
+    // 复制源码到隔离构建目录
+    copyDirExcluding(CACHE_DIR, buildDir, ['.git', 'node_modules', 'dist', '.cache']);
 
-    // 备份原 package.json，生成包含所有依赖的临时 package.json
+    // 生成包含所有 deps+devDeps 的临时 package.json
+    const pkgJsonPath = path.join(buildDir, 'package.json');
     const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
-    const originalPkg = fs.readFileSync(pkgJsonPath, 'utf-8');
     const tempPkg = {
       name: 'ui-frame-build',
       private: true,
@@ -177,30 +191,34 @@ function main() {
     };
     fs.writeFileSync(pkgJsonPath, JSON.stringify(tempPkg, null, 2));
 
-    try {
-      run('npm install --ignore-scripts --no-workspaces', CACHE_DIR);
-    } finally {
-      // 必须恢复原 package.json，否则后续 git pull/reset 会冲突
-      fs.writeFileSync(pkgJsonPath, originalPkg);
+    // 安装依赖
+    console.log('📥 Installing ui-frame dependencies...');
+    run('npm install --ignore-scripts', buildDir);
+
+    // 跳过 vue-tsc 类型检查，直接 vite 构建
+    run('npx --yes vite build && npx --yes vite build --config vite.umd.config.ts', buildDir);
+
+    // 复制 dist 回缓存目录
+    const newDist = path.join(buildDir, 'dist');
+    if (hasValidDist(newDist)) {
+      fs.rmSync(cacheDist, { recursive: true, force: true });
+      copyDir(newDist, cacheDist);
+      console.log('✅ Build succeeded, dist cached.');
+    } else {
+      console.error('❌ Build produced no valid dist.');
+      process.exit(1);
     }
+  } finally {
+    // 清理临时构建目录
+    fs.rmSync(buildDir, { recursive: true, force: true });
   }
 
-  // 6. 构建（如果缓存 dist 仍然无效，或刚更新了源码）
-  if (!hasValidDist(cacheDist) || hasUpdate) {
-    console.log('🔨 Building ui-frame...');
-    // 跳过 vue-tsc 类型检查（在显式安装的依赖树上类型解析可能不完整），
-    // 直接运行 vite 构建生成 dist 产物
-    run('npx --yes vite build && npx --yes vite build --config vite.umd.config.ts', CACHE_DIR);
-  } else {
-    console.log('✅ ui-frame cache dist is valid');
-  }
-
-  // 7. 复制到 node_modules
+  // 6. 复制到 node_modules
   console.log('📋 Copying dist to node_modules...');
   fs.rmSync(TARGET_DIST, { recursive: true, force: true });
   copyDir(cacheDist, TARGET_DIST);
 
-  // 8. 注入 ./doc 子路径导出（ui-frame 的 exports 默认未包含 doc 模块）
+  // 7. 注入 ./doc 子路径导出
   const targetPkgPath = path.join(TARGET_DIR, 'package.json');
   if (fs.existsSync(targetPkgPath)) {
     const pkg = JSON.parse(fs.readFileSync(targetPkgPath, 'utf-8'));
