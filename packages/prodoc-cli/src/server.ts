@@ -43,6 +43,14 @@ const INDEX_HTML = `<!DOCTYPE html>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ProDoc</title>
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: var(--nm-bg-color, #e0e0e0);
+      }
+    </style>
   </head>
   <body>
     <div id="app"></div>
