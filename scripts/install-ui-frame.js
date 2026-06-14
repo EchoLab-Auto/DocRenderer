@@ -157,31 +157,32 @@ function main() {
   const pkgJsonPath = path.join(CACHE_DIR, 'package.json');
 
   if (!fs.existsSync(cacheNodeModules) || hasUpdate || mtime(pkgJsonPath) > mtime(cachePkgLock)) {
+    // 直接传包名给 npm install 在已有 package.json 的目录中，npm 可能
+    // 将依赖 hoist 到 workspace 根而非本地 node_modules。
+    // 改为生成一个完整临时 package.json，所有 deps+devDeps 作为直接依赖，
+    // npm install 后恢复原 package.json，确保依赖装在本地 node_modules。
     console.log('📥 Installing ui-frame dependencies...');
 
-    // 如果上次 install 不完整（node_modules 存在但无 .bin/vue-tsc），
-    // 清空后重新安装
-    const binVueTsc = path.join(cacheNodeModules, '.bin', 'vue-tsc');
-    if (fs.existsSync(cacheNodeModules) && !fs.existsSync(binVueTsc)) {
-      fs.rmSync(cacheNodeModules, { recursive: true, force: true });
-    }
-
-    // 删除 lock 文件，避免 stale 状态
-    try { fs.unlinkSync(cachePkgLock); } catch (_) {}
-
-    // 直接从 package.json 读取并显式安装所有依赖，绕过 npm 在
-    // 全局安装子进程中可能的依赖解析异常
+    // 备份原 package.json，生成包含所有依赖的临时 package.json
     const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
-    const allDeps = {
-      ...(pkg.dependencies || {}),
-      ...(pkg.devDependencies || {}),
+    const originalPkg = fs.readFileSync(pkgJsonPath, 'utf-8');
+    const tempPkg = {
+      name: 'ui-frame-build',
+      private: true,
+      type: pkg.type || 'module',
+      dependencies: {
+        ...(pkg.dependencies || {}),
+        ...(pkg.devDependencies || {}),
+      },
     };
-    const depList = Object.entries(allDeps)
-      .map(([name, ver]) => `${name}@${ver}`)
-      .join(' ');
+    fs.writeFileSync(pkgJsonPath, JSON.stringify(tempPkg, null, 2));
 
-    // --install-strategy=nested: 禁止 npm 将依赖 hoist 到 workspace 根目录
-    run(`npm install --ignore-scripts --no-save --install-strategy=nested ${depList}`, CACHE_DIR);
+    try {
+      run('npm install --ignore-scripts', CACHE_DIR);
+    } finally {
+      // 必须恢复原 package.json，否则后续 git pull/reset 会冲突
+      fs.writeFileSync(pkgJsonPath, originalPkg);
+    }
   }
 
   // 6. 构建（如果缓存 dist 仍然无效，或刚更新了源码）
