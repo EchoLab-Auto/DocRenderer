@@ -178,7 +178,7 @@ function main() {
     fs.writeFileSync(pkgJsonPath, JSON.stringify(tempPkg, null, 2));
 
     try {
-      run('npm install --ignore-scripts', CACHE_DIR);
+      run('npm install --ignore-scripts --no-workspaces', CACHE_DIR);
     } finally {
       // 必须恢复原 package.json，否则后续 git pull/reset 会冲突
       fs.writeFileSync(pkgJsonPath, originalPkg);
