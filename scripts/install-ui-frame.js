@@ -188,7 +188,7 @@ function main() {
     console.log('🔨 Building ui-frame...');
     // 跳过 vue-tsc 类型检查（在显式安装的依赖树上类型解析可能不完整），
     // 直接运行 vite 构建生成 dist 产物
-    run('node_modules/.bin/vite build && node_modules/.bin/vite build --config vite.umd.config.ts', CACHE_DIR);
+    run('npx --yes vite build && npx --yes vite build --config vite.umd.config.ts', CACHE_DIR);
   } else {
     console.log('✅ ui-frame cache dist is valid');
   }
