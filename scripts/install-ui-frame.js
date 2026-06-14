@@ -148,21 +148,17 @@ function main() {
     console.log('📦 Target dist missing, will copy from cache.');
   }
 
-  // 5. 安装依赖（如有必要）
+  // 5. 安装依赖
+  // 删除 package-lock.json 强制从 package.json 重新解析，避免在全局安装
+  // 的 postinstall 子进程中因 lockfileVersion 兼容问题导致依赖未被安装。
   const cacheNodeModules = path.join(CACHE_DIR, 'node_modules');
   const cachePkgLock = path.join(CACHE_DIR, 'package-lock.json');
   const pkgJson = path.join(CACHE_DIR, 'package.json');
 
-  if (!fs.existsSync(cacheNodeModules) || !fs.existsSync(cachePkgLock)) {
+  if (!fs.existsSync(cacheNodeModules) || hasUpdate || mtime(pkgJson) > mtime(cachePkgLock)) {
+    try { fs.unlinkSync(cachePkgLock); } catch (_) {}
     console.log('📥 Installing ui-frame dependencies...');
-    run('npm install --include=dev', CACHE_DIR);
-  } else {
-    const pkgMtime = mtime(pkgJson);
-    const lockMtime = mtime(cachePkgLock);
-    if (pkgMtime > lockMtime) {
-      console.log('📥 package.json changed, reinstalling...');
-      run('npm install --include=dev', CACHE_DIR);
-    }
+    run('npm install --include=dev --include=peer', CACHE_DIR);
   }
 
   // 6. 构建（如果缓存 dist 仍然无效，或刚更新了源码）
