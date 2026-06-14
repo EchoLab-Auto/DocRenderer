@@ -186,7 +186,9 @@ function main() {
   // 6. 构建（如果缓存 dist 仍然无效，或刚更新了源码）
   if (!hasValidDist(cacheDist) || hasUpdate) {
     console.log('🔨 Building ui-frame...');
-    run('npm run build', CACHE_DIR);
+    // 跳过 vue-tsc 类型检查（在显式安装的依赖树上类型解析可能不完整），
+    // 直接运行 vite 构建生成 dist 产物
+    run('node_modules/.bin/vite build && node_modules/.bin/vite build --config vite.umd.config.ts', CACHE_DIR);
   } else {
     console.log('✅ ui-frame cache dist is valid');
   }
