@@ -180,7 +180,8 @@ function main() {
       .map(([name, ver]) => `${name}@${ver}`)
       .join(' ');
 
-    run(`npm install --ignore-scripts --no-save ${depList}`, CACHE_DIR);
+    // --install-strategy=nested: 禁止 npm 将依赖 hoist 到 workspace 根目录
+    run(`npm install --ignore-scripts --no-save --install-strategy=nested ${depList}`, CACHE_DIR);
   }
 
   // 6. 构建（如果缓存 dist 仍然无效，或刚更新了源码）
