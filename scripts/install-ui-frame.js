@@ -149,16 +149,38 @@ function main() {
   }
 
   // 5. 安装依赖
-  // 删除 package-lock.json 强制从 package.json 重新解析，避免在全局安装
-  // 的 postinstall 子进程中因 lockfileVersion 兼容问题导致依赖未被安装。
+  // 全局安装的 postinstall 子进程中，npm 可能因 hoisting 或 allow-scripts
+  // 等机制不会完整安装 devDependencies。因此改为直接解析 package.json，
+  // 显式安装所有 deps + devDeps，确保构建工具链（vue-tsc, vite 等）完整。
   const cacheNodeModules = path.join(CACHE_DIR, 'node_modules');
   const cachePkgLock = path.join(CACHE_DIR, 'package-lock.json');
-  const pkgJson = path.join(CACHE_DIR, 'package.json');
+  const pkgJsonPath = path.join(CACHE_DIR, 'package.json');
 
-  if (!fs.existsSync(cacheNodeModules) || hasUpdate || mtime(pkgJson) > mtime(cachePkgLock)) {
-    try { fs.unlinkSync(cachePkgLock); } catch (_) {}
+  if (!fs.existsSync(cacheNodeModules) || hasUpdate || mtime(pkgJsonPath) > mtime(cachePkgLock)) {
     console.log('📥 Installing ui-frame dependencies...');
-    run('npm install --include=dev --include=peer', CACHE_DIR);
+
+    // 如果上次 install 不完整（node_modules 存在但无 .bin/vue-tsc），
+    // 清空后重新安装
+    const binVueTsc = path.join(cacheNodeModules, '.bin', 'vue-tsc');
+    if (fs.existsSync(cacheNodeModules) && !fs.existsSync(binVueTsc)) {
+      fs.rmSync(cacheNodeModules, { recursive: true, force: true });
+    }
+
+    // 删除 lock 文件，避免 stale 状态
+    try { fs.unlinkSync(cachePkgLock); } catch (_) {}
+
+    // 直接从 package.json 读取并显式安装所有依赖，绕过 npm 在
+    // 全局安装子进程中可能的依赖解析异常
+    const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
+    const allDeps = {
+      ...(pkg.dependencies || {}),
+      ...(pkg.devDependencies || {}),
+    };
+    const depList = Object.entries(allDeps)
+      .map(([name, ver]) => `${name}@${ver}`)
+      .join(' ');
+
+    run(`npm install --ignore-scripts --no-save ${depList}`, CACHE_DIR);
   }
 
   // 6. 构建（如果缓存 dist 仍然无效，或刚更新了源码）
@@ -175,15 +197,15 @@ function main() {
   copyDir(cacheDist, TARGET_DIST);
 
   // 8. 注入 ./doc 子路径导出（ui-frame 的 exports 默认未包含 doc 模块）
-  const pkgJsonPath = path.join(TARGET_DIR, 'package.json');
-  if (fs.existsSync(pkgJsonPath)) {
-    const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
+  const targetPkgPath = path.join(TARGET_DIR, 'package.json');
+  if (fs.existsSync(targetPkgPath)) {
+    const pkg = JSON.parse(fs.readFileSync(targetPkgPath, 'utf-8'));
     if (!pkg.exports['./doc']) {
       pkg.exports['./doc'] = {
         import: './dist/doc/index.js',
         types: './dist/doc/index.d.ts',
       };
-      fs.writeFileSync(pkgJsonPath, JSON.stringify(pkg, null, 2) + '\n');
+      fs.writeFileSync(targetPkgPath, JSON.stringify(pkg, null, 2) + '\n');
       console.log('📋 Injected ./doc export into ui-frame package.json');
     }
   }
