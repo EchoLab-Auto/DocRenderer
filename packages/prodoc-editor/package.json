@@ -15,7 +15,9 @@
     "./style.css": "./dist/index.css",
     "./package.json": "./package.json"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "vite build && vue-tsc --declaration --emitDeclarationOnly",
     "type-check": "vue-tsc --noEmit",
@@ -29,9 +31,9 @@
     "@prodoc/core": "file:../prodoc-core"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^5.0.0",
+    "@vitejs/plugin-vue": "^6.0.7",
     "typescript": "^5.7.0",
-    "vite": "^6.0.0",
+    "vite": "^8.0.16",
     "vue": "^3.4.0",
     "vue-tsc": "^2.2.12"
   }
