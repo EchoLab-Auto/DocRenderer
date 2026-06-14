@@ -155,13 +155,13 @@ function main() {
 
   if (!fs.existsSync(cacheNodeModules) || !fs.existsSync(cachePkgLock)) {
     console.log('📥 Installing ui-frame dependencies...');
-    run('npm install', CACHE_DIR);
+    run('npm install --include=dev', CACHE_DIR);
   } else {
     const pkgMtime = mtime(pkgJson);
     const lockMtime = mtime(cachePkgLock);
     if (pkgMtime > lockMtime) {
       console.log('📥 package.json changed, reinstalling...');
-      run('npm install', CACHE_DIR);
+      run('npm install --include=dev', CACHE_DIR);
     }
   }
 
