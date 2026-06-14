@@ -1,0 +1,15 @@
+# 排除源码和构建配置（只保留 dist 产物）
+packages/*/src/
+packages/*/tsconfig.json
+packages/*/vite.config.ts
+*.tsbuildinfo
+
+# 排除 node_modules（包括 workspace 内的符号链接）
+node_modules/
+packages/*/node_modules/
+
+# 杂项
+.git/
+.cache/
+*.log
+*.tgz

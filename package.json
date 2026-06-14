@@ -10,10 +10,7 @@
   },
   "files": [
     "packages/*/dist/**",
-    "packages/*/src/**",
     "packages/*/package.json",
-    "packages/*/tsconfig.json",
-    "packages/*/vite.config.ts",
     "scripts/"
   ],
   "scripts": {
