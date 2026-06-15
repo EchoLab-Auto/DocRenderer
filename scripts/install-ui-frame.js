@@ -175,7 +175,8 @@ function main() {
   const buildDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ui-frame-build-'));
   try {
     // 复制源码到隔离构建目录
-    copyDirExcluding(CACHE_DIR, buildDir, ['.git', 'node_modules', 'dist', '.cache']);
+    // 排除 package-lock.json：它会误导 npm 认为依赖已安装
+    copyDirExcluding(CACHE_DIR, buildDir, ['.git', 'node_modules', 'dist', '.cache', 'package-lock.json']);
 
     // 生成包含所有 deps+devDeps 的临时 package.json
     const pkgJsonPath = path.join(buildDir, 'package.json');
