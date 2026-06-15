@@ -191,12 +191,20 @@ function main() {
     };
     fs.writeFileSync(pkgJsonPath, JSON.stringify(tempPkg, null, 2));
 
-    // 安装依赖
+    // 安装依赖（移除 --ignore-scripts，因为可能影响 npm 解析行为）
     console.log('📥 Installing ui-frame dependencies...');
-    run('npm install --ignore-scripts', buildDir);
+    run('npm install --no-audit --no-fund', buildDir);
 
-    // 跳过 vue-tsc 类型检查，直接 vite 构建
-    run('npx --yes vite build && npx --yes vite build --config vite.umd.config.ts', buildDir);
+    // 直接使用本地 vite，避免 npx 缓存问题
+    const viteBin = path.join(buildDir, 'node_modules', '.bin', 'vite');
+    if (!fs.existsSync(viteBin)) {
+      console.error('❌ vite not found after install. node_modules contents:');
+      if (fs.existsSync(path.join(buildDir, 'node_modules'))) {
+        console.error(fs.readdirSync(path.join(buildDir, 'node_modules')).slice(0, 20).join(', '));
+      }
+      process.exit(1);
+    }
+    run(`${viteBin} build && ${viteBin} build --config vite.umd.config.ts`, buildDir);
 
     // 复制 dist 回缓存目录
     const newDist = path.join(buildDir, 'dist');
