@@ -116,6 +116,14 @@ function getRemoteHash() {
 }
 
 function main() {
+  // 0. 若目标 dist 已存在且有效（例如从发布包安装时已携带构建产物），直接跳过
+  // 避免在全局安装/离线场景下无意义地触发 git clone 和网络请求
+  if (hasValidDist(TARGET_DIST)) {
+    console.log('✅ @echolab/ui-frame dist already exists, nothing to do.');
+    console.log('   To force rebuild: rm -rf node_modules/@echolab/ui-frame/dist && npm run build:ui-frame');
+    return;
+  }
+
   // 1. 确保缓存目录存在
   fs.mkdirSync(path.dirname(CACHE_DIR), { recursive: true });
 
@@ -151,83 +159,79 @@ function main() {
   const cacheDist = path.join(CACHE_DIR, 'dist');
 
   // 4. 判断是否需要重新构建
-  const needBuild = hasUpdate || !hasValidDist(cacheDist) || !hasValidDist(TARGET_DIST);
+  const needBuild = hasUpdate || !hasValidDist(cacheDist);
 
   if (!needBuild) {
-    console.log('✅ @echolab/ui-frame dist is up to date, nothing to do.');
-    console.log('   To force rebuild: rm -rf .cache/ui-frame-src/dist && npm run build:ui-frame');
-    return;
-  }
-
-  if (hasUpdate) {
+    console.log('✅ @echolab/ui-frame source is up to date.');
+  } else if (hasUpdate) {
     console.log('📦 Remote updated, will rebuild.');
   } else if (!hasValidDist(cacheDist)) {
     console.log('📦 Cache dist missing, will build.');
-  } else if (!hasValidDist(TARGET_DIST)) {
-    console.log('📦 Target dist missing, will copy from cache.');
   }
 
-  // 5. 在隔离的临时目录中构建
-  // 关键：npm install 必须脱离 workspace 根，否则依赖会被 hoist
-  // 到根 node_modules 而非本地（导致 vite/vue-tsc 等 bin 找不到）。
-  console.log('🔨 Building ui-frame in isolated directory...');
+  // 5. 在隔离的临时目录中构建（仅在需要时）
+  if (needBuild) {
+    // 关键：npm install 必须脱离 workspace 根，否则依赖会被 hoist
+    // 到根 node_modules 而非本地（导致 vite/vue-tsc 等 bin 找不到）。
+    console.log('🔨 Building ui-frame in isolated directory...');
 
-  const buildDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ui-frame-build-'));
-  try {
-    // 复制源码到隔离构建目录
-    // 排除 package-lock.json：它会误导 npm 认为依赖已安装
-    copyDirExcluding(CACHE_DIR, buildDir, ['.git', 'node_modules', 'dist', '.cache', 'package-lock.json']);
+    const buildDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ui-frame-build-'));
+    try {
+      // 复制源码到隔离构建目录
+      // 排除 package-lock.json：它会误导 npm 认为依赖已安装
+      copyDirExcluding(CACHE_DIR, buildDir, ['.git', 'node_modules', 'dist', '.cache', 'package-lock.json']);
 
-    // 生成包含所有 deps+devDeps 的临时 package.json
-    const pkgJsonPath = path.join(buildDir, 'package.json');
-    const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
-    const tempPkg = {
-      name: 'ui-frame-build',
-      private: true,
-      type: pkg.type || 'module',
-      dependencies: {
-        ...(pkg.dependencies || {}),
-        ...(pkg.devDependencies || {}),
-      },
-    };
-    fs.writeFileSync(pkgJsonPath, JSON.stringify(tempPkg, null, 2));
+      // 生成包含所有 deps+devDeps 的临时 package.json
+      const pkgJsonPath = path.join(buildDir, 'package.json');
+      const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
+      const tempPkg = {
+        name: 'ui-frame-build',
+        private: true,
+        type: pkg.type || 'module',
+        dependencies: {
+          ...(pkg.dependencies || {}),
+          ...(pkg.devDependencies || {}),
+        },
+      };
+      fs.writeFileSync(pkgJsonPath, JSON.stringify(tempPkg, null, 2));
 
-    // 安装依赖（移除 --ignore-scripts，因为可能影响 npm 解析行为）
-    // 必须强制本地模式：全局安装 echo-prodoc 时，子 npm 会继承
-    // npm_config_global=true，导致依赖装到全局 prefix 而非 buildDir。
-    console.log('📥 Installing ui-frame dependencies...');
-    run('npm install --no-audit --no-fund --global=false', buildDir, {
-      env: {
-        ...process.env,
-        npm_config_global: 'false',
-        npm_config_workspaces: 'false',
-      },
-    });
+      // 安装依赖（移除 --ignore-scripts，因为可能影响 npm 解析行为）
+      // 必须强制本地模式：全局安装 echo-prodoc 时，子 npm 会继承
+      // npm_config_global=true，导致依赖装到全局 prefix 而非 buildDir。
+      console.log('📥 Installing ui-frame dependencies...');
+      run('npm install --no-audit --no-fund --global=false', buildDir, {
+        env: {
+          ...process.env,
+          npm_config_global: 'false',
+          npm_config_workspaces: 'false',
+        },
+      });
 
-    // 直接使用本地 vite，避免 npx 缓存问题
-    const viteBin = path.join(buildDir, 'node_modules', '.bin', 'vite');
-    if (!fs.existsSync(viteBin)) {
-      console.error('❌ vite not found after install. node_modules contents:');
-      if (fs.existsSync(path.join(buildDir, 'node_modules'))) {
-        console.error(fs.readdirSync(path.join(buildDir, 'node_modules')).slice(0, 20).join(', '));
+      // 直接使用本地 vite，避免 npx 缓存问题
+      const viteBin = path.join(buildDir, 'node_modules', '.bin', 'vite');
+      if (!fs.existsSync(viteBin)) {
+        console.error('❌ vite not found after install. node_modules contents:');
+        if (fs.existsSync(path.join(buildDir, 'node_modules'))) {
+          console.error(fs.readdirSync(path.join(buildDir, 'node_modules')).slice(0, 20).join(', '));
+        }
+        process.exit(1);
       }
-      process.exit(1);
-    }
-    run(`${viteBin} build && ${viteBin} build --config vite.umd.config.ts`, buildDir);
+      run(`${viteBin} build && ${viteBin} build --config vite.umd.config.ts`, buildDir);
 
-    // 复制 dist 回缓存目录
-    const newDist = path.join(buildDir, 'dist');
-    if (hasValidDist(newDist)) {
-      fs.rmSync(cacheDist, { recursive: true, force: true });
-      copyDir(newDist, cacheDist);
-      console.log('✅ Build succeeded, dist cached.');
-    } else {
-      console.error('❌ Build produced no valid dist.');
-      process.exit(1);
+      // 复制 dist 回缓存目录
+      const newDist = path.join(buildDir, 'dist');
+      if (hasValidDist(newDist)) {
+        fs.rmSync(cacheDist, { recursive: true, force: true });
+        copyDir(newDist, cacheDist);
+        console.log('✅ Build succeeded, dist cached.');
+      } else {
+        console.error('❌ Build produced no valid dist.');
+        process.exit(1);
+      }
+    } finally {
+      // 清理临时构建目录
+      fs.rmSync(buildDir, { recursive: true, force: true });
     }
-  } finally {
-    // 清理临时构建目录
-    fs.rmSync(buildDir, { recursive: true, force: true });
   }
 
   // 6. 复制到 node_modules

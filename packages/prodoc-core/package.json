@@ -22,10 +22,8 @@
     "type-check": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
-  "dependencies": {
-    "@echolab/ui-frame": "github:EchoLab-Auto/ui-frame#39d9eb24f75ff0b3fe5bbcff73f552f21e38a9d4"
-  },
   "devDependencies": {
+    "@echolab/ui-frame": "github:EchoLab-Auto/ui-frame#39d9eb24f75ff0b3fe5bbcff73f552f21e38a9d4",
     "typescript": "^5.7.0",
     "vite": "^8.0.16"
   }

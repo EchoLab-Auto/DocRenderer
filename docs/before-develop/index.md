@@ -9,5 +9,6 @@ order: 2
 
 ## 内容
 
+- [安装方式](./installation.md) — 本项目仅支持的两种安装方式及注意事项
 - [文档组织规则](./doc-organization.md) — 本项目文档体系的结构、命名与维护规范
 - [README 内容范围](./readme-scope.md) — README 只允许包含标题简介、快速开始、技术栈、许可证四个部分

@@ -9,10 +9,7 @@ ProDoc 是一个文档渲染与编辑框架，采用 **新拟态（Neumorphism /
 ### 安装
 
 ```bash
-# 从 npm 全局安装 CLI 工具（推荐）
-npm install -g echo-prodoc
-
-# 或从 GitHub 仓库直接全局安装
+# 从 GitHub 仓库直接全局安装
 npm install -g github:EchoLab-Auto/DocRenderer
 ```
 
