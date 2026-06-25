@@ -42,5 +42,8 @@
     "vue": "^3.5.35",
     "vue-tsc": "^2.2.12"
   },
+  "overrides": {
+    "fsevents": false
+  },
   "bundledDependencies": ["@echolab/ui-frame"]
 }

@@ -192,6 +192,9 @@ function main() {
           ...(pkg.dependencies || {}),
           ...(pkg.devDependencies || {}),
         },
+        overrides: {
+          fsevents: false,
+        },
       };
       fs.writeFileSync(pkgJsonPath, JSON.stringify(tempPkg, null, 2));
 
