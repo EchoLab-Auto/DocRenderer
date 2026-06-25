@@ -22,7 +22,6 @@
     "clean": "npm run clean --workspaces",
     "view": "node ./packages/prodoc-cli/dist/index.js view",
     "edit": "node ./packages/prodoc-cli/dist/index.js edit",
-    "prepare": "node scripts/install-ui-frame.js && node scripts/build-if-needed.js",
     "prepublishOnly": "node scripts/install-ui-frame.js && npm run build"
   },
   "devDependencies": {
