@@ -1,7 +1,3 @@
-import { DocEditor as d, MarkdownEditor as i } from "@echolab/ui-frame/doc";
+import { DocEditor as e, MarkdownEditor as t } from "@echolab/ui-frame/doc";
 import "@echolab/ui-frame/dist/style.css";
-export {
-  d as DocEditor,
-  i as MarkdownEditor
-};
-//# sourceMappingURL=index.js.map
+export { e as DocEditor, t as MarkdownEditor };

@@ -20,8 +20,8 @@ function s(t) {
 		throw Error(`Cannot find package directory for ${t}`);
 	}
 }
-var c = 3344, l = "<!DOCTYPE html>\n<html lang=\"zh-CN\">\n  <head>\n    <meta charset=\"UTF-8\" />\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n    <title>ProDoc</title>\n    <style>\n      html, body {\n        margin: 0;\n        padding: 0;\n        height: 100%;\n        background: var(--nm-bg-color, #e0e0e0);\n      }\n    </style>\n  </head>\n  <body>\n    <div id=\"app\"></div>\n    <script type=\"module\" src=\"/@prodoc/entry\"><\/script>\n  </body>\n</html>";
-async function u(n) {
+var c = 3344, l = 10 * 1024 * 1024, u = "<!DOCTYPE html>\n<html lang=\"zh-CN\">\n  <head>\n    <meta charset=\"UTF-8\" />\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n    <title>ProDoc</title>\n    <style>\n      html, body {\n        margin: 0;\n        padding: 0;\n        height: 100%;\n        background: var(--nm-bg-color, #e0e0e0);\n      }\n    </style>\n  </head>\n  <body>\n    <div id=\"app\"></div>\n    <script type=\"module\" src=\"/@prodoc/entry\"><\/script>\n  </body>\n</html>";
+async function d(n) {
 	let r = {};
 	async function i(n, a = "") {
 		let o = await t.readdir(n, { withFileTypes: !0 });
@@ -32,17 +32,23 @@ async function u(n) {
 	}
 	return await i(n), r;
 }
-function d(t) {
-	return e.join(s(t), "dist", "style.css").replace(/\\/g, "/");
+function f(t) {
+	let n = e.join(s(t), "dist", "style.css").replace(/\\/g, "/");
+	if (!a.existsSync(n)) throw Error(`CSS file not found for ${t}: ${n}. Please run "npm run build:ui-frame" first.`);
+	return n;
 }
-function f() {
+function p(t) {
+	let n = s(t), r = e.join(n, "src", "index.ts"), i = e.join(n, "dist", "index.js");
+	return process.env.PRODOC_DEV === "1" && a.existsSync(r) ? r.replace(/\\/g, "/") : i.replace(/\\/g, "/");
+}
+function m() {
 	return "async (filePath, content) => {\n            try {\n              const res = await fetch('/__prodoc_api/save', {\n                method: 'POST',\n                headers: { 'Content-Type': 'application/json' },\n                body: JSON.stringify({ path: filePath, content }),\n              });\n              const data = await res.json();\n              if (data.success) {\n                console.log('[ProDoc] saved:', filePath);\n              } else {\n                console.error('[ProDoc] save failed:', data.error);\n              }\n            } catch (e) {\n              console.error('[ProDoc] save error:', e);\n            }\n          }";
 }
-function p(t, n) {
-	let r = t === "view" ? "DocViewer" : "DocEditor", i = `import { ${r} } from '@prodoc/${t === "view" ? "renderer" : "editor"}';`, a = [`import '${d("@echolab/ui-frame")}';`, `import '${e.join(s("@prodoc/renderer"), "dist", "index.css").replace(/\\/g, "/")}'`];
+function h(t, n) {
+	let r = t === "view" ? "DocViewer" : "DocEditor", i = `import { ${r} } from '@prodoc/${t === "view" ? "renderer" : "editor"}';`, a = [`import '${f("@echolab/ui-frame")}';`, `import '${e.join(s("@prodoc/renderer"), "dist", "index.css").replace(/\\/g, "/")}'`];
 	t === "edit" && a.push(`import '${e.join(s("@prodoc/editor"), "dist", "index.css").replace(/\\/g, "/")}'`);
-	let o = ["onDocLink: (p) => console.log('[ProDoc] navigate to:', p)"];
-	return t === "edit" && o.push(`onSave: ${f()}`), `
+	let o = ["onDocLink: (p) => { console.log('[ProDoc] navigate to:', p); history.replaceState(null, '', '#' + p); }"];
+	return t === "edit" && o.push(`onSave: ${m()}`), `
 import { createApp, h } from 'vue';
 import uiFrame, { ThemeProvider } from '@echolab/ui-frame';
 import { buildDocTree } from '@prodoc/core';
@@ -51,6 +57,7 @@ ${a.join("\n")};
 
 const files = ${JSON.stringify(n)};
 const docTree = buildDocTree(files);
+const initialPath = window.location.hash ? window.location.hash.slice(1) : undefined;
 
 const app = createApp({
   render() {
@@ -58,6 +65,7 @@ const app = createApp({
       h(ThemeProvider, { defaultTheme: 'auto', storageKey: 'prodoc-theme', followSystem: true }, {
         default: () => h(${r}, {
           root: docTree,
+          initialPath,
           ${o.join(",\n          ")},
         }),
       }),
@@ -69,32 +77,32 @@ app.use(uiFrame);
 app.mount('#app');
 `;
 }
-async function m(i, a, o = {}) {
-	let d = o.port ?? c;
+async function g(i, a, o = {}) {
+	let s = o.port ?? c;
 	console.log(`📂 Loading documents from: ${e.resolve(a)}`);
-	let f = await u(a), m = Object.keys(f).length;
+	let f = await d(a), m = Object.keys(f).length;
 	if (m === 0) throw Error(`No .md files found in: ${a}`);
 	console.log(`✅ Loaded ${m} document(s)`);
-	let h = await n({
+	let g = await n({
 		root: process.cwd(),
 		configFile: !1,
 		server: {
-			port: d,
+			port: s,
 			open: o.open ?? !0,
 			host: !0
 		},
 		resolve: { alias: [
 			{
 				find: "@prodoc/core",
-				replacement: e.join(s("@prodoc/core"), "src", "index.ts").replace(/\\/g, "/")
+				replacement: p("@prodoc/core")
 			},
 			{
 				find: "@prodoc/renderer",
-				replacement: e.join(s("@prodoc/renderer"), "src", "index.ts").replace(/\\/g, "/")
+				replacement: p("@prodoc/renderer")
 			},
 			{
 				find: "@prodoc/editor",
-				replacement: e.join(s("@prodoc/editor"), "src", "index.ts").replace(/\\/g, "/")
+				replacement: p("@prodoc/editor")
 			}
 		] },
 		optimizeDeps: { include: ["marked"] },
@@ -105,7 +113,7 @@ async function m(i, a, o = {}) {
 				configureServer(e) {
 					e.middlewares.use((e, t, n) => {
 						if (e.url === "/" || e.url === "/index.html") {
-							t.setHeader("content-type", "text/html; charset=utf-8"), t.end(l);
+							t.setHeader("content-type", "text/html; charset=utf-8"), t.end(u);
 							return;
 						}
 						n();
@@ -119,7 +127,7 @@ async function m(i, a, o = {}) {
 					if (e === "/@prodoc/entry") return "\0prodoc-entry";
 				},
 				load(e) {
-					if (e === "\0prodoc-entry") return p(i, f);
+					if (e === "\0prodoc-entry") return h(i, f);
 				}
 			},
 			...i === "edit" ? [{
@@ -128,10 +136,19 @@ async function m(i, a, o = {}) {
 					n.middlewares.use(async (n, r, i) => {
 						if (n.url === "/__prodoc_api/save" && n.method === "POST") {
 							try {
-								let i = "";
-								n.on("data", (e) => i += e.toString()), n.on("end", async () => {
+								let i = "", o = 0;
+								n.on("data", (e) => {
+									if (o += e.length, o > l) {
+										r.statusCode = 413, r.setHeader("content-type", "application/json"), r.end(JSON.stringify({
+											success: !1,
+											error: "Payload Too Large"
+										}));
+										return;
+									}
+									i += e.toString();
+								}), n.on("end", async () => {
 									try {
-										let { path: n, content: o } = JSON.parse(i), s = e.resolve(a, n), c = e.resolve(a);
+										let { path: n, content: o } = JSON.parse(i), s = e.resolve(a, n), c = e.resolve(a) + e.sep;
 										if (!e.resolve(s).startsWith(c)) {
 											r.statusCode = 403, r.setHeader("content-type", "application/json"), r.end(JSON.stringify({
 												success: !1,
@@ -161,36 +178,36 @@ async function m(i, a, o = {}) {
 			}] : []
 		]
 	});
-	await h.listen();
-	let g = h.resolvedUrls ?? {
+	await g.listen();
+	let _ = g.resolvedUrls ?? {
 		local: [],
 		network: []
-	}, _ = g.local[0] ?? `http://localhost:${d}`;
-	return console.log("\n🚀 Echo-ProDoc server is running!\n"), console.log(`   Mode:    ${i === "view" ? "👁  View" : "✏️  Edit"}`), console.log(`   Docs:    ${e.resolve(a)}`), console.log(`   Local:   ${_}`), g.network.length > 0 && console.log(`   Network: ${g.network[0]}`), console.log(""), i === "edit" && console.log("   Press Ctrl+S in the editor to save changes.\n"), h;
+	}, v = _.local[0] ?? `http://localhost:${s}`;
+	return console.log("\n🚀 Echo-ProDoc server is running!\n"), console.log(`   Mode:    ${i === "view" ? "👁  View" : "✏️  Edit"}`), console.log(`   Docs:    ${e.resolve(a)}`), console.log(`   Local:   ${v}`), _.network.length > 0 && console.log(`   Network: ${_.network[0]}`), console.log(""), i === "edit" && console.log("   Press Ctrl+S in the editor to save changes.\n"), g;
 }
 //#endregion
 //#region src/index.ts
-var h = "echo-prodoc", g = "0.1.0";
-function _() {
+var _ = "echo-prodoc", v = "0.1.0";
+function y() {
 	console.log(`
-${h} v${g}
+${_} v${v}
 
 Usage:
-  ${h} view <document-path>   Start a rendering server for the document directory
-  ${h} edit <document-path>   Start an editing server for the document directory
-  ${h} --help                 Show this help message
-  ${h} --version              Show version
+  ${_} view <document-path>   Start a rendering server for the document directory
+  ${_} edit <document-path>   Start an editing server for the document directory
+  ${_} --help                 Show this help message
+  ${_} --version              Show version
 
 Options:
   --port, -p <number>    Server port (default: 3344)
   --no-open              Do not open browser automatically
 
 Examples:
-  ${h} view ./docs
-  ${h} edit ./docs --port 8080
+  ${_} view ./docs
+  ${_} edit ./docs --port 8080
 `);
 }
-function v(e) {
+function b(e) {
 	let t = e.slice(2), n = {
 		open: !0,
 		help: !1,
@@ -198,11 +215,11 @@ function v(e) {
 	};
 	for (let e = 0; e < t.length; e++) {
 		let r = t[e];
-		r === "--help" || r === "-h" ? n.help = !0 : r === "--version" || r === "-v" ? n.version = !0 : r === "--port" || r === "-p" ? n.port = parseInt(t[++e], 10) : r === "--no-open" ? n.open = !1 : r.startsWith("-") || (n.command ? n.docPath ||= r : r === "view" || r === "edit" ? n.command = r : (console.error(`Unknown command: ${r}`), process.exit(1)));
+		r === "--help" || r === "-h" ? n.help = !0 : r === "--version" || r === "-v" ? n.version = !0 : r === "--port" || r === "-p" ? ((e + 1 >= t.length || isNaN(parseInt(t[e + 1], 10))) && (console.error("Error: --port requires a valid number"), process.exit(1)), n.port = parseInt(t[++e], 10)) : r === "--no-open" ? n.open = !1 : r.startsWith("-") || (n.command ? n.docPath ||= r : r === "view" || r === "edit" ? n.command = r : (console.error(`Unknown command: ${r}`), process.exit(1)));
 	}
 	return n;
 }
-async function y(n) {
+async function x(n) {
 	let r = e.resolve(n);
 	try {
 		if (!(await t.stat(r)).isDirectory()) throw Error(`Path is not a directory: ${r}`);
@@ -211,11 +228,11 @@ async function y(n) {
 	}
 	return r;
 }
-async function b() {
-	let e = v(process.argv);
-	e.help && (_(), process.exit(0)), e.version && (console.log(`${h} v${g}`), process.exit(0)), e.command || (console.error("Error: No command specified. Use \"view\" or \"edit\"."), console.error(`\nRun "${h} --help" for usage information.`), process.exit(1)), e.docPath || (console.error("Error: No document path specified."), console.error(`\nRun "${h} --help" for usage information.`), process.exit(1));
+async function S() {
+	let e = b(process.argv);
+	e.help && (y(), process.exit(0)), e.version && (console.log(`${_} v${v}`), process.exit(0)), e.command || (console.error("Error: No command specified. Use \"view\" or \"edit\"."), console.error(`\nRun "${_} --help" for usage information.`), process.exit(1)), e.docPath || (console.error("Error: No document path specified."), console.error(`\nRun "${_} --help" for usage information.`), process.exit(1));
 	try {
-		let t = await y(e.docPath), n = await m(e.command, t, {
+		let t = await x(e.docPath), n = await g(e.command, t, {
 			port: e.port,
 			open: e.open
 		}), r = () => {
@@ -228,7 +245,7 @@ async function b() {
 		console.error(`\n❌ Error: ${e.message}\n`), process.exit(1);
 	}
 }
-b();
+S();
 //#endregion
 
 //# sourceMappingURL=index.js.map

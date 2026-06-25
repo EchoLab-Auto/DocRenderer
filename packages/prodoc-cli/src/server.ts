@@ -35,6 +35,7 @@ function resolvePkgDir(pkgName: string): string {
 
 /** 默认服务器端口 */
 const DEFAULT_PORT = 3344;
+const MAX_SAVE_BODY_SIZE = 10 * 1024 * 1024; // 10 MB
 
 /** HTML 入口模板 — 完全内联，无需文件系统 */
 const INDEX_HTML = `<!DOCTYPE html>
@@ -82,7 +83,23 @@ async function loadMarkdownFiles(dir: string): Promise<Record<string, string>> {
 
 /** 解析 CSS 文件的绝对路径（替换反斜杠为正斜杠） */
 function resolveCssPath(pkgName: string): string {
-  return path.join(resolvePkgDir(pkgName), 'dist', 'style.css').replace(/\\/g, '/');
+  const cssPath = path.join(resolvePkgDir(pkgName), 'dist', 'style.css').replace(/\\/g, '/');
+  if (!fsSync.existsSync(cssPath)) {
+    throw new Error(`CSS file not found for ${pkgName}: ${cssPath}. Please run "npm run build:ui-frame" first.`);
+  }
+  return cssPath;
+}
+
+/** 解析 ProDoc workspace 包的入口文件 */
+function resolveProDocEntry(pkgName: string): string {
+  const pkgDir = resolvePkgDir(pkgName);
+  // 开发模式可通过 PRODOC_DEV=1 使用源码，默认使用构建产物以确保发布包可用
+  const devSrc = path.join(pkgDir, 'src', 'index.ts');
+  const distEntry = path.join(pkgDir, 'dist', 'index.js');
+  if (process.env.PRODOC_DEV === '1' && fsSync.existsSync(devSrc)) {
+    return devSrc.replace(/\\/g, '/');
+  }
+  return distEntry.replace(/\\/g, '/');
 }
 
 /** 构建保存处理函数代码 */
@@ -121,7 +138,7 @@ function generateClientEntry(mode: 'view' | 'edit', files: Record<string, string
   }
 
   const eventProps = [
-    'onDocLink: (p) => console.log(\'[ProDoc] navigate to:\', p)',
+    'onDocLink: (p) => { console.log(\'[ProDoc] navigate to:\', p); history.replaceState(null, \'\', \'#\' + p); }',
   ];
   if (mode === 'edit') {
     eventProps.push(`onSave: ${buildSaveHandler()}`);
@@ -136,6 +153,7 @@ ${cssImports.join('\n')};
 
 const files = ${JSON.stringify(files)};
 const docTree = buildDocTree(files);
+const initialPath = window.location.hash ? window.location.hash.slice(1) : undefined;
 
 const app = createApp({
   render() {
@@ -143,6 +161,7 @@ const app = createApp({
       h(ThemeProvider, { defaultTheme: 'auto', storageKey: 'prodoc-theme', followSystem: true }, {
         default: () => h(${componentName}, {
           root: docTree,
+          initialPath,
           ${eventProps.join(',\n          ')},
         }),
       }),
@@ -183,9 +202,9 @@ export async function startProDocServer(
     },
     resolve: {
       alias: [
-        { find: '@prodoc/core', replacement: path.join(resolvePkgDir('@prodoc/core'), 'src', 'index.ts').replace(/\\/g, '/') },
-        { find: '@prodoc/renderer', replacement: path.join(resolvePkgDir('@prodoc/renderer'), 'src', 'index.ts').replace(/\\/g, '/') },
-        { find: '@prodoc/editor', replacement: path.join(resolvePkgDir('@prodoc/editor'), 'src', 'index.ts').replace(/\\/g, '/') },
+        { find: '@prodoc/core', replacement: resolveProDocEntry('@prodoc/core') },
+        { find: '@prodoc/renderer', replacement: resolveProDocEntry('@prodoc/renderer') },
+        { find: '@prodoc/editor', replacement: resolveProDocEntry('@prodoc/editor') },
       ],
     },
     optimizeDeps: {
@@ -233,13 +252,23 @@ export async function startProDocServer(
                   if (req.url === '/__prodoc_api/save' && req.method === 'POST') {
                     try {
                       let body = '';
-                      req.on('data', (chunk: Buffer) => (body += chunk.toString()));
+                      let bodySize = 0;
+                      req.on('data', (chunk: Buffer) => {
+                        bodySize += chunk.length;
+                        if (bodySize > MAX_SAVE_BODY_SIZE) {
+                          res.statusCode = 413;
+                          res.setHeader('content-type', 'application/json');
+                          res.end(JSON.stringify({ success: false, error: 'Payload Too Large' }));
+                          return;
+                        }
+                        body += chunk.toString();
+                      });
                       req.on('end', async () => {
                         try {
                           const { path: filePath, content } = JSON.parse(body);
                           const fullPath = path.resolve(docRoot, filePath);
                           // 安全检查：确保文件在 docRoot 内
-                          const resolvedDocRoot = path.resolve(docRoot);
+                          const resolvedDocRoot = path.resolve(docRoot) + path.sep;
                           const resolvedTarget = path.resolve(fullPath);
                           if (!resolvedTarget.startsWith(resolvedDocRoot)) {
                             res.statusCode = 403;

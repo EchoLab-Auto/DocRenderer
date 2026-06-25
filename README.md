@@ -9,11 +9,11 @@ ProDoc 是一个文档渲染与编辑框架，采用 **新拟态（Neumorphism /
 ### 安装
 
 ```bash
-# 安装渲染器和核心库
-npm install @prodoc/core @prodoc/renderer
-
-# 全局安装 CLI 工具
+# 从 npm 全局安装 CLI 工具（推荐）
 npm install -g echo-prodoc
+
+# 或从 GitHub 仓库直接全局安装
+npm install -g github:EchoLab-Auto/DocRenderer
 ```
 
 ### 使用
@@ -37,6 +37,7 @@ cd DocRenderer
 npm install && npm run build
 npm link
 echo-prodoc view ./examples/demo/document
+# 或本地运行：npm run view -- ./examples/demo/document
 ```
 
 ## 技术栈

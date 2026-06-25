@@ -159,6 +159,8 @@ interface ProDocNode {
 
 ## 八、示例：新增一篇文档的完整操作
 
+> 以下是一个**假设场景**，用于演示新增文档的完整流程。`docs/guide/theme-customization.md` 并非项目中的真实文件。
+
 假设需要在 `guide/` 下新增一篇「主题定制」文档：
 
 **1. 创建文件 `docs/guide/theme-customization.md`：**

@@ -12,7 +12,7 @@ order: 1
 - 🎨 **新拟态设计风格** — 统一台阶高度模型，3D 浮雕与凹陷效果
 - 📝 **Markdown 实时渲染** — 标准 Markdown + GitHub Flavored Markdown
 - 🌳 **文档树导航** — 左侧树状索引，支持实时搜索过滤
-- 🔄 **流程图渲染** — 特殊 Markdown 语法定义交互式流程图
+- 🔄 **流程图渲染** — 特殊 Markdown 语法定义交互式流程图（即将上线）
 - ✏️ **所见即所得编辑** — 浏览器中直接编辑文档
 - 🌓 **主题切换** — 亮色 / 暗色 / 自动跟随系统
 
@@ -21,7 +21,7 @@ order: 1
 ```bash
 npm install
 npm run build
-npm run view ./docs
+npm run view -- ./docs
 ```
 
 ## 章节导航

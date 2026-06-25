@@ -27,8 +27,15 @@ interface ProDocNode {
 | 函数 | 描述 |
 |------|------|
 | `buildDocTree(files)` | 从文件映射构建文档树 |
-| `parseFlowDsl(dsl)` | 解析流程图 DSL |
-| `exportFlowDsl(graph)` | 导出流程图为 DSL |
+| `createNode(filePath, content)` | 创建单个 ProDocNode |
+| `createDocTree(root)` | 从根节点创建 DocTree 索引 |
+| `flattenDocTree(root)` | 扁平化文档树为列表 |
+| `getAncestors(node, root)` | 获取节点的祖先路径 |
+| `getNodeIcon(node)` | 根据路径推断图标 |
+| `nodeToTreeData(node)` | ProDocNode → 树节点数据 |
+| `parseFrontmatter(content)` | 解析 YAML frontmatter |
+| `pathToId(filePath)` | 文件路径 → 文档 ID |
+| `extractTitle(body, meta)` | 提取文档标题 |
 
 ## @prodoc/renderer
 
@@ -37,9 +44,7 @@ interface ProDocNode {
 | 组件 | 描述 |
 |------|------|
 | `<DocViewer />` | 完整文档查看器 |
-| `<TreeNavigator />` | 树状文档导航 |
 | `<MarkdownRenderer />` | Markdown 渲染 |
-| `<FlowRenderer />` | 流程图渲染 |
 
 ## @prodoc/editor
 
@@ -49,4 +54,6 @@ interface ProDocNode {
 |------|------|
 | `<DocEditor />` | 完整文档编辑器 |
 | `<MarkdownEditor />` | Markdown 编辑器 |
-| `<FlowEditor />` | 流程图编辑器 |
+
+> 💡 所有组件和工具函数的实现源码位于 `@echolab/ui-frame` 的 `dist/doc/` 目录。
+> `@prodoc/core`、 `@prodoc/renderer`、 `@prodoc/editor` 均为从 `@echolab/ui-frame/doc` 重新导出的薄封装层。

@@ -8,7 +8,7 @@ order: 1
 ## 安装
 
 ```bash
-npm install @echolab/prodoc
+npm install -g echo-prodoc
 ```
 
 ## 使用

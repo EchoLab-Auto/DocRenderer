@@ -1,14 +1,2 @@
-import { buildDocTree as o, createDocTree as r, createNode as a, extractTitle as c, flattenDocTree as T, getAncestors as d, getNodeIcon as n, nodeToTreeData as D, parseFrontmatter as l, pathToId as p } from "@echolab/ui-frame/doc";
-export {
-  o as buildDocTree,
-  r as createDocTree,
-  a as createNode,
-  c as extractTitle,
-  T as flattenDocTree,
-  d as getAncestors,
-  n as getNodeIcon,
-  D as nodeToTreeData,
-  l as parseFrontmatter,
-  p as pathToId
-};
-//# sourceMappingURL=index.js.map
+import { buildDocTree as e, createDocTree as t, createNode as n, extractTitle as r, flattenDocTree as i, getAncestors as a, getNodeIcon as o, nodeToTreeData as s, parseFrontmatter as c, pathToId as l } from "@echolab/ui-frame/doc";
+export { e as buildDocTree, t as createDocTree, n as createNode, r as extractTitle, i as flattenDocTree, a as getAncestors, o as getNodeIcon, s as nodeToTreeData, c as parseFrontmatter, l as pathToId };

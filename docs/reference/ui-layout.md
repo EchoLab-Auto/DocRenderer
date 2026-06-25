@@ -481,7 +481,7 @@ order: 3
 | `--pd-selection-bg` | `color-mix(in srgb, var(--nm-primary-color) 30%, transparent)` | 文本选中背景色 |
 | `--pd-transition-fast` | `0.2s ease` | 快速过渡 |
 | `--pd-transition-medium` | `0.25s ease` | 中等过渡 |
-| `--pd-font-mono` | `'SF Mono', 'Cascadia Code', Monaco, ...` | 等宽字体栈 |
+| `--pd-font-mono` | `'SF Mono', 'Cascadia Code', Monaco, 'Fira Code', 'Cousine', monospace` | 等宽字体栈 |
 
 ### 7.2 依赖 ui-frame 的变量
 
@@ -567,10 +567,10 @@ NeumorphismLayout (全局骨架)
 
 | 模块 | 文件路径 |
 |------|----------|
-| DocViewer 实现 | `@echolab/ui-frame` → `src/doc/DocViewer.vue` |
-| DocEditor 实现 | `@echolab/ui-frame` → `src/doc/DocEditor.vue` |
-| MarkdownRenderer 实现 | `@echolab/ui-frame` → `src/doc/MarkdownRenderer.vue` |
-| MarkdownEditor 实现 | `@echolab/ui-frame` → `src/doc/MarkdownEditor.vue` |
+| DocViewer 实现 | `@echolab/ui-frame` → `dist/doc/DocViewer.js`（源码见 ui-frame 仓库 `src/doc/DocViewer.vue`） |
+| DocEditor 实现 | `@echolab/ui-frame` → `dist/doc/DocEditor.js`（源码见 ui-frame 仓库 `src/doc/DocEditor.vue`） |
+| MarkdownRenderer 实现 | `@echolab/ui-frame` → `dist/doc/MarkdownRenderer.js`（源码见 ui-frame 仓库 `src/doc/MarkdownRenderer.vue`） |
+| MarkdownEditor 实现 | `@echolab/ui-frame` → `dist/doc/MarkdownEditor.js`（源码见 ui-frame 仓库 `src/doc/MarkdownEditor.vue`） |
 | DocViewer 重新导出 | `packages/prodoc-renderer/src/index.ts` |
 | DocEditor 重新导出 | `packages/prodoc-editor/src/index.ts` |
 | MarkdownRenderer 重新导出 | `packages/prodoc-renderer/src/index.ts` |

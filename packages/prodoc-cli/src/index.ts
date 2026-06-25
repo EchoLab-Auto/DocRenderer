@@ -55,6 +55,10 @@ function parseArgs(argv: string[]) {
     } else if (arg === '--version' || arg === '-v') {
       result.version = true;
     } else if (arg === '--port' || arg === '-p') {
+      if (i + 1 >= args.length || isNaN(parseInt(args[i + 1], 10))) {
+        console.error('Error: --port requires a valid number');
+        process.exit(1);
+      }
       result.port = parseInt(args[++i], 10);
     } else if (arg === '--no-open') {
       result.open = false;
