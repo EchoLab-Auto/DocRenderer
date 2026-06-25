@@ -8,7 +8,8 @@ order: 1
 ## 安装
 
 ```bash
-npm install -g github:EchoLab-Auto/DocRenderer
+npm pack github:EchoLab-Auto/DocRenderer
+npm install -g ./echo-prodoc-0.1.0.tgz
 ```
 
 ## 使用
