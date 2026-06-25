@@ -9,6 +9,7 @@
     "echo-prodoc": "./packages/prodoc-cli/dist/index.js"
   },
   "files": [
+    ".npmrc",
     "packages/*/dist/**",
     "packages/*/package.json",
     "scripts/"

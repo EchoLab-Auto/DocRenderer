@@ -199,7 +199,7 @@ function main() {
       // 必须强制本地模式：全局安装 echo-prodoc 时，子 npm 会继承
       // npm_config_global=true，导致依赖装到全局 prefix 而非 buildDir。
       console.log('📥 Installing ui-frame dependencies...');
-      run('npm install --no-audit --no-fund --global=false', buildDir, {
+      run('npm install --no-audit --no-fund --no-optional --global=false', buildDir, {
         env: {
           ...process.env,
           npm_config_global: 'false',
