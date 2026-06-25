@@ -6,9 +6,10 @@
     "packages/*"
   ],
   "bin": {
-    "echo-prodoc": "./packages/prodoc-cli/dist/index.js"
+    "echo-prodoc": "./bin/echo-prodoc"
   },
   "files": [
+    "bin/",
     "packages/*/dist/**",
     "packages/*/package.json",
     "scripts/",
