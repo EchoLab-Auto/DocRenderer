@@ -8,8 +8,7 @@ order: 1
 ## 安装
 
 ```bash
-npm pack github:EchoLab-Auto/DocRenderer
-npm install -g ./echo-prodoc-0.1.0.tgz
+TARBALL=$(npm pack github:EchoLab-Auto/DocRenderer | tail -1) && npm install -g "$TARBALL" && rm -f "$TARBALL"
 ```
 
 ## 使用

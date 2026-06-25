@@ -27,14 +27,7 @@ echo-prodoc view ./examples/demo/document
 由于 `npm install -g github:...` 会直接软链接到临时克隆目录，全局安装后经常出现命令找不到或链接断裂的问题，推荐先打包再安装：
 
 ```bash
-npm pack github:EchoLab-Auto/DocRenderer
-npm install -g ./echo-prodoc-0.1.0.tgz
-```
-
-或者使用一行命令：
-
-```bash
-npm install -g $(npm pack github:EchoLab-Auto/DocRenderer | tail -1)
+TARBALL=$(npm pack github:EchoLab-Auto/DocRenderer | tail -1) && npm install -g "$TARBALL" && rm -f "$TARBALL"
 ```
 
 安装完成后即可使用 `echo-prodoc` 命令：

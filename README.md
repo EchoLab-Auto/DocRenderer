@@ -10,8 +10,7 @@ ProDoc 是一个文档渲染与编辑框架，采用 **新拟态（Neumorphism /
 
 ```bash
 # 从 GitHub 打包后全局安装（推荐）
-npm pack github:EchoLab-Auto/DocRenderer
-npm install -g ./echo-prodoc-0.1.0.tgz
+TARBALL=$(npm pack github:EchoLab-Auto/DocRenderer | tail -1) && npm install -g "$TARBALL" && rm -f "$TARBALL"
 ```
 
 ### 使用
