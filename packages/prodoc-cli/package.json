@@ -20,7 +20,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "vite build && tsc --emitDeclarationOnly",
+    "build": "vite build && tsc --emitDeclarationOnly && chmod +x dist/index.js",
     "type-check": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
