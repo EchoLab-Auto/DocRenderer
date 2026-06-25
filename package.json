@@ -9,10 +9,10 @@
     "echo-prodoc": "./packages/prodoc-cli/dist/index.js"
   },
   "files": [
-    ".npmrc",
     "packages/*/dist/**",
     "packages/*/package.json",
-    "scripts/"
+    "scripts/",
+    "vendor/@echolab/ui-frame/**"
   ],
   "scripts": {
     "build": "npm run build --workspaces",
@@ -33,7 +33,7 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@echolab/ui-frame": "github:EchoLab-Auto/ui-frame#39d9eb24f75ff0b3fe5bbcff73f552f21e38a9d4",
+    "@echolab/ui-frame": "file:vendor/@echolab/ui-frame",
     "@prodoc/core": "file:packages/prodoc-core",
     "@prodoc/editor": "file:packages/prodoc-editor",
     "@prodoc/renderer": "file:packages/prodoc-renderer",
@@ -44,6 +44,5 @@
   },
   "overrides": {
     "fsevents": false
-  },
-  "bundledDependencies": ["@echolab/ui-frame"]
+  }
 }

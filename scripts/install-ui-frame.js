@@ -2,13 +2,14 @@
 /**
  * 自动构建并安装 @echolab/ui-frame
  *
- * 该脚本在 npm postinstall 阶段运行。
+ * 该脚本在 npm prepare 阶段运行。
  * 由于 ui-frame 仅作为 GitHub 仓库存在（未发布到 npm），
  * 且通过 GitHub 安装时不包含构建产物（dist/），
  * 此脚本负责：
  *   1. 从远程获取最新版本信息
  *   2. 有更新时拉取源码、重新构建
- *   3. 将构建产物复制到 node_modules
+ *   3. 将构建产物复制到 vendor/@echolab/ui-frame
+ *   4. 同步到 node_modules/@echolab/ui-frame 供构建/运行时使用
  *
  * 缓存策略：
  *   - 源码缓存在 .cache/ui-frame-src/
@@ -28,8 +29,9 @@ const os = require('os');
 const REPO_URL = 'https://github.com/EchoLab-Auto/ui-frame.git';
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const CACHE_DIR = path.join(PROJECT_ROOT, '.cache', 'ui-frame-src');
-const TARGET_DIR = path.join(PROJECT_ROOT, 'node_modules', '@echolab', 'ui-frame');
-const TARGET_DIST = path.join(TARGET_DIR, 'dist');
+const VENDOR_DIR = path.join(PROJECT_ROOT, 'vendor', '@echolab', 'ui-frame');
+const VENDOR_DIST = path.join(VENDOR_DIR, 'dist');
+const NODE_MODULES_DIR = path.join(PROJECT_ROOT, 'node_modules', '@echolab', 'ui-frame');
 
 /** 安全执行命令 */
 function run(cmd, cwd, options = {}) {
@@ -116,11 +118,11 @@ function getRemoteHash() {
 }
 
 function main() {
-  // 0. 若目标 dist 已存在且有效（例如从发布包安装时已携带构建产物），直接跳过
+  // 0. 若 vendor dist 已存在且有效（例如从发布包安装时已携带构建产物），直接跳过
   // 避免在全局安装/离线场景下无意义地触发 git clone 和网络请求
-  if (hasValidDist(TARGET_DIST)) {
-    console.log('✅ @echolab/ui-frame dist already exists, nothing to do.');
-    console.log('   To force rebuild: rm -rf node_modules/@echolab/ui-frame/dist && npm run build:ui-frame');
+  if (hasValidDist(VENDOR_DIST)) {
+    console.log('✅ @echolab/ui-frame vendor dist already exists, nothing to do.');
+    console.log('   To force rebuild: rm -rf vendor/@echolab/ui-frame/dist && npm run build:ui-frame');
     return;
   }
 
@@ -237,24 +239,29 @@ function main() {
     }
   }
 
-  // 6. 复制到 node_modules
-  console.log('📋 Copying dist to node_modules...');
-  fs.rmSync(TARGET_DIST, { recursive: true, force: true });
-  copyDir(cacheDist, TARGET_DIST);
+  // 6. 复制到 vendor
+  console.log('📋 Copying dist to vendor/@echolab/ui-frame...');
+  fs.rmSync(VENDOR_DIST, { recursive: true, force: true });
+  copyDir(cacheDist, VENDOR_DIST);
 
   // 7. 注入 ./doc 子路径导出
-  const targetPkgPath = path.join(TARGET_DIR, 'package.json');
-  if (fs.existsSync(targetPkgPath)) {
-    const pkg = JSON.parse(fs.readFileSync(targetPkgPath, 'utf-8'));
+  const vendorPkgPath = path.join(VENDOR_DIR, 'package.json');
+  if (fs.existsSync(vendorPkgPath)) {
+    const pkg = JSON.parse(fs.readFileSync(vendorPkgPath, 'utf-8'));
     if (!pkg.exports['./doc']) {
       pkg.exports['./doc'] = {
         import: './dist/doc/index.js',
         types: './dist/doc/index.d.ts',
       };
-      fs.writeFileSync(targetPkgPath, JSON.stringify(pkg, null, 2) + '\n');
+      fs.writeFileSync(vendorPkgPath, JSON.stringify(pkg, null, 2) + '\n');
       console.log('📋 Injected ./doc export into ui-frame package.json');
     }
   }
+
+  // 8. 同步到 node_modules，确保当前构建/运行能解析到最新产物
+  console.log('📋 Syncing to node_modules/@echolab/ui-frame...');
+  fs.rmSync(NODE_MODULES_DIR, { recursive: true, force: true });
+  copyDir(VENDOR_DIR, NODE_MODULES_DIR);
 
   console.log('\n✅ @echolab/ui-frame installed successfully!');
 }
