@@ -193,8 +193,16 @@ function main() {
     fs.writeFileSync(pkgJsonPath, JSON.stringify(tempPkg, null, 2));
 
     // 安装依赖（移除 --ignore-scripts，因为可能影响 npm 解析行为）
+    // 必须强制本地模式：全局安装 echo-prodoc 时，子 npm 会继承
+    // npm_config_global=true，导致依赖装到全局 prefix 而非 buildDir。
     console.log('📥 Installing ui-frame dependencies...');
-    run('npm install --no-audit --no-fund', buildDir);
+    run('npm install --no-audit --no-fund --global=false', buildDir, {
+      env: {
+        ...process.env,
+        npm_config_global: 'false',
+        npm_config_workspaces: 'false',
+      },
+    });
 
     // 直接使用本地 vite，避免 npx 缓存问题
     const viteBin = path.join(buildDir, 'node_modules', '.bin', 'vite');
