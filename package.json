@@ -12,7 +12,8 @@
     "packages/*/dist/**",
     "packages/*/package.json",
     "scripts/",
-    "vendor/@echolab/ui-frame/**"
+    "vendor/@echolab/ui-frame/**",
+    "vendor/fsevents-stub/**"
   ],
   "scripts": {
     "build": "npm run build --workspaces",
@@ -43,6 +44,6 @@
     "vue-tsc": "^2.2.12"
   },
   "overrides": {
-    "fsevents": false
+    "fsevents": "file:vendor/fsevents-stub"
   }
 }

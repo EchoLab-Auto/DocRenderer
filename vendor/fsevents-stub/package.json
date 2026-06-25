@@ -1,0 +1,8 @@
+{
+  "name": "fsevents",
+  "version": "2.3.3",
+  "description": "Stub for fsevents to avoid native compilation on unsupported Node versions",
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "license": "MIT"
+}
