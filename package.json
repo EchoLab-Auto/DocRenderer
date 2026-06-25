@@ -1,5 +1,5 @@
 {
-  "name": "echo-prodoc",
+  "name": "@echolab/echo-prodoc",
   "version": "0.1.0",
   "description": "ProDoc - 文档渲染与编辑框架",
   "workspaces": [

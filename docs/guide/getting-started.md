@@ -7,6 +7,14 @@ order: 1
 
 ## 安装
 
+### 从 npm 全局安装（推荐）
+
+```bash
+npm install -g @echolab/echo-prodoc
+```
+
+### 从 GitHub 打包安装
+
 ```bash
 TARBALL=$(npm pack github:EchoLab-Auto/DocRenderer | tail -1) && npm install -g "$TARBALL" && rm -f "$TARBALL"
 ```
@@ -14,7 +22,7 @@ TARBALL=$(npm pack github:EchoLab-Auto/DocRenderer | tail -1) && npm install -g 
 如果安装后 `echo-prodoc` 不在 PATH 中，可创建系统级软链接：
 
 ```bash
-sudo node "$(npm root -g)/echo-prodoc/scripts/link-system-bin.js"
+sudo -E env "PATH=$PATH" node "$(npm root -g)/@echolab/echo-prodoc/scripts/link-system-bin.js"
 ```
 
 ## 使用
