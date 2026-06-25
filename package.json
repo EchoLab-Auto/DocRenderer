@@ -6,7 +6,7 @@
     "packages/*"
   ],
   "bin": {
-    "echo-prodoc": "./bin/echo-prodoc"
+    "echo-prodoc": "./bin/echo-prodoc.js"
   },
   "files": [
     "bin/",
