@@ -11,17 +11,27 @@ order: 1
 TARBALL=$(npm pack github:EchoLab-Auto/DocRenderer | tail -1) && npm install -g "$TARBALL" && rm -f "$TARBALL"
 ```
 
+如果安装后 `echo-prodoc` 不在 PATH 中，可创建系统级软链接：
+
+```bash
+sudo node "$(npm root -g)/echo-prodoc/scripts/link-system-bin.js"
+```
+
 ## 使用
 
 ### 查看模式
 
 ```bash
+echo-prodoc view ./docs
+# 或临时使用 npx
 npx echo-prodoc view ./docs
 ```
 
 ### 编辑模式
 
 ```bash
+echo-prodoc edit ./docs
+# 或临时使用 npx
 npx echo-prodoc edit ./docs
 ```
 
