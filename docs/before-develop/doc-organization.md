@@ -1,6 +1,6 @@
 ---
 title: "文档组织规则"
-order: 1
+order: 2
 ---
 
 # 文档组织规则
@@ -16,7 +16,10 @@ docs/
 ├── index.md                    # 文档系统首页
 ├── before-develop/             # 开发前必读
 │   ├── index.md
-│   └── doc-organization.md     # 本文档
+│   ├── doc-organization.md     # 本文档
+│   ├── installation.md
+│   ├── readme-scope.md
+│   └── ui-development-guide.md
 ├── guide/                      # 使用指南
 │   ├── index.md
 │   ├── getting-started.md

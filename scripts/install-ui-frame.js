@@ -1,15 +1,13 @@
 #!/usr/bin/env node
 /**
- * 自动构建并安装 @echolab/ui-frame
+ * 从 GitHub 源码构建 @echolab/ui-frame 并安装到 vendor/ 目录
  *
- * 该脚本在 npm prepare 阶段运行。
- * 由于 ui-frame 仅作为 GitHub 仓库存在（未发布到 npm），
- * 且通过 GitHub 安装时不包含构建产物（dist/），
- * 此脚本负责：
- *   1. 从远程获取最新版本信息
- *   2. 有更新时拉取源码、重新构建
- *   3. 将构建产物复制到 vendor/@echolab/ui-frame
- *   4. 同步到 node_modules/@echolab/ui-frame 供构建/运行时使用
+ * 该脚本仅在「本地开发 ui-frame 自身」时使用（通过 npm run use-local-ui-frame 调用）。
+ * 默认情况下，项目通过 npm registry 安装 @echolab-auto/ui-frame。
+ *
+ * 当需要修改 ui-frame 源码并立即在 DocRenderer 中验证时：
+ *   1. 运行 npm run use-local-ui-frame 切换到 file: 协议
+ *   2. 本脚本自动执行：clone → build → copy 到 vendor/ → 同步到 node_modules/
  *
  * 缓存策略：
  *   - 源码缓存在 .cache/ui-frame-src/

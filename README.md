@@ -11,12 +11,6 @@ ProDoc 是一个文档渲染与编辑框架，采用 **新拟态（Neumorphism /
 ```bash
 # 从 npm 全局安装 CLI 工具（推荐）
 npm install -g @echolab-auto/echo-prodoc
-
-# 或从 GitHub 打包后全局安装
-TARBALL=$(npm pack github:EchoLab-Auto/DocRenderer | tail -1) && npm install -g "$TARBALL" && rm -f "$TARBALL"
-
-# 如果安装后命令不在 PATH 中，可创建系统级软链接
-sudo -E env "PATH=$PATH" node "$(npm root -g)/@echolab-auto/echo-prodoc/scripts/link-system-bin.js"
 ```
 
 ### 使用
@@ -30,17 +24,6 @@ echo-prodoc edit ./docs
 
 # 指定端口
 echo-prodoc view ./docs --port 8080
-```
-
-也可以通过源码安装：
-
-```bash
-git clone https://github.com/EchoLab-Auto/DocRenderer.git
-cd DocRenderer
-npm install && npm run build
-npm link
-echo-prodoc view ./examples/demo/document
-# 或本地运行：npm run view -- ./examples/demo/document
 ```
 
 ## 技术栈

@@ -13,7 +13,6 @@
     "packages/*/dist/**",
     "packages/*/package.json",
     "scripts/",
-    "vendor/@echolab/ui-frame/**",
     "vendor/fsevents-stub/**"
   ],
   "scripts": {
@@ -23,7 +22,8 @@
     "clean": "npm run clean --workspaces",
     "view": "node ./packages/prodoc-cli/dist/index.js view",
     "edit": "node ./packages/prodoc-cli/dist/index.js edit",
-    "prepublishOnly": "node scripts/install-ui-frame.js && npm run build"
+    "prepublishOnly": "npm run build",
+    "use-local-ui-frame": "node scripts/switch-ui-frame.js local"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
@@ -34,7 +34,7 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@echolab/ui-frame": "file:vendor/@echolab/ui-frame",
+    "@echolab/ui-frame": "npm:@echolab-auto/ui-frame@^1.0.0",
     "@prodoc/core": "file:packages/prodoc-core",
     "@prodoc/editor": "file:packages/prodoc-editor",
     "@prodoc/renderer": "file:packages/prodoc-renderer",

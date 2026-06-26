@@ -85,7 +85,7 @@ async function loadMarkdownFiles(dir: string): Promise<Record<string, string>> {
 function resolveCssPath(pkgName: string): string {
   const cssPath = path.join(resolvePkgDir(pkgName), 'dist', 'style.css').replace(/\\/g, '/');
   if (!fsSync.existsSync(cssPath)) {
-    throw new Error(`CSS file not found for ${pkgName}: ${cssPath}. Please run "npm run build:ui-frame" first.`);
+    throw new Error(`CSS file not found for ${pkgName}: ${cssPath}. Please ensure @echolab/ui-frame is installed.`);
   }
   return cssPath;
 }
@@ -152,15 +152,15 @@ ${componentImport}
 ${cssImports.join('\n')};
 
 const files = ${JSON.stringify(files)};
-const docTree = buildDocTree(files);
+const docRoot = buildDocTree(files);
 const initialPath = window.location.hash ? window.location.hash.slice(1) : undefined;
 
 const app = createApp({
   render() {
-    return h('div', { style: { height: '100vh', width: '100vw' } }, [
+    return h('div', { style: { height: '100vh', width: '100vw', overflow: 'hidden' } }, [
       h(ThemeProvider, { defaultTheme: 'auto', storageKey: 'prodoc-theme', followSystem: true }, {
         default: () => h(${componentName}, {
-          root: docTree,
+          root: docRoot,
           initialPath,
           ${eventProps.join(',\n          ')},
         }),

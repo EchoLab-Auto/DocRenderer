@@ -34,7 +34,7 @@ async function d(n) {
 }
 function f(t) {
 	let n = e.join(s(t), "dist", "style.css").replace(/\\/g, "/");
-	if (!a.existsSync(n)) throw Error(`CSS file not found for ${t}: ${n}. Please run "npm run build:ui-frame" first.`);
+	if (!a.existsSync(n)) throw Error(`CSS file not found for ${t}: ${n}. Please ensure @echolab/ui-frame is installed.`);
 	return n;
 }
 function p(t) {
@@ -56,15 +56,15 @@ ${i}
 ${a.join("\n")};
 
 const files = ${JSON.stringify(n)};
-const docTree = buildDocTree(files);
+const docRoot = buildDocTree(files);
 const initialPath = window.location.hash ? window.location.hash.slice(1) : undefined;
 
 const app = createApp({
   render() {
-    return h('div', { style: { height: '100vh', width: '100vw' } }, [
+    return h('div', { style: { height: '100vh', width: '100vw', overflow: 'hidden' } }, [
       h(ThemeProvider, { defaultTheme: 'auto', storageKey: 'prodoc-theme', followSystem: true }, {
         default: () => h(${r}, {
-          root: docTree,
+          root: docRoot,
           initialPath,
           ${o.join(",\n          ")},
         }),
