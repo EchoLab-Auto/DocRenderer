@@ -17,7 +17,7 @@ npm install @prodoc/core @prodoc/renderer @prodoc/editor
 
 ```ts
 import { createApp, h } from 'vue'
-import uiFrame, { ThemeProvider } from '@echolab/ui-frame'
+import uiFrame, { ThemeProvider } from '@echolab-auto/ui-frame'
 import { DocViewer } from '@prodoc/renderer'
 
 const app = createApp({

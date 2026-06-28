@@ -34,7 +34,7 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@echolab/ui-frame": "npm:@echolab-auto/ui-frame@^1.0.0",
+    "@echolab-auto/ui-frame": "^1.0.0",
     "@prodoc/core": "file:packages/prodoc-core",
     "@prodoc/editor": "file:packages/prodoc-editor",
     "@prodoc/renderer": "file:packages/prodoc-renderer",

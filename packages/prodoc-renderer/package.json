@@ -27,7 +27,7 @@
     "vue": "^3.4.0"
   },
   "devDependencies": {
-    "@echolab/ui-frame": "npm:@echolab-auto/ui-frame@^1.0.0",
+    "@echolab-auto/ui-frame": "^1.0.0",
     "@vitejs/plugin-vue": "^6.0.7",
     "sass": "^1.100.0",
     "typescript": "^5.7.0",

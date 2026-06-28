@@ -34,7 +34,7 @@ async function d(n) {
 }
 function f(t) {
 	let n = e.join(s(t), "dist", "style.css").replace(/\\/g, "/");
-	if (!a.existsSync(n)) throw Error(`CSS file not found for ${t}: ${n}. Please ensure @echolab/ui-frame is installed.`);
+	if (!a.existsSync(n)) throw Error(`CSS file not found for ${t}: ${n}. Please ensure @echolab-auto/ui-frame is installed.`);
 	return n;
 }
 function p(t) {
@@ -45,12 +45,12 @@ function m() {
 	return "async (filePath, content) => {\n            try {\n              const res = await fetch('/__prodoc_api/save', {\n                method: 'POST',\n                headers: { 'Content-Type': 'application/json' },\n                body: JSON.stringify({ path: filePath, content }),\n              });\n              const data = await res.json();\n              if (data.success) {\n                console.log('[ProDoc] saved:', filePath);\n              } else {\n                console.error('[ProDoc] save failed:', data.error);\n              }\n            } catch (e) {\n              console.error('[ProDoc] save error:', e);\n            }\n          }";
 }
 function h(t, n) {
-	let r = t === "view" ? "DocViewer" : "DocEditor", i = `import { ${r} } from '@prodoc/${t === "view" ? "renderer" : "editor"}';`, a = [`import '${f("@echolab/ui-frame")}';`, `import '${e.join(s("@prodoc/renderer"), "dist", "index.css").replace(/\\/g, "/")}'`];
+	let r = t === "view" ? "DocViewer" : "DocEditor", i = `import { ${r} } from '@prodoc/${t === "view" ? "renderer" : "editor"}';`, a = [`import '${f("@echolab-auto/ui-frame")}';`, `import '${e.join(s("@prodoc/renderer"), "dist", "index.css").replace(/\\/g, "/")}'`];
 	t === "edit" && a.push(`import '${e.join(s("@prodoc/editor"), "dist", "index.css").replace(/\\/g, "/")}'`);
 	let o = ["onDocLink: (p) => { console.log('[ProDoc] navigate to:', p); history.replaceState(null, '', '#' + p); }"];
 	return t === "edit" && o.push(`onSave: ${m()}`), `
 import { createApp, h } from 'vue';
-import uiFrame, { ThemeProvider } from '@echolab/ui-frame';
+import uiFrame, { ThemeProvider } from '@echolab-auto/ui-frame';
 import { buildDocTree } from '@prodoc/core';
 ${i}
 ${a.join("\n")};

@@ -485,7 +485,7 @@ order: 3
 
 ### 7.2 依赖 ui-frame 的变量
 
-布局中引用的外部变量（来自 `@echolab/ui-frame`）：
+布局中引用的外部变量（来自 `@echolab-auto/ui-frame`）：
 
 | 变量 | 用途 |
 |------|------|
@@ -567,14 +567,14 @@ NeumorphismLayout (全局骨架)
 
 | 模块 | 文件路径 |
 |------|----------|
-| DocViewer 实现 | `@echolab/ui-frame` → `dist/doc/DocViewer.js`（源码见 ui-frame 仓库 `src/doc/DocViewer.vue`） |
-| DocEditor 实现 | `@echolab/ui-frame` → `dist/doc/DocEditor.js`（源码见 ui-frame 仓库 `src/doc/DocEditor.vue`） |
-| MarkdownRenderer 实现 | `@echolab/ui-frame` → `dist/doc/MarkdownRenderer.js`（源码见 ui-frame 仓库 `src/doc/MarkdownRenderer.vue`） |
-| MarkdownEditor 实现 | `@echolab/ui-frame` → `dist/doc/MarkdownEditor.js`（源码见 ui-frame 仓库 `src/doc/MarkdownEditor.vue`） |
+| DocViewer 实现 | `@echolab-auto/ui-frame` → `dist/doc/DocViewer.js`（源码见 ui-frame 仓库 `src/doc/DocViewer.vue`） |
+| DocEditor 实现 | `@echolab-auto/ui-frame` → `dist/doc/DocEditor.js`（源码见 ui-frame 仓库 `src/doc/DocEditor.vue`） |
+| MarkdownRenderer 实现 | `@echolab-auto/ui-frame` → `dist/doc/MarkdownRenderer.js`（源码见 ui-frame 仓库 `src/doc/MarkdownRenderer.vue`） |
+| MarkdownEditor 实现 | `@echolab-auto/ui-frame` → `dist/doc/MarkdownEditor.js`（源码见 ui-frame 仓库 `src/doc/MarkdownEditor.vue`） |
 | DocViewer 重新导出 | `packages/prodoc-renderer/src/index.ts` |
 | DocEditor 重新导出 | `packages/prodoc-editor/src/index.ts` |
 | MarkdownRenderer 重新导出 | `packages/prodoc-renderer/src/index.ts` |
 | MarkdownEditor 重新导出 | `packages/prodoc-editor/src/index.ts` |
 | Renderer 定制样式 | `packages/prodoc-renderer/src/styles/index.css` |
 | Editor 定制样式 | `packages/prodoc-editor/src/styles/index.css` |
-| 文档解析工具 | `packages/prodoc-core/src/index.ts` (从 `@echolab/ui-frame/doc` 重新导出) |
+| 文档解析工具 | `packages/prodoc-core/src/index.ts` (从 `@echolab-auto/ui-frame/doc` 重新导出) |

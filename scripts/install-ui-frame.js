@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 从 GitHub 源码构建 @echolab/ui-frame 并安装到 vendor/ 目录
+ * 从 GitHub 源码构建 @echolab-auto/ui-frame 并安装到 vendor/ 目录
  *
  * 该脚本仅在「本地开发 ui-frame 自身」时使用（通过 npm run use-local-ui-frame 调用）。
  * 默认情况下，项目通过 npm registry 安装 @echolab-auto/ui-frame。
@@ -27,9 +27,9 @@ const os = require('os');
 const REPO_URL = 'https://github.com/EchoLab-Auto/ui-frame.git';
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const CACHE_DIR = path.join(PROJECT_ROOT, '.cache', 'ui-frame-src');
-const VENDOR_DIR = path.join(PROJECT_ROOT, 'vendor', '@echolab', 'ui-frame');
+const VENDOR_DIR = path.join(PROJECT_ROOT, 'vendor', '@echolab-auto', 'ui-frame');
 const VENDOR_DIST = path.join(VENDOR_DIR, 'dist');
-const NODE_MODULES_DIR = path.join(PROJECT_ROOT, 'node_modules', '@echolab', 'ui-frame');
+const NODE_MODULES_DIR = path.join(PROJECT_ROOT, 'node_modules', '@echolab-auto', 'ui-frame');
 
 /** 安全执行命令 */
 function run(cmd, cwd, options = {}) {
@@ -105,6 +105,19 @@ function hasValidDist(dir) {
   }
 }
 
+/** 确保 vendor 根目录有必要的元数据文件（package.json 等），否则 file: 协议无法解析 */
+function ensureVendorRootFiles() {
+  for (const file of ['package.json', 'LICENSE', 'README.md']) {
+    const src = path.join(CACHE_DIR, file);
+    const dest = path.join(VENDOR_DIR, file);
+    if (fs.existsSync(src) && !fs.existsSync(dest)) {
+      fs.mkdirSync(VENDOR_DIR, { recursive: true });
+      fs.copyFileSync(src, dest);
+      console.log(`📋 Copied ${file} to vendor/@echolab-auto/ui-frame/`);
+    }
+  }
+}
+
 /** 获取本地 HEAD commit hash */
 function getLocalHash() {
   return runSilent('git rev-parse HEAD', CACHE_DIR);
@@ -115,12 +128,17 @@ function getRemoteHash() {
   return runSilent('git rev-parse origin/main', CACHE_DIR);
 }
 
+/** 检查 vendor 是否完整（dist + package.json） */
+function isVendorComplete() {
+  return hasValidDist(VENDOR_DIST) && fs.existsSync(path.join(VENDOR_DIR, 'package.json'));
+}
+
 function main() {
   // 0. 若 vendor dist 已存在且有效（例如从发布包安装时已携带构建产物），直接跳过
   // 避免在全局安装/离线场景下无意义地触发 git clone 和网络请求
-  if (hasValidDist(VENDOR_DIST)) {
-    console.log('✅ @echolab/ui-frame vendor dist already exists, nothing to do.');
-    console.log('   To force rebuild: rm -rf vendor/@echolab/ui-frame/dist && npm run build:ui-frame');
+  if (isVendorComplete()) {
+    console.log('✅ @echolab-auto/ui-frame vendor already complete, nothing to do.');
+    console.log('   To force rebuild: rm -rf vendor/@echolab-auto/ui-frame && npm run build:ui-frame');
     return;
   }
 
@@ -162,7 +180,7 @@ function main() {
   const needBuild = hasUpdate || !hasValidDist(cacheDist);
 
   if (!needBuild) {
-    console.log('✅ @echolab/ui-frame source is up to date.');
+    console.log('✅ @echolab-auto/ui-frame source is up to date.');
   } else if (hasUpdate) {
     console.log('📦 Remote updated, will rebuild.');
   } else if (!hasValidDist(cacheDist)) {
@@ -202,7 +220,7 @@ function main() {
       // 必须强制本地模式：全局安装 echo-prodoc 时，子 npm 会继承
       // npm_config_global=true，导致依赖装到全局 prefix 而非 buildDir。
       console.log('📥 Installing ui-frame dependencies...');
-      run('npm install --no-audit --no-fund --no-optional --global=false', buildDir, {
+      run('npm install --no-audit --no-fund --global=false', buildDir, {
         env: {
           ...process.env,
           npm_config_global: 'false',
@@ -238,9 +256,10 @@ function main() {
   }
 
   // 6. 复制到 vendor
-  console.log('📋 Copying dist to vendor/@echolab/ui-frame...');
+  console.log('📋 Copying dist to vendor/@echolab-auto/ui-frame...');
   fs.rmSync(VENDOR_DIST, { recursive: true, force: true });
   copyDir(cacheDist, VENDOR_DIST);
+  ensureVendorRootFiles();
 
   // 7. 注入 ./doc 子路径导出
   const vendorPkgPath = path.join(VENDOR_DIR, 'package.json');
@@ -257,11 +276,11 @@ function main() {
   }
 
   // 8. 同步到 node_modules，确保当前构建/运行能解析到最新产物
-  console.log('📋 Syncing to node_modules/@echolab/ui-frame...');
+  console.log('📋 Syncing to node_modules/@echolab-auto/ui-frame...');
   fs.rmSync(NODE_MODULES_DIR, { recursive: true, force: true });
   copyDir(VENDOR_DIR, NODE_MODULES_DIR);
 
-  console.log('\n✅ @echolab/ui-frame installed successfully!');
+  console.log('\n✅ @echolab-auto/ui-frame installed successfully!');
 }
 
 main();

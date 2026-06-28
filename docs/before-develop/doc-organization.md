@@ -18,6 +18,7 @@ docs/
 │   ├── index.md
 │   ├── doc-organization.md     # 本文档
 │   ├── installation.md
+│   ├── local-development.md
 │   ├── readme-scope.md
 │   └── ui-development-guide.md
 ├── guide/                      # 使用指南

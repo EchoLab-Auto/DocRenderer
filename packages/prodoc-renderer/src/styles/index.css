@@ -1,12 +1,12 @@
 /* ==========================================
    ProDoc Renderer Styles
-   Powered by @echolab/ui-frame Neumorphism Design System
+   Powered by @echolab-auto/ui-frame Neumorphism Design System
 
    ui-frame 的 tokens.scss 已定义 --nm-code-* 等代码高亮变量，
    此文件仅保留 ProDoc 特有的主题过渡/滚动条/选中颜色覆盖。
 
    ⚠️  耦合声明：以下选择器中引用的 CSS 类名（如 .nm-layout__content、
-   .nm-textarea__field 等）来自 @echolab/ui-frame 组件内部实现。
+   .nm-textarea__field 等）来自 @echolab-auto/ui-frame 组件内部实现。
    ui-frame 升级后如果内部类名变更，需同步更新此文件。
    ========================================== */
 

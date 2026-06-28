@@ -1,6 +1,6 @@
 # ProDoc — 文档渲染与编辑框架
 
-> 基于 [**@echolab/ui-frame**](https://github.com/EchoLab-Auto/ui-frame) 新拟态设计系统构建的 Markdown 文档框架。
+> 基于 [**@echolab-auto/ui-frame**](https://github.com/EchoLab-Auto/ui-frame) 新拟态设计系统构建的 Markdown 文档框架。
 
 ProDoc 是一个文档渲染与编辑框架，采用 **新拟态（Neumorphism / Soft UI）** 设计语言。
 
@@ -32,7 +32,7 @@ echo-prodoc view ./docs --port 8080
 - **Vue 3** — 组件库
 - **Vite** — Library Mode 构建
 - **marked** — Markdown 解析
-- **@echolab/ui-frame** — 新拟态设计系统
+- **@echolab-auto/ui-frame** — 新拟态设计系统
 
 ## 许可证
 

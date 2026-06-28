@@ -23,7 +23,7 @@
     "clean": "rm -rf dist"
   },
   "devDependencies": {
-    "@echolab/ui-frame": "npm:@echolab-auto/ui-frame@^1.0.0",
+    "@echolab-auto/ui-frame": "^1.0.0",
     "typescript": "^5.7.0",
     "vite": "^8.0.16"
   }

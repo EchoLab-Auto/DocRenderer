@@ -55,5 +55,5 @@ interface ProDocNode {
 | `<DocEditor />` | 完整文档编辑器 |
 | `<MarkdownEditor />` | Markdown 编辑器 |
 
-> 💡 所有组件和工具函数的实现源码位于 `@echolab/ui-frame` 的 `dist/doc/` 目录。
-> `@prodoc/core`、 `@prodoc/renderer`、 `@prodoc/editor` 均为从 `@echolab/ui-frame/doc` 重新导出的薄封装层。
+> 💡 所有组件和工具函数的实现源码位于 `@echolab-auto/ui-frame` 的 `dist/doc/` 目录。
+> `@prodoc/core`、 `@prodoc/renderer`、 `@prodoc/editor` 均为从 `@echolab-auto/ui-frame/doc` 重新导出的薄封装层。

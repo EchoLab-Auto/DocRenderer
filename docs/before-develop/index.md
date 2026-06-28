@@ -18,6 +18,7 @@ order: 1
 # 具体规范内容
 
 - [文档组织规则](./doc-organization.md) — 本项目文档体系的结构、命名与维护规范
-- [安装方式](./installation.md) — 本项目支持的两种安装方式及注意事项
-- [UI 开发标准流程](./ui-development-guide.md) — 基于 @echolab/ui-frame 的组件复用与页面模板规范
+- [安装方式](./installation.md) — npm registry 全局安装与源码安装
+- [本地开发与测试](./local-development.md) — workspace scripts、日常开发循环与验证清单
+- [UI 开发标准流程](./ui-development-guide.md) — 基于 @echolab-auto/ui-frame 的组件复用与页面模板规范
 - [README 内容范围](./readme-scope.md) — README 只允许包含标题简介、快速开始、技术栈、许可证四个部分

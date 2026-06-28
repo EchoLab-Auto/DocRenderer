@@ -85,7 +85,7 @@ async function loadMarkdownFiles(dir: string): Promise<Record<string, string>> {
 function resolveCssPath(pkgName: string): string {
   const cssPath = path.join(resolvePkgDir(pkgName), 'dist', 'style.css').replace(/\\/g, '/');
   if (!fsSync.existsSync(cssPath)) {
-    throw new Error(`CSS file not found for ${pkgName}: ${cssPath}. Please ensure @echolab/ui-frame is installed.`);
+    throw new Error(`CSS file not found for ${pkgName}: ${cssPath}. Please ensure @echolab-auto/ui-frame is installed.`);
   }
   return cssPath;
 }
@@ -130,7 +130,7 @@ function generateClientEntry(mode: 'view' | 'edit', files: Record<string, string
 
   // 使用绝对路径导入 CSS，避免 Vite alias 对 CSS 解析问题
   const cssImports = [
-    `import '${resolveCssPath('@echolab/ui-frame')}';`,
+    `import '${resolveCssPath('@echolab-auto/ui-frame')}';`,
     `import '${path.join(resolvePkgDir('@prodoc/renderer'), 'dist', 'index.css').replace(/\\/g, '/')}'`,
   ];
   if (mode === 'edit') {
@@ -146,7 +146,7 @@ function generateClientEntry(mode: 'view' | 'edit', files: Record<string, string
 
   return `
 import { createApp, h } from 'vue';
-import uiFrame, { ThemeProvider } from '@echolab/ui-frame';
+import uiFrame, { ThemeProvider } from '@echolab-auto/ui-frame';
 import { buildDocTree } from '@prodoc/core';
 ${componentImport}
 ${cssImports.join('\n')};

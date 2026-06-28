@@ -10,7 +10,7 @@ export default defineConfig({
       formats: ['es', 'cjs'],
     },
     rollupOptions: {
-      external: [/^@echolab\/ui-frame(\/.*)?$/],
+      external: [/^@echolab-auto\/ui-frame(\/.*)?$/],
     },
     sourcemap: true,
   },

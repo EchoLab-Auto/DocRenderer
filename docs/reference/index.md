@@ -7,15 +7,15 @@ order: 4
 
 > 📐 [UI 布局定义](./ui-layout.md) — 所有组件的 CSS 布局参数速查表
 >
-> 💡 所有组件和工具函数的安装后实现位于 `@echolab/ui-frame` 的 `dist/doc/` 目录；源码位于 ui-frame 仓库的 `src/doc/` 目录。
-> `@prodoc/core`、`@prodoc/renderer`、`@prodoc/editor` 均为从 `@echolab/ui-frame/doc` 重新导出的薄封装层。
+> 💡 所有组件和工具函数的安装后实现位于 `@echolab-auto/ui-frame` 的 `dist/doc/` 目录；源码位于 ui-frame 仓库的 `src/doc/` 目录。
+> `@prodoc/core`、`@prodoc/renderer`、`@prodoc/editor` 均为从 `@echolab-auto/ui-frame/doc` 重新导出的薄封装层。
 
 ## @prodoc/core
 
 ### 类型定义
 
 ```ts
-// 来源：@echolab/ui-frame/doc
+// 来源：@echolab-auto/ui-frame/doc
 interface ProDocNode {
   id: string;
   title: string;
@@ -45,7 +45,7 @@ interface ProDocNode {
 
 ## @prodoc/renderer
 
-> 从 `@echolab/ui-frame/doc` 重新导出，实现源码位于 ui-frame 的 `src/doc/`。
+> 从 `@echolab-auto/ui-frame/doc` 重新导出，实现源码位于 ui-frame 的 `src/doc/`。
 
 ### 组件
 
@@ -85,7 +85,7 @@ interface ProDocNode {
 
 ## @prodoc/editor
 
-> 从 `@echolab/ui-frame/doc` 重新导出，实现源码位于 ui-frame 的 `src/doc/`。
+> 从 `@echolab-auto/ui-frame/doc` 重新导出，实现源码位于 ui-frame 的 `src/doc/`。
 
 ### 组件
 

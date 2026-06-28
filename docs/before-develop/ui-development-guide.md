@@ -1,16 +1,16 @@
 ---
 title: "UI 开发标准流程"
-order: 4
+order: 5
 ---
 
 # UI 开发标准流程
 
-本文档规定在 ProDoc 项目中新增或修改 UI 时必须遵循的标准流程。所有界面实现都必须复用 `@echolab/ui-frame` 提供的组件、构建能力和页面模板，禁止在 `prodoc-*` 包内重复实现组件逻辑。
+本文档规定在 ProDoc 项目中新增或修改 UI 时必须遵循的标准流程。所有界面实现都必须复用 `@echolab-auto/ui-frame` 提供的组件、构建能力和页面模板，禁止在 `prodoc-*` 包内重复实现组件逻辑。
 
 ## 一、核心原则
 
-1. **组件来源唯一**：所有 UI 组件必须来自 `@echolab/ui-frame`，禁止手写自定义按钮、输入框、表格、弹窗等基础组件。
-2. **文档能力复用**：文档树解析、渲染、编辑能力必须来自 `@echolab/ui-frame/doc`，`prodoc-core` / `prodoc-renderer` / `prodoc-editor` 只做重新导出。
+1. **组件来源唯一**：所有 UI 组件必须来自 `@echolab-auto/ui-frame`，禁止手写自定义按钮、输入框、表格、弹窗等基础组件。
+2. **文档能力复用**：文档树解析、渲染、编辑能力必须来自 `@echolab-auto/ui-frame/doc`，`prodoc-core` / `prodoc-renderer` / `prodoc-editor` 只做重新导出。
 3. **样式覆盖而非重写**：视觉定制通过 CSS 变量和少量覆盖样式完成，不替换 ui-frame 组件。
 4. **页面模板优先**：页面结构优先使用 ui-frame 提供的标准模板（Layout + Container + Card + 内容组件）。
 
@@ -18,14 +18,14 @@ order: 4
 
 ### 步骤 1：确认需求是否已被 ui-frame 覆盖
 
-在动手写代码前，先对照 `@echolab/ui-frame` 的能力清单：
+在动手写代码前，先对照 `@echolab-auto/ui-frame` 的能力清单：
 
 - **基础组件**：按钮、输入框、选择器、开关、复选框、单选框、滑块、日期选择等
 - **数据展示**：卡片、表格、列表、树、虚拟列表、骨架屏、进度条等
 - **反馈组件**：弹窗、抽屉、Toast、Tooltip、Popover、Alert、Empty 等
 - **导航组件**：菜单、导航栏、标签页、面包屑、分页、步骤条等
 - **布局组件**：Layout、Container、Row/Col、Divider 等
-- **文档模块**：`@echolab/ui-frame/doc` 提供 `DocViewer`、`DocEditor`、`MarkdownRenderer`、`MarkdownEditor`
+- **文档模块**：`@echolab-auto/ui-frame/doc` 提供 `DocViewer`、`DocEditor`、`MarkdownRenderer`、`MarkdownEditor`
 - **Headless Composables**：`useSelect`、`useTable`、`useTree`、`usePagination` 等纯逻辑钩子
 
 如果 ui-frame 已经提供，直接复用；如果只有行为逻辑没有合适 UI，使用对应的 Headless Composable 自定义渲染。
@@ -36,8 +36,8 @@ order: 4
 
 | 能力类型 | 导入源 | 示例 |
 |----------|--------|------|
-| 通用 UI 组件 | `@echolab/ui-frame` | `import { NeumorphismButton } from '@echolab/ui-frame'` |
-| 文档渲染/编辑 | `@echolab/ui-frame/doc` | `import { DocViewer } from '@echolab/ui-frame/doc'` |
+| 通用 UI 组件 | `@echolab-auto/ui-frame` | `import { NeumorphismButton } from '@echolab-auto/ui-frame'` |
+| 文档渲染/编辑 | `@echolab-auto/ui-frame/doc` | `import { DocViewer } from '@echolab-auto/ui-frame/doc'` |
 | 文档解析与树构建 | `@prodoc/core` | `import { buildDocTree } from '@prodoc/core'` |
 | 渲染组件封装 | `@prodoc/renderer` | `import { DocViewer } from '@prodoc/renderer'` |
 | 编辑组件封装 | `@prodoc/editor` | `import { DocEditor } from '@prodoc/editor'` |
@@ -75,7 +75,7 @@ order: 4
 
 ```vue
 <script setup>
-import { DocViewer } from '@echolab/ui-frame/doc'
+import { DocViewer } from '@echolab-auto/ui-frame/doc'
 import { buildDocTree } from '@prodoc/core'
 
 const docRoot = buildDocTree(files)
@@ -115,8 +115,8 @@ const docRoot = buildDocTree(files)
 
 ```ts
 import { createApp, h } from 'vue'
-import uiFrame, { ThemeProvider } from '@echolab/ui-frame'
-import '@echolab/ui-frame/dist/style.css'
+import uiFrame, { ThemeProvider } from '@echolab-auto/ui-frame'
+import '@echolab-auto/ui-frame/dist/style.css'
 
 const app = createApp({
   render: () => h(ThemeProvider, { defaultTheme: 'auto' }, {
@@ -151,7 +151,7 @@ app.use(uiFrame, {
 全局样式引入一次：
 
 ```ts
-import '@echolab/ui-frame/dist/style.css'
+import '@echolab-auto/ui-frame/dist/style.css'
 ```
 
 视觉微调通过覆盖 CSS 变量实现：

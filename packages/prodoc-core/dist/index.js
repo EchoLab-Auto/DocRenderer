@@ -1,2 +1,2 @@
-import { buildDocTree as e, createDocTree as t, createNode as n, extractTitle as r, flattenDocTree as i, getAncestors as a, getNodeIcon as o, nodeToTreeData as s, parseFrontmatter as c, pathToId as l } from "@echolab/ui-frame/doc";
+import { buildDocTree as e, createDocTree as t, createNode as n, extractTitle as r, flattenDocTree as i, getAncestors as a, getNodeIcon as o, nodeToTreeData as s, parseFrontmatter as c, pathToId as l } from "@echolab-auto/ui-frame/doc";
 export { e as buildDocTree, t as createDocTree, n as createNode, r as extractTitle, i as flattenDocTree, a as getAncestors, o as getNodeIcon, s as nodeToTreeData, c as parseFrontmatter, l as pathToId };
