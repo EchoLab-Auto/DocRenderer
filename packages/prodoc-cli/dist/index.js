@@ -73,7 +73,14 @@ const app = createApp({
   },
 });
 
-app.use(uiFrame);
+app.use(uiFrame, {
+  button: { size: 'medium' },
+  input: { size: 'medium' },
+  select: { size: 'medium', clearable: true },
+  modal: { maskClosable: true },
+  toast: { position: 'top-right', maxCount: 5 },
+  pagination: { showTotal: false },
+});
 app.mount('#app');
 `;
 }
@@ -105,7 +112,11 @@ async function g(i, a, o = {}) {
 				replacement: p("@prodoc/editor")
 			}
 		] },
-		optimizeDeps: { include: ["marked"] },
+		optimizeDeps: { include: [
+			"marked",
+			"mermaid",
+			"@echolab-auto/ui-frame/doc"
+		] },
 		plugins: [
 			r(),
 			{

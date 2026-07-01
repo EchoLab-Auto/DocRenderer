@@ -169,7 +169,14 @@ const app = createApp({
   },
 });
 
-app.use(uiFrame);
+app.use(uiFrame, {
+  button: { size: 'medium' },
+  input: { size: 'medium' },
+  select: { size: 'medium', clearable: true },
+  modal: { maskClosable: true },
+  toast: { position: 'top-right', maxCount: 5 },
+  pagination: { showTotal: false },
+});
 app.mount('#app');
 `;
 }
@@ -208,7 +215,7 @@ export async function startProDocServer(
       ],
     },
     optimizeDeps: {
-      include: ['marked'],
+      include: ['marked', 'mermaid', '@echolab-auto/ui-frame/doc'],
     },
     plugins: [
       vue(),

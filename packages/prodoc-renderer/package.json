@@ -26,6 +26,9 @@
   "peerDependencies": {
     "vue": "^3.4.0"
   },
+  "dependencies": {
+    "mermaid": "^10.9.6"
+  },
   "devDependencies": {
     "@echolab-auto/ui-frame": "^1.0.0",
     "@vitejs/plugin-vue": "^6.0.7",

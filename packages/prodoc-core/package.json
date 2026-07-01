@@ -22,6 +22,9 @@
     "type-check": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
+  "dependencies": {
+    "mermaid": "^10.9.6"
+  },
   "devDependencies": {
     "@echolab-auto/ui-frame": "^1.0.0",
     "typescript": "^5.7.0",

@@ -134,24 +134,15 @@ function isVendorComplete() {
 }
 
 function main() {
-  // 0. 若 vendor dist 已存在且有效（例如从发布包安装时已携带构建产物），直接跳过
-  // 避免在全局安装/离线场景下无意义地触发 git clone 和网络请求
-  if (isVendorComplete()) {
-    console.log('✅ @echolab-auto/ui-frame vendor already complete, nothing to do.');
-    console.log('   To force rebuild: rm -rf vendor/@echolab-auto/ui-frame && npm run build:ui-frame');
-    return;
-  }
-
-  // 1. 确保缓存目录存在
+  // 0. 确保缓存目录和仓库存在
   fs.mkdirSync(path.dirname(CACHE_DIR), { recursive: true });
 
-  // 2. 克隆或准备现有仓库
   if (!fs.existsSync(path.join(CACHE_DIR, '.git'))) {
     console.log(`🔄 First time: cloning ${REPO_URL}...`);
     run(`git clone --depth 1 ${REPO_URL} "${CACHE_DIR}"`);
   }
 
-  // 3. 获取远程最新版本信息
+  // 1. 获取远程最新版本信息
   console.log('🔍 Checking for updates from remote...');
   const fetchResult = runSilent('git fetch origin main', CACHE_DIR);
   const fetchSuccess = fetchResult !== '' || fs.existsSync(path.join(CACHE_DIR, '.git', 'FETCH_HEAD'));
@@ -160,8 +151,11 @@ function main() {
   const remoteHash = fetchSuccess ? getRemoteHash() : '';
   const hasUpdate = fetchSuccess && remoteHash !== '' && localHash !== remoteHash;
 
-  if (!fetchSuccess) {
-    console.log('⚠️  Network unavailable, skipping remote check.');
+  if (!fetchSuccess && !hasValidDist(path.join(CACHE_DIR, 'dist')) && !isVendorComplete()) {
+    // 网络不可用且无本地产物，这是首次安装离线场景
+    console.log('⚠️  Network unavailable and no cached build found.');
+    console.log('   Please ensure network access for first-time build.');
+    process.exit(1);
   }
 
   if (hasUpdate) {
@@ -170,21 +164,28 @@ function main() {
     run('git reset --hard HEAD', CACHE_DIR);
     run('git clean -fd', CACHE_DIR);
     run('git pull origin main', CACHE_DIR);
+  } else if (fetchSuccess) {
+    console.log(`✅ ui-frame source is up to date (${localHash.slice(0, 7)})`);
   } else {
-    console.log(`✅ Already up to date (${localHash.slice(0, 7)})`);
+    console.log('⚠️  Network unavailable, using cached source.');
   }
 
   const cacheDist = path.join(CACHE_DIR, 'dist');
 
-  // 4. 判断是否需要重新构建
+  // 2. 判断是否需要重新构建
   const needBuild = hasUpdate || !hasValidDist(cacheDist);
 
-  if (!needBuild) {
-    console.log('✅ @echolab-auto/ui-frame source is up to date.');
-  } else if (hasUpdate) {
-    console.log('📦 Remote updated, will rebuild.');
-  } else if (!hasValidDist(cacheDist)) {
-    console.log('📦 Cache dist missing, will build.');
+  if (!needBuild && isVendorComplete()) {
+    console.log('✅ @echolab-auto/ui-frame vendor already complete, nothing to do.');
+    return;
+  }
+
+  if (needBuild) {
+    if (hasUpdate) {
+      console.log('📦 Remote updated, will rebuild.');
+    } else {
+      console.log('📦 Cache dist missing, will build.');
+    }
   }
 
   // 5. 在隔离的临时目录中构建（仅在需要时）

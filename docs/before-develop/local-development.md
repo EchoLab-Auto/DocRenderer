@@ -14,15 +14,15 @@ order: 4
 如果需要对 ui-frame 本身进行二次开发，可切换到本地构建模式，从 GitHub 源码构建：
 
 ```bash
-npm run use-local-ui-frame   # 从 GitHub 源码构建 ui-frame 并切换为 file: 协议
-npm install && npm run build
+npm run use-local-ui-frame   # 构建 ui-frame 到 vendor/，通过 --no-save 链接到 node_modules
 ```
+
+该命令不会修改任何 `package.json` 文件——始终通过 `npm install --no-save` 在 `node_modules` 层面替换依赖。
 
 切回 npm registry 模式：
 
 ```bash
-node scripts/switch-ui-frame.js npm
-npm install
+npm run use-npm-ui-frame
 ```
 
 ## 二、workspace scripts（无需全局安装）

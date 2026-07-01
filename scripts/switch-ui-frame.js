@@ -1,16 +1,13 @@
 #!/usr/bin/env node
 /**
- * 切换 @echolab-auto/ui-frame 的依赖来源
+ * 切换 @echolab-auto/ui-frame 的依赖来源（不修改 package.json）
  *
  * 用法：
  *   node scripts/switch-ui-frame.js npm    — 切换到 npm registry（默认）
- *   node scripts/switch-ui-frame.js local  — 切换到 file: vendor 本地构建
+ *   node scripts/switch-ui-frame.js local  — 切换到 vendor 本地构建
  *
- * 该脚本会修改以下文件中的 @echolab-auto/ui-frame 依赖声明：
- *   - 根 package.json (dependencies)
- *   - packages/prodoc-core/package.json (devDependencies)
- *   - packages/prodoc-editor/package.json (devDependencies)
- *   - packages/prodoc-renderer/package.json (devDependencies)
+ * 通过直接操作 node_modules 实现，不经过 npm install（会修改 package.json）。
+ * package.json 始终保持 "^1.0.0" 声明，不会产生任何 git 变更。
  */
 
 const fs = require('fs');
@@ -18,59 +15,54 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
+const VENDOR_UI = path.join(PROJECT_ROOT, 'vendor', '@echolab-auto', 'ui-frame');
+const NODE_MODULES_UI = path.join(PROJECT_ROOT, 'node_modules', '@echolab-auto', 'ui-frame');
 
-const PKG_FILES = [
-  { file: 'package.json', field: 'dependencies' },
-  { file: 'packages/prodoc-core/package.json', field: 'devDependencies' },
-  { file: 'packages/prodoc-editor/package.json', field: 'devDependencies' },
-  { file: 'packages/prodoc-renderer/package.json', field: 'devDependencies' },
-];
+function run(cmd, cwd = PROJECT_ROOT) {
+  try {
+    execSync(cmd, { cwd, encoding: 'utf-8', stdio: 'inherit' });
+  } catch (err) {
+    console.error(`❌ Command failed: ${cmd}`);
+    process.exit(1);
+  }
+}
 
-const NPM_ALIAS = '^1.0.0';
-const FILE_PROTOCOL = 'file:vendor/@echolab-auto/ui-frame';
-const FILE_PROTOCOL_SUB = 'file:../../vendor/@echolab-auto/ui-frame';
-
-function switchTo(mode) {
-  const targetValue = mode === 'npm' ? NPM_ALIAS : null;
-  const isFileMode = mode === 'local';
-
-  for (const { file, field } of PKG_FILES) {
-    const filePath = path.join(PROJECT_ROOT, file);
-    const pkg = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-
-    if (!pkg[field] || !pkg[field]['@echolab-auto/ui-frame']) {
-      console.warn(`⚠️  @echolab-auto/ui-frame not found in ${file} > ${field}, skipping.`);
-      continue;
-    }
-
-    if (isFileMode) {
-      // 根据层级选择正确的相对路径
-      pkg[field]['@echolab-auto/ui-frame'] = file === 'package.json' ? FILE_PROTOCOL : FILE_PROTOCOL_SUB;
+/** 递归复制目录 */
+function copyDir(src, dest) {
+  fs.mkdirSync(dest, { recursive: true });
+  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    if (entry.isDirectory()) {
+      copyDir(srcPath, destPath);
     } else {
-      pkg[field]['@echolab-auto/ui-frame'] = NPM_ALIAS;
+      fs.copyFileSync(srcPath, destPath);
     }
-
-    fs.writeFileSync(filePath, JSON.stringify(pkg, null, 2) + '\n');
-    console.log(`✅ ${file} > ${field}: switched to ${mode}`);
   }
+}
 
-  // local 模式下自动构建 ui-frame
-  if (isFileMode) {
-    console.log('\n📦 Building @echolab-auto/ui-frame from source...');
-    try {
-      execSync('node scripts/install-ui-frame.js', {
-        cwd: PROJECT_ROOT,
-        encoding: 'utf-8',
-        stdio: 'inherit',
-      });
-    } catch (err) {
-      console.error('❌ Failed to build ui-frame from source.');
-      console.error('   Make sure the GitHub repository is accessible and try again.');
-      process.exit(1);
-    }
-  } else {
-    console.log('\n📥 Run "npm install" to install @echolab-auto/ui-frame from npm registry.');
-  }
+function switchToLocal() {
+  // 1. 构建 ui-frame 到 vendor/
+  console.log('📦 Building @echolab-auto/ui-frame from source...');
+  run('node scripts/install-ui-frame.js');
+
+  // 2. 直接将 vendor 复制到 node_modules（不经过 npm，零文件变更）
+  console.log('🔗 Copying vendor to node_modules...');
+  fs.rmSync(NODE_MODULES_UI, { recursive: true, force: true });
+  copyDir(VENDOR_UI, NODE_MODULES_UI);
+
+  console.log('\n✅ Switched to local ui-frame. No files modified.');
+}
+
+function switchToNpm() {
+  // 移除本地副本，让 npm 根据 package.json 重新安装 registry 版本
+  console.log('📥 Removing local ui-frame from node_modules...');
+  fs.rmSync(NODE_MODULES_UI, { recursive: true, force: true });
+
+  console.log('📥 Reinstalling @echolab-auto/ui-frame from npm registry...');
+  run('npm install');
+
+  console.log('\n✅ Switched to npm registry. No files modified.');
 }
 
 const mode = process.argv[2];
@@ -79,4 +71,8 @@ if (!mode || (mode !== 'npm' && mode !== 'local')) {
   process.exit(1);
 }
 
-switchTo(mode);
+if (mode === 'local') {
+  switchToLocal();
+} else {
+  switchToNpm();
+}

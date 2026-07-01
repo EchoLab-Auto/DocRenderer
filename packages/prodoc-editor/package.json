@@ -27,7 +27,8 @@
     "vue": "^3.4.0"
   },
   "dependencies": {
-    "@prodoc/core": "file:../prodoc-core"
+    "@prodoc/core": "file:../prodoc-core",
+    "mermaid": "^10.9.6"
   },
   "devDependencies": {
     "@echolab-auto/ui-frame": "^1.0.0",
