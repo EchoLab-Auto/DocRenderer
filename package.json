@@ -22,12 +22,15 @@
     "clean": "npm run clean --workspaces",
     "view": "node ./packages/prodoc-cli/dist/index.js view",
     "edit": "node ./packages/prodoc-cli/dist/index.js edit",
+    "dev:view": "PRODOC_DEV=1 tsx packages/prodoc-cli/src/index.ts view",
+    "dev:edit": "PRODOC_DEV=1 tsx packages/prodoc-cli/src/index.ts edit",
     "prepublishOnly": "npm run build",
     "use-local-ui-frame": "node scripts/switch-ui-frame.js local",
     "use-npm-ui-frame": "node scripts/switch-ui-frame.js npm"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
     "typescript": "^5.7.0",
     "vite": "^8.0.16"
   },
@@ -35,7 +38,7 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@echolab-auto/ui-frame": "^1.0.0",
+    "@echolab-auto/ui-frame": "^1.0.4",
     "@prodoc/core": "file:packages/prodoc-core",
     "@prodoc/editor": "file:packages/prodoc-editor",
     "@prodoc/renderer": "file:packages/prodoc-renderer",

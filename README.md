@@ -26,6 +26,16 @@ echo-prodoc edit ./docs
 echo-prodoc view ./docs --port 8080
 ```
 
+### 开发调试
+
+```bash
+# 开发模式（源码运行，HMR 热更新）
+npm run dev:view ./docs
+npm run dev:edit ./docs
+```
+
+开发模式通过 `PRODOC_DEV=1` + `tsx` 直接运行 TypeScript 源码，无需预先构建。详见 [开发调试指南](docs/guide/development.md)。
+
 ## 技术栈
 
 - **TypeScript** — 完整的类型定义

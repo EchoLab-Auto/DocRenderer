@@ -23,15 +23,15 @@ CLI 启动的页面已内置 `ThemeProvider`，用户可通过界面上的主题
 
 ```css
 :root {
-  --nm-primary-color: #6c7ae0;       /* 主色调 */
+  --nm-primary-color: #cdfa4e;       /* 主色调 */
   --nm-bg-color: #e0e0e0;            /* 背景色 */
   --nm-border-radius-md: 16px;       /* 中等圆角 */
   --nm-shadow-dark: rgba(0,0,0,0.15); /* 暗阴影强度 */
 }
 
 [data-theme="dark"] {
-  --nm-bg-color: #1a1a2e;
-  --nm-primary-color: #858ae0;
+  --nm-bg-color: #1c1c1c;
+  --nm-primary-color: #cdfa4e;
 }
 ```
 

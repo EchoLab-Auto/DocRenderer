@@ -158,13 +158,13 @@ import '@echolab-auto/ui-frame/dist/style.css'
 
 ```css
 :root {
-  --nm-primary-color: #6c7ae0;
+  --nm-primary-color: #cdfa4e;
   --nm-bg-color: #e0e0e0;
   --nm-border-radius-md: 16px;
 }
 
 [data-theme="dark"] {
-  --nm-bg-color: #121212;
+  --nm-bg-color: #1c1c1c;
 }
 ```
 

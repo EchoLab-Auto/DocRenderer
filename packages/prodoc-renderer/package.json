@@ -30,7 +30,7 @@
     "mermaid": "^10.9.6"
   },
   "devDependencies": {
-    "@echolab-auto/ui-frame": "^1.0.0",
+    "@echolab-auto/ui-frame": "^1.0.4",
     "@vitejs/plugin-vue": "^6.0.7",
     "sass": "^1.100.0",
     "typescript": "^5.7.0",
