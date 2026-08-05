@@ -28,10 +28,11 @@
   },
   "dependencies": {
     "@prodoc/core": "file:../prodoc-core",
-    "mermaid": "^10.9.6"
+    "mermaid": "^10.9.6",
+    "@echolab-auto/ui-frame": "^1.1.1"
   },
   "devDependencies": {
-    "@echolab-auto/ui-frame": "^1.0.4",
+    "@echolab-auto/ui-frame": "^1.1.1",
     "@vitejs/plugin-vue": "^6.0.7",
     "typescript": "^5.7.0",
     "vite": "^8.0.16",

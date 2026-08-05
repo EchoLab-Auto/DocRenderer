@@ -27,10 +27,11 @@
     "vue": "^3.4.0"
   },
   "dependencies": {
-    "mermaid": "^10.9.6"
+    "mermaid": "^10.9.6",
+    "@echolab-auto/ui-frame": "^1.1.1"
   },
   "devDependencies": {
-    "@echolab-auto/ui-frame": "^1.0.4",
+    "@echolab-auto/ui-frame": "^1.1.1",
     "@vitejs/plugin-vue": "^6.0.7",
     "sass": "^1.100.0",
     "typescript": "^5.7.0",
