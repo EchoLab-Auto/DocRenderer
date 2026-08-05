@@ -1,0 +1,3 @@
+[submodule "skills/skill-echo-prodoc"]
+	path = skills/skill-echo-prodoc
+	url = git@github.com:EchoLab-Auto/skill-echo-prodoc.git
