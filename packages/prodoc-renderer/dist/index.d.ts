@@ -6,6 +6,7 @@
  */
 export { DocViewer, type DocViewerProps } from '@echolab-auto/ui-frame/doc';
 export { MarkdownRenderer, type MarkdownRendererProps } from '@echolab-auto/ui-frame/doc';
+export { DocFlowCanvas, type DocFlowCanvasProps } from '@echolab-auto/ui-frame/doc';
 import '@echolab-auto/ui-frame/dist/style.css';
 import './styles/index.css';
 //# sourceMappingURL=index.d.ts.map

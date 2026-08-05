@@ -90,6 +90,16 @@ function resolveCssPath(pkgName: string): string {
   return cssPath;
 }
 
+/**
+ * 解析 ui-frame 文档模块样式（dist/index.css —— doc 子入口独立产物，
+ * 含 DocViewer / MarkdownRenderer / DocFlowCanvas 的组件样式；
+ * 主样式 style.css 不含 doc 模块，缺失时文档查看器无组件级样式）
+ */
+function resolveDocCssPath(): string | null {
+  const cssPath = path.join(resolvePkgDir('@echolab-auto/ui-frame'), 'dist', 'index.css').replace(/\\/g, '/');
+  return fsSync.existsSync(cssPath) ? cssPath : null;
+}
+
 /** 解析 ProDoc workspace 包的入口文件 */
 function resolveProDocEntry(pkgName: string): string {
   const pkgDir = resolvePkgDir(pkgName);
@@ -131,6 +141,8 @@ function generateClientEntry(mode: 'view' | 'edit', files: Record<string, string
   // 使用绝对路径导入 CSS，避免 Vite alias 对 CSS 解析问题
   const cssImports = [
     `import '${resolveCssPath('@echolab-auto/ui-frame')}';`,
+    // ui-frame doc 子入口样式（DocViewer / MarkdownRenderer / DocFlowCanvas）
+    ...(resolveDocCssPath() ? [`import '${resolveDocCssPath()}';`] : []),
     `import '${path.join(resolvePkgDir('@prodoc/renderer'), 'dist', 'index.css').replace(/\\/g, '/')}'`,
   ];
   if (mode === 'edit') {

@@ -7,6 +7,7 @@
 
 export { DocViewer, type DocViewerProps } from '@echolab-auto/ui-frame/doc'
 export { MarkdownRenderer, type MarkdownRendererProps } from '@echolab-auto/ui-frame/doc'
+export { DocFlowCanvas, type DocFlowCanvasProps } from '@echolab-auto/ui-frame/doc'
 
 // 引入 ui-frame 全局样式（CSS 变量 + 组件基础样式）
 import '@echolab-auto/ui-frame/dist/style.css'

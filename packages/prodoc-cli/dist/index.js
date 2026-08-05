@@ -37,18 +37,26 @@ function f(t) {
 	if (!a.existsSync(n)) throw Error(`CSS file not found for ${t}: ${n}. Please ensure @echolab-auto/ui-frame is installed.`);
 	return n;
 }
-function p(t) {
+function p() {
+	let t = e.join(s("@echolab-auto/ui-frame"), "dist", "index.css").replace(/\\/g, "/");
+	return a.existsSync(t) ? t : null;
+}
+function m(t) {
 	let n = s(t), r = e.join(n, "src", "index.ts"), i = e.join(n, "dist", "index.js");
 	return process.env.PRODOC_DEV === "1" && a.existsSync(r) ? r.replace(/\\/g, "/") : i.replace(/\\/g, "/");
 }
-function m() {
+function h() {
 	return "async (filePath, content) => {\n            try {\n              const res = await fetch('/__prodoc_api/save', {\n                method: 'POST',\n                headers: { 'Content-Type': 'application/json' },\n                body: JSON.stringify({ path: filePath, content }),\n              });\n              const data = await res.json();\n              if (data.success) {\n                console.log('[ProDoc] saved:', filePath);\n              } else {\n                console.error('[ProDoc] save failed:', data.error);\n              }\n            } catch (e) {\n              console.error('[ProDoc] save error:', e);\n            }\n          }";
 }
-function h(t, n) {
-	let r = t === "view" ? "DocViewer" : "DocEditor", i = `import { ${r} } from '@prodoc/${t === "view" ? "renderer" : "editor"}';`, a = [`import '${f("@echolab-auto/ui-frame")}';`, `import '${e.join(s("@prodoc/renderer"), "dist", "index.css").replace(/\\/g, "/")}'`];
+function g(t, n) {
+	let r = t === "view" ? "DocViewer" : "DocEditor", i = `import { ${r} } from '@prodoc/${t === "view" ? "renderer" : "editor"}';`, a = [
+		`import '${f("@echolab-auto/ui-frame")}';`,
+		...p() ? [`import '${p()}';`] : [],
+		`import '${e.join(s("@prodoc/renderer"), "dist", "index.css").replace(/\\/g, "/")}'`
+	];
 	t === "edit" && a.push(`import '${e.join(s("@prodoc/editor"), "dist", "index.css").replace(/\\/g, "/")}'`);
 	let o = ["onDocLink: (p) => { console.log('[ProDoc] navigate to:', p); history.replaceState(null, '', '#' + p); }"];
-	return t === "edit" && o.push(`onSave: ${m()}`), `
+	return t === "edit" && o.push(`onSave: ${h()}`), `
 import { createApp, h } from 'vue';
 import uiFrame, { ThemeProvider } from '@echolab-auto/ui-frame';
 import { buildDocTree } from '@prodoc/core';
@@ -84,13 +92,13 @@ app.use(uiFrame, {
 app.mount('#app');
 `;
 }
-async function g(i, a, o = {}) {
+async function _(i, a, o = {}) {
 	let s = o.port ?? c;
 	console.log(`📂 Loading documents from: ${e.resolve(a)}`);
-	let f = await d(a), m = Object.keys(f).length;
-	if (m === 0) throw Error(`No .md files found in: ${a}`);
-	console.log(`✅ Loaded ${m} document(s)`);
-	let g = await n({
+	let f = await d(a), p = Object.keys(f).length;
+	if (p === 0) throw Error(`No .md files found in: ${a}`);
+	console.log(`✅ Loaded ${p} document(s)`);
+	let h = await n({
 		root: process.cwd(),
 		configFile: !1,
 		server: {
@@ -101,15 +109,15 @@ async function g(i, a, o = {}) {
 		resolve: { alias: [
 			{
 				find: "@prodoc/core",
-				replacement: p("@prodoc/core")
+				replacement: m("@prodoc/core")
 			},
 			{
 				find: "@prodoc/renderer",
-				replacement: p("@prodoc/renderer")
+				replacement: m("@prodoc/renderer")
 			},
 			{
 				find: "@prodoc/editor",
-				replacement: p("@prodoc/editor")
+				replacement: m("@prodoc/editor")
 			}
 		] },
 		optimizeDeps: { include: [
@@ -138,7 +146,7 @@ async function g(i, a, o = {}) {
 					if (e === "/@prodoc/entry") return "\0prodoc-entry";
 				},
 				load(e) {
-					if (e === "\0prodoc-entry") return h(i, f);
+					if (e === "\0prodoc-entry") return g(i, f);
 				}
 			},
 			...i === "edit" ? [{
@@ -189,36 +197,36 @@ async function g(i, a, o = {}) {
 			}] : []
 		]
 	});
-	await g.listen();
-	let _ = g.resolvedUrls ?? {
+	await h.listen();
+	let _ = h.resolvedUrls ?? {
 		local: [],
 		network: []
 	}, v = _.local[0] ?? `http://localhost:${s}`;
-	return console.log("\n🚀 Echo-ProDoc server is running!\n"), console.log(`   Mode:    ${i === "view" ? "👁  View" : "✏️  Edit"}`), console.log(`   Docs:    ${e.resolve(a)}`), console.log(`   Local:   ${v}`), _.network.length > 0 && console.log(`   Network: ${_.network[0]}`), console.log(""), i === "edit" && console.log("   Press Ctrl+S in the editor to save changes.\n"), g;
+	return console.log("\n🚀 Echo-ProDoc server is running!\n"), console.log(`   Mode:    ${i === "view" ? "👁  View" : "✏️  Edit"}`), console.log(`   Docs:    ${e.resolve(a)}`), console.log(`   Local:   ${v}`), _.network.length > 0 && console.log(`   Network: ${_.network[0]}`), console.log(""), i === "edit" && console.log("   Press Ctrl+S in the editor to save changes.\n"), h;
 }
 //#endregion
 //#region src/index.ts
-var _ = "echo-prodoc", v = "0.1.0";
-function y() {
+var v = "echo-prodoc", y = "0.1.0";
+function b() {
 	console.log(`
-${_} v${v}
+${v} v${y}
 
 Usage:
-  ${_} view <document-path>   Start a rendering server for the document directory
-  ${_} edit <document-path>   Start an editing server for the document directory
-  ${_} --help                 Show this help message
-  ${_} --version              Show version
+  ${v} view <document-path>   Start a rendering server for the document directory
+  ${v} edit <document-path>   Start an editing server for the document directory
+  ${v} --help                 Show this help message
+  ${v} --version              Show version
 
 Options:
   --port, -p <number>    Server port (default: 3344)
   --no-open              Do not open browser automatically
 
 Examples:
-  ${_} view ./docs
-  ${_} edit ./docs --port 8080
+  ${v} view ./docs
+  ${v} edit ./docs --port 8080
 `);
 }
-function b(e) {
+function x(e) {
 	let t = e.slice(2), n = {
 		open: !0,
 		help: !1,
@@ -230,7 +238,7 @@ function b(e) {
 	}
 	return n;
 }
-async function x(n) {
+async function S(n) {
 	let r = e.resolve(n);
 	try {
 		if (!(await t.stat(r)).isDirectory()) throw Error(`Path is not a directory: ${r}`);
@@ -239,11 +247,11 @@ async function x(n) {
 	}
 	return r;
 }
-async function S() {
-	let e = b(process.argv);
-	e.help && (y(), process.exit(0)), e.version && (console.log(`${_} v${v}`), process.exit(0)), e.command || (console.error("Error: No command specified. Use \"view\" or \"edit\"."), console.error(`\nRun "${_} --help" for usage information.`), process.exit(1)), e.docPath || (console.error("Error: No document path specified."), console.error(`\nRun "${_} --help" for usage information.`), process.exit(1));
+async function C() {
+	let e = x(process.argv);
+	e.help && (b(), process.exit(0)), e.version && (console.log(`${v} v${y}`), process.exit(0)), e.command || (console.error("Error: No command specified. Use \"view\" or \"edit\"."), console.error(`\nRun "${v} --help" for usage information.`), process.exit(1)), e.docPath || (console.error("Error: No document path specified."), console.error(`\nRun "${v} --help" for usage information.`), process.exit(1));
 	try {
-		let t = await x(e.docPath), n = await g(e.command, t, {
+		let t = await S(e.docPath), n = await _(e.command, t, {
 			port: e.port,
 			open: e.open
 		}), r = () => {
@@ -256,7 +264,7 @@ async function S() {
 		console.error(`\n❌ Error: ${e.message}\n`), process.exit(1);
 	}
 }
-S();
+C();
 //#endregion
 
 //# sourceMappingURL=index.js.map

@@ -12,6 +12,19 @@ export type {
   ProDocOptions,
 } from '@echolab-auto/ui-frame/doc'
 
+// 流程图（prodoc-flow）类型导出
+export type {
+  ProDocFlowDirection,
+  ProDocFlowNodeShape,
+  ProDocFlowNode,
+  ProDocFlowEdge,
+  ProDocFlowError,
+  ProDocFlowGraph,
+  FlowLayoutNode,
+  FlowLayoutEdge,
+  FlowLayoutResult,
+} from '@echolab-auto/ui-frame/doc'
+
 // 解析器导出
 export {
   parseFrontmatter,
@@ -19,6 +32,15 @@ export {
   extractTitle,
   createNode,
   buildDocTree,
+} from '@echolab-auto/ui-frame/doc'
+
+// 流程图解析与布局导出
+export {
+  parseProDocFlow,
+  extractFlowBlocks,
+  layoutProDocFlow,
+  resolveCanvasGraph,
+  buildHierarchyGraph,
 } from '@echolab-auto/ui-frame/doc'
 
 // 文档树工具导出
