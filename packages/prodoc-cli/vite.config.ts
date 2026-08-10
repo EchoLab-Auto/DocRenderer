@@ -61,6 +61,7 @@ export default defineConfig({
         '@vitejs/plugin-vue',
         'vue',
         '@prodoc/core',
+        '@prodoc/core/pure',
         '@prodoc/renderer',
         '@prodoc/editor',
         'marked',

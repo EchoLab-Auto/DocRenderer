@@ -1,9 +1,10 @@
 /**
  * ProDoc Renderer - Vue 3 渲染组件库
  *
- * 组件实现来自 @echolab-auto/ui-frame/doc，此处只做重新导出。
- * 保留 ProDoc 特有的样式定制（主题过渡、滚动条、选中颜色等）。
+ * 新 ProDoc 模型（文档图）的查看器为 DocGraphViewer（本包实现）。
+ * 旧文档树组件仍从 @echolab-auto/ui-frame/doc 重新导出，供旧路径使用。
  */
+export { default as DocGraphViewer } from './components/DocGraphViewer.vue';
 export { DocViewer, type DocViewerProps } from '@echolab-auto/ui-frame/doc';
 export { MarkdownRenderer, type MarkdownRendererProps } from '@echolab-auto/ui-frame/doc';
 export { DocFlowCanvas, type DocFlowCanvasProps } from '@echolab-auto/ui-frame/doc';

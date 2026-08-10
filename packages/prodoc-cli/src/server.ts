@@ -11,6 +11,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { createRequire } from 'module';
 import fsSync from 'fs';
+import { buildDocGraph, parseFrameBlock, writeFramePosition } from '@prodoc/core/pure';
 
 const require = createRequire(import.meta.url);
 
@@ -49,6 +50,7 @@ const INDEX_HTML = `<!DOCTYPE html>
         margin: 0;
         padding: 0;
         height: 100%;
+        overflow: hidden;
         background: var(--nm-bg-color, #e0e0e0);
       }
     </style>
@@ -79,6 +81,33 @@ async function loadMarkdownFiles(dir: string): Promise<Record<string, string>> {
 
   await walk(dir);
   return files;
+}
+
+/** 将自动布局产生的坐标固化到各 Markdown 文件的框架参数区。 */
+async function persistAutoLayout(
+  docRoot: string,
+  files: Record<string, string>,
+): Promise<string[]> {
+  const graph = buildDocGraph(files);
+  const written: string[] = [];
+
+  for (const box of graph.boxes) {
+    const content = files[box.docPath];
+    const { params } = parseFrameBlock(content);
+    const hasX = typeof params.x === 'number' && Number.isFinite(params.x);
+    const hasY = typeof params.y === 'number' && Number.isFinite(params.y);
+    if (hasX && hasY) continue;
+
+    const updated = writeFramePosition(content, {
+      ...(!hasX && { x: box.x }),
+      ...(!hasY && { y: box.y }),
+    });
+    await fs.writeFile(path.join(docRoot, box.docPath), updated, 'utf-8');
+    files[box.docPath] = updated;
+    written.push(box.docPath);
+  }
+
+  return written;
 }
 
 /** 解析 CSS 文件的绝对路径（替换反斜杠为正斜杠） */
@@ -135,7 +164,9 @@ function buildSaveHandler(): string {
 
 /** 生成客户端入口代码 */
 function generateClientEntry(mode: 'view' | 'edit', files: Record<string, string>): string {
-  const componentName = mode === 'view' ? 'DocViewer' : 'DocEditor';
+  // 查看模式：新文档图模型 —— DocGraphViewer 直接消费文件映射，
+  // 框架参数区解析、图构建、正文剥离都在 @prodoc/core + 组件内完成
+  const componentName = mode === 'view' ? 'DocGraphViewer' : 'DocEditor';
   const componentImport = `import { ${componentName} } from '@prodoc/${mode === 'view' ? 'renderer' : 'editor'}';`;
 
   // 使用绝对路径导入 CSS，避免 Vite alias 对 CSS 解析问题
@@ -149,33 +180,51 @@ function generateClientEntry(mode: 'view' | 'edit', files: Record<string, string
     cssImports.push(`import '${path.join(resolvePkgDir('@prodoc/editor'), 'dist', 'index.css').replace(/\\/g, '/')}'`);
   }
 
-  const eventProps = [
-    'onDocLink: (p) => { console.log(\'[ProDoc] navigate to:\', p); history.replaceState(null, \'\', \'#\' + p); }',
-  ];
-  if (mode === 'edit') {
-    eventProps.push(`onSave: ${buildSaveHandler()}`);
-  }
+  // 浏览/编辑一体化：view 模式的 DocGraphViewer 内置编辑器，通过 onSave 保存；
+  // edit 模式沿用旧文档树模型的 DocEditor
+  const componentProps =
+    mode === 'view'
+      ? `{ files: state.files, onSave: ${buildSaveHandler()} }`
+      : `{
+          root: docRoot,
+          initialPath,
+          onDocLink: (p) => { console.log('[ProDoc] navigate to:', p); history.replaceState(null, '', '#' + p); },
+          onSave: ${buildSaveHandler()},
+        }`;
+
+  // edit 模式才需要旧文档树；view 模式 DocGraphViewer 只消费 files，避免无用的 buildDocTree
+  const legacyTreeSetup =
+    mode === 'edit'
+      ? `import { buildDocTree } from '@prodoc/core/pure';
+const docRoot = buildDocTree(state.files);
+const initialPath = window.location.hash ? window.location.hash.slice(1) : undefined;`
+      : '';
+
+  // view 模式：文档热更新 —— 服务器通过 WS 推送最新文件映射，原地替换 state.files
+  // （不刷新页面，保留画布平移/缩放与当前打开的文档）
+  const hotUpdateSetup =
+    mode === 'view'
+      ? `if (import.meta.hot) {
+  import.meta.hot.on('prodoc:docs-update', (updated) => {
+    state.files = updated;
+  });
+}`
+      : '';
 
   return `
-import { createApp, h } from 'vue';
+import { createApp, h, reactive } from 'vue';
 import uiFrame, { ThemeProvider } from '@echolab-auto/ui-frame';
-import { buildDocTree } from '@prodoc/core';
 ${componentImport}
 ${cssImports.join('\n')};
 
-const files = ${JSON.stringify(files)};
-const docRoot = buildDocTree(files);
-const initialPath = window.location.hash ? window.location.hash.slice(1) : undefined;
+const state = reactive({ files: ${JSON.stringify(files)} });
+${legacyTreeSetup}
 
 const app = createApp({
   render() {
     return h('div', { style: { height: '100vh', width: '100vw', overflow: 'hidden' } }, [
       h(ThemeProvider, { defaultTheme: 'auto', storageKey: 'prodoc-theme', followSystem: true }, {
-        default: () => h(${componentName}, {
-          root: docRoot,
-          initialPath,
-          ${eventProps.join(',\n          ')},
-        }),
+        default: () => h(${componentName}, ${componentProps}),
       }),
     ]);
   },
@@ -190,6 +239,8 @@ app.use(uiFrame, {
   pagination: { showTotal: false },
 });
 app.mount('#app');
+
+${hotUpdateSetup}
 `;
 }
 
@@ -201,14 +252,21 @@ export async function startProDocServer(
 ): Promise<ViteDevServer> {
   const port = options.port ?? DEFAULT_PORT;
 
-  // 1. 加载文档文件
+  // 1. 加载文档文件（view 模式下会被目录监听的热更新重新赋值）
   console.log(`📂 Loading documents from: ${path.resolve(docRoot)}`);
-  const files = await loadMarkdownFiles(docRoot);
+  let files = await loadMarkdownFiles(docRoot);
   const fileCount = Object.keys(files).length;
   if (fileCount === 0) {
     throw new Error(`No .md files found in: ${docRoot}`);
   }
   console.log(`✅ Loaded ${fileCount} document(s)`);
+
+  if (mode === 'view') {
+    const positionedFiles = await persistAutoLayout(docRoot, files);
+    if (positionedFiles.length > 0) {
+      console.log(`📍 Wrote auto-layout coordinates to ${positionedFiles.length} document(s)`);
+    }
+  }
 
   // 2. 创建 Vite 服务器
   const server = await createServer({
@@ -261,62 +319,96 @@ export async function startProDocServer(
         },
       },
 
-      // 插件：edit 模式下提供保存 API
-      ...(mode === 'edit'
+      // 插件：view 模式下监听文档目录，变更时重载并通过 WS 推送最新文件映射
+      //（persistAutoLayout 自身的坐标写回会再次触发 change，但二次重载
+      //  不再产生写入，推送内容与上次一致，不会形成循环）
+      ...(mode === 'view'
         ? [
             {
-              name: 'prodoc-save-api',
+              name: 'prodoc-docs-watch',
               configureServer(s: ViteDevServer) {
-                s.middlewares.use(async (req, res, next) => {
-                  if (req.url === '/__prodoc_api/save' && req.method === 'POST') {
-                    try {
-                      let body = '';
-                      let bodySize = 0;
-                      req.on('data', (chunk: Buffer) => {
-                        bodySize += chunk.length;
-                        if (bodySize > MAX_SAVE_BODY_SIZE) {
-                          res.statusCode = 413;
-                          res.setHeader('content-type', 'application/json');
-                          res.end(JSON.stringify({ success: false, error: 'Payload Too Large' }));
-                          return;
-                        }
-                        body += chunk.toString();
-                      });
-                      req.on('end', async () => {
-                        try {
-                          const { path: filePath, content } = JSON.parse(body);
-                          const fullPath = path.resolve(docRoot, filePath);
-                          // 安全检查：确保文件在 docRoot 内
-                          const resolvedDocRoot = path.resolve(docRoot) + path.sep;
-                          const resolvedTarget = path.resolve(fullPath);
-                          if (!resolvedTarget.startsWith(resolvedDocRoot)) {
-                            res.statusCode = 403;
-                            res.setHeader('content-type', 'application/json');
-                            res.end(JSON.stringify({ success: false, error: 'Forbidden: path outside doc root' }));
-                            return;
-                          }
-                          await fs.writeFile(fullPath, content, 'utf-8');
-                          res.setHeader('content-type', 'application/json');
-                          res.end(JSON.stringify({ success: true }));
-                        } catch (err: any) {
-                          res.statusCode = 500;
-                          res.setHeader('content-type', 'application/json');
-                          res.end(JSON.stringify({ success: false, error: err.message }));
-                        }
-                      });
-                    } catch (err: any) {
-                      res.statusCode = 500;
-                      res.setHeader('content-type', 'application/json');
-                      res.end(JSON.stringify({ success: false, error: err.message }));
-                    }
-                    return;
-                  }
-                  next();
-                });
+                const resolvedRoot = path.resolve(docRoot);
+                s.watcher.add(resolvedRoot);
+
+                let timer: ReturnType<typeof setTimeout> | null = null;
+                const reload = async () => {
+                  const updated = await loadMarkdownFiles(resolvedRoot);
+                  const positioned = await persistAutoLayout(resolvedRoot, updated);
+                  files = updated;
+                  s.ws.send('prodoc:docs-update', files);
+                  console.log(
+                    `🔄 Documents reloaded (${Object.keys(files).length} file(s)` +
+                      (positioned.length > 0 ? `, wrote coordinates to ${positioned.length}` : '') +
+                      ')',
+                  );
+                };
+                const onDocEvent = (file: string) => {
+                  if (!file.startsWith(resolvedRoot) || !file.endsWith('.md')) return;
+                  if (timer) clearTimeout(timer);
+                  timer = setTimeout(() => {
+                    reload().catch((err) => console.error('[ProDoc] reload failed:', err));
+                  }, 100);
+                };
+                s.watcher.on('add', onDocEvent);
+                s.watcher.on('change', onDocEvent);
+                s.watcher.on('unlink', onDocEvent);
               },
-            } as any,
+            },
           ]
         : []),
+
+      // 插件：保存 API（view 模式内置编辑器与 edit 模式共用）
+      {
+        name: 'prodoc-save-api',
+        configureServer(s: ViteDevServer) {
+          s.middlewares.use(async (req, res, next) => {
+            if (req.url === '/__prodoc_api/save' && req.method === 'POST') {
+              try {
+                let body = '';
+                let bodySize = 0;
+                req.on('data', (chunk: Buffer) => {
+                  bodySize += chunk.length;
+                  if (bodySize > MAX_SAVE_BODY_SIZE) {
+                    res.statusCode = 413;
+                    res.setHeader('content-type', 'application/json');
+                    res.end(JSON.stringify({ success: false, error: 'Payload Too Large' }));
+                    return;
+                  }
+                  body += chunk.toString();
+                });
+                req.on('end', async () => {
+                  try {
+                    const { path: filePath, content } = JSON.parse(body);
+                    const fullPath = path.resolve(docRoot, filePath);
+                    // 安全检查：确保文件在 docRoot 内
+                    const resolvedDocRoot = path.resolve(docRoot) + path.sep;
+                    const resolvedTarget = path.resolve(fullPath);
+                    if (!resolvedTarget.startsWith(resolvedDocRoot)) {
+                      res.statusCode = 403;
+                      res.setHeader('content-type', 'application/json');
+                      res.end(JSON.stringify({ success: false, error: 'Forbidden: path outside doc root' }));
+                      return;
+                    }
+                    await fs.writeFile(fullPath, content, 'utf-8');
+                    res.setHeader('content-type', 'application/json');
+                    res.end(JSON.stringify({ success: true }));
+                  } catch (err: any) {
+                    res.statusCode = 500;
+                    res.setHeader('content-type', 'application/json');
+                    res.end(JSON.stringify({ success: false, error: err.message }));
+                  }
+                });
+              } catch (err: any) {
+                res.statusCode = 500;
+                res.setHeader('content-type', 'application/json');
+                res.end(JSON.stringify({ success: false, error: err.message }));
+              }
+              return;
+            }
+            next();
+          });
+        },
+      } as any,
     ],
   });
 

@@ -1,1 +1,490 @@
-/* All styles now live in @echolab-auto/ui-frame/doc */
+/* ProDoc 渲染器样式 */
+/* 组件基础样式来自 @echolab-auto/ui-frame；此处为 DocGraphViewer 的定制样式 */
+
+/* ============ DocGraphViewer 骨架 ============ */
+
+.pd-graph-viewer {
+  /* 自给自足的高度：不依赖外层 ThemeProvider 传递高度
+     （nm-theme-provider 只有 min-height，会导致 height:% 链断裂、
+     正文超出视口后被根 overflow:hidden 裁切）。与旧 DocViewer 一致用 100vh。 */
+  height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--nm-bg-color, #e0e0e0);
+}
+
+.pd-graph-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 20px;
+  flex-shrink: 0;
+}
+
+.pd-graph-brand {
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--nm-text-primary, #333);
+}
+
+.pd-graph-current {
+  font-size: 13px;
+  color: var(--nm-text-secondary, #666);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pd-graph-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.pd-back-btn {
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 6px 14px;
+  border-radius: var(--nm-border-radius-md, 16px);
+  color: var(--nm-text-primary, #333);
+  background: var(--nm-bg-color, #e0e0e0);
+  box-shadow:
+    4px 4px 8px var(--nm-shadow-dark, rgba(0, 0, 0, 0.12)),
+    -4px -4px 8px var(--nm-shadow-light, rgba(255, 255, 255, 0.7));
+  transition: transform 0.2s ease;
+}
+
+.pd-back-btn:hover {
+  transform: translateY(-1px);
+}
+
+.pd-back-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+  transform: none;
+}
+
+.pd-graph-main {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ============ 图画布：文档框 ============ */
+
+.pd-graph-stage {
+  position: relative;
+}
+
+.pd-relation-layer {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.pd-relation {
+  cursor: default;
+  pointer-events: none;
+}
+
+/* 图编辑模式下连线才可点选 */
+.pd-graph-stage--editing .pd-relation {
+  cursor: pointer;
+  pointer-events: visibleStroke;
+}
+
+/* 图编辑模式：框呈现可拖拽姿态 */
+.pd-graph-stage--editing .pd-doc-box {
+  cursor: grab;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--nm-primary-color, #cdfa4e) 35%, transparent),
+    6px 6px 12px var(--nm-shadow-dark, rgba(0, 0, 0, 0.15)),
+    -6px -6px 12px var(--nm-shadow-light, rgba(255, 255, 255, 0.7));
+}
+
+.pd-back-btn--active {
+  box-shadow:
+    inset 3px 3px 6px var(--nm-shadow-dark, rgba(0, 0, 0, 0.12)),
+    inset -3px -3px 6px var(--nm-shadow-light, rgba(255, 255, 255, 0.7));
+  color: var(--nm-primary-color, #cdfa4e);
+  font-weight: 600;
+}
+
+/* 加宽的透明命中区域，便于点选连线 */
+.pd-relation-hit {
+  stroke: transparent;
+  stroke-width: 14;
+}
+
+.pd-relation path:not(.pd-relation-hit) {
+  stroke: var(--nm-text-secondary, #666);
+  stroke-width: 2;
+  stroke-dasharray: 7 5;
+  opacity: 0.72;
+  transition: opacity 0.2s ease, stroke 0.2s ease;
+}
+
+.pd-relation text {
+  fill: var(--nm-text-secondary, #666);
+  font-size: 11px;
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: var(--nm-bg-color, #e0e0e0);
+  stroke-width: 5px;
+  stroke-linejoin: round;
+  transition: opacity 0.2s ease;
+}
+
+.pd-relation.pd-hot path:not(.pd-relation-hit),
+.pd-relation.pd-selected path:not(.pd-relation-hit) {
+  stroke: var(--nm-primary-color, #cdfa4e);
+  opacity: 1;
+}
+
+.pd-relation.pd-selected path:not(.pd-relation-hit) {
+  stroke-width: 3;
+}
+
+.pd-relation.pd-dim path,
+.pd-relation.pd-dim text {
+  opacity: 0.15;
+}
+
+/* 连线草稿（拖动连接点时） */
+.pd-relation-draft {
+  stroke: var(--nm-primary-color, #cdfa4e);
+  stroke-width: 2;
+  stroke-dasharray: 4 4;
+  opacity: 0.9;
+}
+
+/* 选中连线的编辑卡片（连接边调整 + 删除） */
+.pd-edge-card {
+  position: absolute;
+  z-index: 20;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: var(--nm-surface-raised, var(--nm-bg-color, #e0e0e0));
+  box-shadow:
+    5px 5px 10px var(--nm-shadow-dark, rgba(0, 0, 0, 0.15)),
+    -5px -5px 10px var(--nm-shadow-light, rgba(255, 255, 255, 0.7));
+}
+
+.pd-edge-card__row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pd-edge-card__label {
+  font-size: 11px;
+  color: var(--nm-text-secondary, #666);
+  width: 34px;
+  flex-shrink: 0;
+}
+
+.pd-edge-card__side {
+  border: none;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 3px 7px;
+  border-radius: 6px;
+  color: var(--nm-text-secondary, #666);
+  background: var(--nm-bg-color, #e0e0e0);
+  box-shadow:
+    inset 1px 1px 3px var(--nm-shadow-dark, rgba(0, 0, 0, 0.1)),
+    inset -1px -1px 3px var(--nm-shadow-light, rgba(255, 255, 255, 0.6));
+}
+
+.pd-edge-card__side--active {
+  color: var(--nm-primary-color, #cdfa4e);
+  font-weight: 700;
+  box-shadow:
+    2px 2px 4px var(--nm-shadow-dark, rgba(0, 0, 0, 0.12)),
+    -2px -2px 4px var(--nm-shadow-light, rgba(255, 255, 255, 0.7));
+}
+
+.pd-edge-card__delete {
+  border: none;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  color: var(--nm-text-secondary, #666);
+  background: var(--nm-bg-color, #e0e0e0);
+  box-shadow:
+    2px 2px 4px var(--nm-shadow-dark, rgba(0, 0, 0, 0.1)),
+    -2px -2px 4px var(--nm-shadow-light, rgba(255, 255, 255, 0.6));
+}
+
+.pd-edge-card__delete:hover {
+  color: var(--nm-danger-color, #e05555);
+}
+
+.pd-relation-arrow {
+  fill: var(--nm-text-secondary, #666);
+  opacity: 0.82;
+}
+
+/* 拖拽/连线期间：禁用过渡动画（否则框拖着 0.35s 的尾巴不跟手）、
+   隐藏悬停面板、禁止文本选择、抓手光标 */
+.pd-graph-stage--dragging .pd-doc-box {
+  transition: none;
+  cursor: grabbing;
+  user-select: none;
+}
+
+.pd-graph-stage--dragging .pd-doc-box:hover {
+  transform: none;
+}
+
+.pd-graph-stage--dragging .pd-doc-blocks-pop {
+  display: none;
+}
+
+.pd-graph-stage--dragging {
+  user-select: none;
+}
+
+/* 触屏/触控笔：拖拽期间阻止浏览器接管滚动手势 */
+.pd-graph-stage--editing .pd-doc-box,
+.pd-doc-box__link-handle {
+  touch-action: none;
+}
+
+.pd-doc-box {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 12px;
+  box-sizing: border-box;
+  text-align: center;
+  cursor: pointer;
+  border-radius: var(--nm-border-radius-md, 16px);
+  border: 1.5px solid var(--nm-primary-color, #cdfa4e);
+  background: var(--nm-surface-raised, var(--nm-bg-color, #e0e0e0));
+  box-shadow:
+    6px 6px 12px var(--nm-shadow-dark, rgba(0, 0, 0, 0.15)),
+    -6px -6px 12px var(--nm-shadow-light, rgba(255, 255, 255, 0.7));
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    opacity 0.2s ease,
+    left 0.35s ease,
+    top 0.35s ease;
+}
+
+.pd-doc-box:hover {
+  transform: translateY(-2px);
+  z-index: 5;
+  box-shadow:
+    8px 8px 16px var(--nm-shadow-dark, rgba(0, 0, 0, 0.18)),
+    -8px -8px 16px var(--nm-shadow-light, rgba(255, 255, 255, 0.8));
+}
+
+.pd-doc-box:focus-visible {
+  outline: 2px solid var(--nm-primary-color, #cdfa4e);
+  outline-offset: 2px;
+}
+
+/* 层级深度视觉分级：根框强调，深层渐轻 */
+.pd-doc-box--d0 {
+  border-width: 2.5px;
+}
+
+.pd-doc-box--d0 .pd-doc-box__title {
+  font-weight: 700;
+}
+
+.pd-doc-box--d2 {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--nm-primary-color, #cdfa4e) 65%, transparent);
+}
+
+.pd-doc-box--d3 {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--nm-primary-color, #cdfa4e) 45%, transparent);
+}
+
+.pd-doc-box.pd-dim {
+  opacity: 0.28;
+}
+
+.pd-doc-box__head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 34px;
+  flex-shrink: 0;
+}
+
+.pd-doc-box__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--nm-text-primary, #333);
+  word-break: break-word;
+}
+
+.pd-doc-box__icon {
+  font-size: 13px;
+  color: var(--nm-primary-color, #cdfa4e);
+  flex-shrink: 0;
+}
+
+/* 框右上角编辑入口：悬停/聚焦时显现 */
+.pd-doc-box__edit {
+  position: absolute;
+  top: 5px;
+  right: 7px;
+  border: none;
+  padding: 2px;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  background: transparent;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.pd-doc-box:hover .pd-doc-box__edit,
+.pd-doc-box:focus-within .pd-doc-box__edit {
+  opacity: 0.85;
+}
+
+.pd-doc-box__edit:hover {
+  opacity: 1;
+  transform: scale(1.15);
+}
+
+/* 连接点：框右边中点，悬停框时显现，拖到其他框创建连线 */
+.pd-doc-box__link-handle {
+  position: absolute;
+  right: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  border: 2px solid var(--nm-primary-color, #cdfa4e);
+  border-radius: 50%;
+  background: var(--nm-surface-raised, var(--nm-bg-color, #e0e0e0));
+  cursor: crosshair;
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.pd-doc-box:hover .pd-doc-box__link-handle,
+.pd-doc-box:focus-within .pd-doc-box__link-handle {
+  opacity: 1;
+}
+
+.pd-doc-box__link-handle:hover {
+  transform: translateY(-50%) scale(1.3);
+}
+
+/* 悬停展开的分块面板（框保持紧凑，悬停/聚焦时弹出） */
+.pd-doc-blocks-pop {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  padding-top: 6px;
+  z-index: 10;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease,
+    visibility 0.15s;
+}
+
+.pd-doc-box:hover .pd-doc-blocks-pop,
+.pd-doc-box:focus-within .pd-doc-blocks-pop {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+}
+
+.pd-doc-blocks-pop--above {
+  top: auto;
+  bottom: 100%;
+  padding-top: 0;
+  padding-bottom: 6px;
+  transform: translateY(4px);
+}
+
+.pd-doc-blocks-pop__card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  border-radius: 12px;
+  background: var(--nm-surface-raised, var(--nm-bg-color, #e0e0e0));
+  box-shadow:
+    5px 5px 10px var(--nm-shadow-dark, rgba(0, 0, 0, 0.15)),
+    -5px -5px 10px var(--nm-shadow-light, rgba(255, 255, 255, 0.7));
+}
+
+.pd-doc-blocks-pop__item {
+  border: none;
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1.3;
+  padding: 6px 8px;
+  border-radius: 8px;
+  text-align: left;
+  color: var(--nm-text-secondary, #666);
+  background: var(--nm-bg-color, #e0e0e0);
+  box-shadow:
+    inset 2px 2px 4px var(--nm-shadow-dark, rgba(0, 0, 0, 0.1)),
+    inset -2px -2px 4px var(--nm-shadow-light, rgba(255, 255, 255, 0.6));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color 0.15s ease;
+}
+
+.pd-doc-blocks-pop__item:hover {
+  color: var(--nm-text-primary, #333);
+}
+
+.pd-doc-blocks-pop__item:focus-visible {
+  outline: 2px solid var(--nm-primary-color, #cdfa4e);
+  outline-offset: 1px;
+}
+
+.pd-doc-blocks-pop__item--more {
+  font-weight: 700;
+}
+
+/* ============ 文档正文视图 ============ */
+
+.pd-doc-view {
+  height: 100%;
+  overflow-y: auto;
+  padding: 24px 28px 48px;
+  box-sizing: border-box;
+}
+
+/* 编辑模式：编辑器占满正文区，自身管理滚动 */
+.pd-doc-view--editing {
+  padding: 0;
+  overflow: hidden;
+}
+
+.pd-doc-editor {
+  height: 100%;
+}

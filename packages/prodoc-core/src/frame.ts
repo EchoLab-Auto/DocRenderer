@@ -1,0 +1,204 @@
+/**
+ * 框架参数区（Frame Block）解析
+ *
+ * 每个 md 文件最前方由两个 `---` 行夹住的区域为框架参数区，
+ * 声明本文档在文档群图上对应框的各项属性（id、title、位置等）。
+ * 该区域仅供框架消费：正文渲染时完全剥离，读者不可见。
+ *
+ * 容错：文件以 `---` 开头但找不到闭合的第二个 `---` 时，
+ * 视为无参数区，整个文件按普通正文处理（不吞掉内容）。
+ */
+
+/** 框架参数区解析结果 */
+export interface FrameBlock {
+  /** 解析出的参数键值对 */
+  params: Record<string, unknown>;
+  /** 剥离参数区后的正文 */
+  body: string;
+  /** 文件中是否存在合法的参数区 */
+  hasFrame: boolean;
+}
+
+/** 将内联列表按未加引号的逗号拆分。 */
+function splitInlineList(raw: string): string[] {
+  const items: string[] = [];
+  let current = '';
+  let quote: '"' | "'" | null = null;
+
+  for (const char of raw) {
+    if (quote) {
+      current += char;
+      if (char === quote) quote = null;
+    } else if (char === '"' || char === "'") {
+      quote = char;
+      current += char;
+    } else if (char === ',') {
+      items.push(current);
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  items.push(current);
+  return items;
+}
+
+/** 解析单个参数值：整数 / 浮点 / 布尔 / 内联列表 / 带引号字符串 / 裸字符串 */
+function parseValue(raw: string): unknown {
+  const v = raw.trim();
+  if (v === '') return '';
+  if (v.startsWith('[') && v.endsWith(']')) {
+    return splitInlineList(v.slice(1, -1))
+      .map((item) => parseValue(item))
+      .filter((item) => item !== '');
+  }
+  if (v === 'true') return true;
+  if (v === 'false') return false;
+  if (/^-?\d+$/.test(v)) return parseInt(v, 10);
+  if (/^-?\d*\.\d+$/.test(v)) return parseFloat(v);
+  const quoted = v.match(/^(["'])([\s\S]*)\1$/);
+  if (quoted) return quoted[2];
+  return v;
+}
+
+/**
+ * 解析文件最前方的框架参数区。
+ *
+ * @param content 文件完整内容
+ * @returns 参数键值对 + 剥离后的正文
+ */
+export function parseFrameBlock(content: string): FrameBlock {
+  // 参数区必须从文件第 0 字节开始，第一行是单独的 ---
+  const firstBreak = content.indexOf('\n');
+  const firstLine = firstBreak === -1 ? content : content.slice(0, firstBreak);
+  if (firstLine.trim() !== '---') {
+    return { params: {}, body: content, hasFrame: false };
+  }
+
+  const rest = firstBreak === -1 ? '' : content.slice(firstBreak + 1);
+  const lines = rest.split('\n');
+  let closeIdx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].trim() === '---') {
+      closeIdx = i;
+      break;
+    }
+  }
+  if (closeIdx === -1) {
+    // 没有闭合的 ---：不按参数区处理，原文即正文
+    return { params: {}, body: content, hasFrame: false };
+  }
+
+  const params: Record<string, unknown> = {};
+  for (const line of lines.slice(0, closeIdx)) {
+    if (line.trim() === '') continue;
+    const m = line.match(/^([A-Za-z_][A-Za-z0-9_-]*)\s*:\s*([\s\S]*)$/);
+    if (!m) continue; // 无法识别的行跳过，不中断解析
+    params[m[1]] = parseValue(m[2]);
+  }
+
+  return { params, body: lines.slice(closeIdx + 1).join('\n'), hasFrame: true };
+}
+
+export interface FramePosition {
+  x?: number;
+  y?: number;
+}
+
+/** 将参数值规范为引用条目列表（数组原样，字符串按逗号拆分） */
+export function asRefs(value: unknown): string[] {
+  const values = Array.isArray(value) ? value : typeof value === 'string' ? value.split(',') : [];
+  return values
+    .filter((item): item is string => typeof item === 'string')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+/** 读取框架参数区的 link 条目（保留 `目标 | 标签` 原始文本，便于无损回写） */
+export function readFrameLinks(content: string): string[] {
+  return asRefs(parseFrameBlock(content).params.link);
+}
+
+/** 序列化单个 link 条目：含 `|`、逗号、引号或首尾空白时加引号包裹 */
+function serializeLinkEntry(entry: string): string {
+  if (entry === '' || entry !== entry.trim() || /[|,"]/.test(entry)) {
+    return entry.includes('"') ? `'${entry}'` : `"${entry}"`;
+  }
+  return entry;
+}
+
+/**
+ * 将 link 条目列表写回框架参数区，保留其他参数和正文。
+ *
+ * 已有 link 行被替换；没有则插入参数区末尾；传入空数组时移除 link 行；
+ * 文件原本没有参数区且条目非空时，在文件开头创建参数区。
+ */
+export function writeFrameLinks(content: string, links: string[]): string {
+  const eol = content.includes('\r\n') ? '\r\n' : '\n';
+  const frame = parseFrameBlock(content);
+  const linkLine = links.length > 0 ? `link: [${links.map(serializeLinkEntry).join(', ')}]` : null;
+
+  if (!frame.hasFrame) {
+    if (linkLine === null) return content;
+    return `---${eol}${linkLine}${eol}---${eol}${content}`;
+  }
+
+  const lines = content.split(/\r?\n/);
+  const closeIdx = lines.findIndex((line, index) => index > 0 && line.trim() === '---');
+  if (closeIdx === -1) return content;
+
+  const existingIdx = lines
+    .slice(1, closeIdx)
+    .findIndex((line) => /^link\s*:/.test(line));
+
+  if (linkLine === null) {
+    if (existingIdx >= 0) lines.splice(existingIdx + 1, 1);
+  } else if (existingIdx >= 0) {
+    lines[existingIdx + 1] = linkLine;
+  } else {
+    lines.splice(closeIdx, 0, linkLine);
+  }
+
+  return lines.join(eol);
+}
+
+/**
+ * 将画布坐标写入框架参数区，同时保留其他参数和正文。
+ *
+ * 仅传入需要写入的坐标轴。已有同名字段会被替换；没有合法参数区时，
+ * 在文件开头创建一个新的参数区。
+ */
+export function writeFramePosition(content: string, position: FramePosition): string {
+  const entries = Object.entries(position).filter(
+    (entry): entry is ['x' | 'y', number] =>
+      (entry[0] === 'x' || entry[0] === 'y') &&
+      typeof entry[1] === 'number' &&
+      Number.isFinite(entry[1]),
+  );
+  if (entries.length === 0) return content;
+
+  const eol = content.includes('\r\n') ? '\r\n' : '\n';
+  const frame = parseFrameBlock(content);
+  if (!frame.hasFrame) {
+    const params = entries.map(([key, value]) => `${key}: ${value}`).join(eol);
+    return `---${eol}${params}${eol}---${eol}${content}`;
+  }
+
+  const lines = content.split(/\r?\n/);
+  const closeIdx = lines.findIndex((line, index) => index > 0 && line.trim() === '---');
+  if (closeIdx === -1) return content;
+
+  let insertAt = closeIdx;
+  for (const [key, value] of entries) {
+    const fieldPattern = new RegExp(`^${key}\\s*:`);
+    const fieldIdx = lines.slice(1, insertAt).findIndex((line) => fieldPattern.test(line));
+    if (fieldIdx >= 0) {
+      lines[fieldIdx + 1] = `${key}: ${value}`;
+    } else {
+      lines.splice(insertAt, 0, `${key}: ${value}`);
+      insertAt++;
+    }
+  }
+
+  return lines.join(eol);
+}

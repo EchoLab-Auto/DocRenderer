@@ -1,0 +1,845 @@
+<script setup lang="ts">
+/**
+ * DocGraphViewer — 新 ProDoc 模型的查看器
+ *
+ * 文档群 = 一张图；每个 md 文件 = 图上一个框（属性来自其框架参数区）。
+ * 默认展示图画布（可平移/缩放/适配），点击框跳转到该文档正文；
+ * 正文渲染基于剥离框架参数区后的内容。地址栏 hash 同步当前文档路径。
+ */
+
+import { computed, nextTick, ref, watch } from 'vue';
+import { NeumorphismCanvas, NeumorphismThemeToggle } from '@echolab-auto/ui-frame';
+import { MarkdownEditor, MarkdownRenderer } from '@echolab-auto/ui-frame/doc';
+import {
+  buildDocGraph,
+  computeLayeredLayout,
+  parseFrameBlock,
+  parseLinkEntry,
+  buildLinkEntry,
+  readFrameLinks,
+  writeFrameLinks,
+  writeFramePosition,
+  MAX_BLOCK_SLOTS,
+  type DocGraph,
+  type DocBox,
+  type LinkSide,
+} from '@prodoc/core';
+
+const props = defineProps<{
+  /** 相对路径 → 文件完整内容 */
+  files: Record<string, string>;
+}>();
+
+const emit = defineEmits<{
+  /** 点击框或正文内文档链接时触发 */
+  navigate: [path: string];
+  /** 保存文档（原始完整内容，含框架参数区） */
+  save: [path: string, content: string];
+}>();
+
+/** 文档群 → 图（含布局与警告） */
+const graph = computed<DocGraph>(() => buildDocGraph(props.files));
+
+/** 每个文件剥离参数区后的正文 */
+const bodies = computed<Record<string, string>>(() =>
+  Object.fromEntries(
+    Object.entries(props.files).map(([path, content]) => [path, parseFrameBlock(content).body]),
+  ),
+);
+
+// 构建警告输出到控制台（容错，不阻断渲染）
+watch(
+  () => graph.value.warnings,
+  (warnings) => warnings.forEach((w) => console.warn('[ProDoc]', w)),
+  { immediate: true },
+);
+
+/** 当前打开的文档路径；null 表示处于图画布视图 */
+const currentPath = ref<string | null>(null);
+
+const canvasRef = ref<{ fit?: () => void } | null>(null);
+
+/** 画布舞台尺寸：容纳所有框 + 边距 */
+const stage = computed(() => {
+  const PADDING = 48;
+  let w = 0;
+  let h = 0;
+  for (const box of layoutBoxes.value) {
+    w = Math.max(w, box.x + box.w + PADDING);
+    h = Math.max(h, box.y + box.h + PADDING);
+  }
+  return { w: Math.max(w, 640), h: Math.max(h, 480) };
+});
+
+
+interface RelationEdge {
+  id: string;
+  fromId: string;
+  toId: string;
+  fromTitle: string;
+  toTitle: string;
+  label?: string;
+  fromSide?: LinkSide;
+  toSide?: LinkSide;
+  d: string;
+  labelX: number;
+  labelY: number;
+}
+
+/** 边中点及其外法线方向 */
+function sidePoint(box: Pick<DocBox, 'x' | 'y' | 'w' | 'h'>, side: LinkSide) {
+  switch (side) {
+    case 'top':
+      return { x: box.x + box.w / 2, y: box.y, nx: 0, ny: -1 };
+    case 'bottom':
+      return { x: box.x + box.w / 2, y: box.y + box.h, nx: 0, ny: 1 };
+    case 'left':
+      return { x: box.x, y: box.y + box.h / 2, nx: -1, ny: 0 };
+    default:
+      return { x: box.x + box.w, y: box.y + box.h / 2, nx: 1, ny: 0 };
+  }
+}
+
+/**
+ * 连线几何：默认按两框中心的主导方向自动选边（上/下/左/右的边缘中点），
+ * 也可用 fromSide/toSide 显式指定连接边（图编辑模式下用户调整）。
+ * 控制点沿两端所连边的外法线布置，曲线在两端始终与边线法线相切。
+ */
+function edgeGeometry(
+  from: Pick<DocBox, 'x' | 'y' | 'w' | 'h'>,
+  to: Pick<DocBox, 'x' | 'y' | 'w' | 'h'>,
+  fromSide?: LinkSide,
+  toSide?: LinkSide,
+) {
+  const cx1 = from.x + from.w / 2;
+  const cy1 = from.y + from.h / 2;
+  const dx = to.x + to.w / 2 - cx1;
+  const dy = to.y + to.h / 2 - cy1;
+
+  // 自动选边：纵向流为底→顶，横向流为右→左（按目标方位取反）
+  const vertical = Math.abs(dy) >= Math.abs(dx);
+  const fs = fromSide ?? (vertical ? (dy >= 0 ? 'bottom' : 'top') : dx >= 0 ? 'right' : 'left');
+  const ts = toSide ?? (vertical ? (dy >= 0 ? 'top' : 'bottom') : dx >= 0 ? 'left' : 'right');
+
+  const p1 = sidePoint(from, fs);
+  const p2 = sidePoint(to, ts);
+  const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+  const k = Math.max(24, Math.min(dist * 0.45, 96));
+
+  const d = `M ${p1.x} ${p1.y} C ${p1.x + p1.nx * k} ${p1.y + p1.ny * k}, ${p2.x + p2.nx * k} ${p2.y + p2.ny * k}, ${p2.x} ${p2.y}`;
+  return { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, d };
+}
+
+const relationEdges = computed<RelationEdge[]>(() => {
+  const boxes = new Map(layoutBoxes.value.map((box) => [box.id, box]));
+  return graph.value.relations.flatMap((relation) => {
+    const from = boxes.get(relation.from);
+    const to = boxes.get(relation.to);
+    if (!from || !to) return [];
+
+    const { x1, y1, x2, y2, d } = edgeGeometry(from, to, relation.fromSide, relation.toSide);
+    return [{
+      id: relation.id,
+      fromId: from.id,
+      toId: to.id,
+      fromTitle: from.title,
+      toTitle: to.title,
+      label: relation.label,
+      fromSide: relation.fromSide,
+      toSide: relation.toSide,
+      d,
+      labelX: (x1 + x2) / 2,
+      labelY: (y1 + y2) / 2 - 7,
+    }];
+  });
+});
+
+/** 悬停高亮：悬停框及其直接上下游保持常态，其余元素淡出（拖拽/连线中不参与） */
+const hovered = ref<string | null>(null);
+
+function onBoxHover(id: string | null) {
+  if (dragBox.value || linkDraft.value) return;
+  hovered.value = id;
+}
+
+const hoverNeighbors = computed<Set<string>>(() => {
+  if (!hovered.value) return new Set();
+  const ids = new Set([hovered.value]);
+  for (const r of graph.value.relations) {
+    if (r.from === hovered.value) ids.add(r.to);
+    if (r.to === hovered.value) ids.add(r.from);
+  }
+  return ids;
+});
+
+const isBoxDimmed = (id: string) => hovered.value !== null && !hoverNeighbors.value.has(id);
+const isEdgeHot = (edge: RelationEdge) =>
+  hovered.value !== null && (edge.fromId === hovered.value || edge.toId === hovered.value);
+const isEdgeDimmed = (edge: RelationEdge) => hovered.value !== null && !isEdgeHot(edge);
+
+/** 坐标覆盖表（分层重排全量、拖拽单框增量）；null 表示全部使用文件坐标 */
+const relayouted = ref<Map<string, { x: number; y: number }> | null>(null);
+
+/** 应用坐标覆盖后的框（舞台尺寸、连线、模板统一消费） */
+const layoutBoxes = computed<DocBox[]>(() =>
+  graph.value.boxes.map((box) => {
+    const pos = relayouted.value?.get(box.id);
+    return pos ? { ...box, x: pos.x, y: pos.y } : box;
+  }),
+);
+
+function setPositionOverride(id: string, pos: { x: number; y: number }) {
+  const map = new Map(relayouted.value ?? []);
+  map.set(id, pos);
+  relayouted.value = map;
+}
+
+/** 一键分层重排：忽略文件坐标，按连线层级重新排布（仅当前视图，不写回文件） */
+function toggleRelayout() {
+  relayouted.value = relayouted.value
+    ? null
+    : computeLayeredLayout(graph.value.boxes, graph.value.relations);
+}
+
+/** 悬停分块面板：条目、溢出行数与弹出方向（贴近画布底边时向上弹出） */
+const PANEL_ITEM_H = 30;
+const panelBlocks = (box: DocBox) => box.blocks.slice(0, MAX_BLOCK_SLOTS);
+const panelOverflow = (box: DocBox) => Math.max(0, box.blocks.length - MAX_BLOCK_SLOTS);
+const panelHeight = (box: DocBox) =>
+  (panelBlocks(box).length + (panelOverflow(box) > 0 ? 1 : 0)) * PANEL_ITEM_H + 12;
+const panelAbove = (box: DocBox, stageH: number) => box.y + box.h + 6 + panelHeight(box) > stageH;
+
+/* ============ 画布编辑：图编辑模式（拖框 + 连线增删 + 连接边调整） ============ */
+
+/** 图编辑模式开关：关闭时画布纯浏览（单击打开文档），开启后才能拖框与编辑连线 */
+const graphEditMode = ref(false);
+
+function toggleGraphEdit() {
+  graphEditMode.value = !graphEditMode.value;
+  if (!graphEditMode.value) selectedEdgeId.value = null;
+}
+
+/** 舞台元素与坐标换算（屏幕 px → 画布坐标，按当前缩放折算） */
+const stageEl = ref<HTMLElement | null>(null);
+
+function toStageCoords(clientX: number, clientY: number) {
+  const el = stageEl.value;
+  if (!el) return { x: 0, y: 0, scale: 1 };
+  const rect = el.getBoundingClientRect();
+  const scale = rect.width / stage.value.w || 1;
+  return { x: (clientX - rect.left) / scale, y: (clientY - rect.top) / scale, scale };
+}
+
+/** 框拖拽状态；moved 之前视为点击（保持原有的打开文档行为）。scale 在按下时缓存，避免逐帧强制布局 */
+const dragBox = ref<{
+  id: string;
+  path: string;
+  startClientX: number;
+  startClientY: number;
+  lastClientX: number;
+  lastClientY: number;
+  scale: number;
+  baseX: number;
+  baseY: number;
+  moved: boolean;
+  raf: number;
+} | null>(null);
+
+let suppressClick = false;
+
+function onBoxPointerdown(e: PointerEvent, box: DocBox) {
+  if (!graphEditMode.value) return;
+  if (e.button !== 0) return;
+  if ((e.target as HTMLElement).closest('button')) return; // 编辑/连线按钮不触发拖拽
+  dragBox.value = {
+    id: box.id,
+    path: box.docPath,
+    startClientX: e.clientX,
+    startClientY: e.clientY,
+    lastClientX: e.clientX,
+    lastClientY: e.clientY,
+    scale: toStageCoords(e.clientX, e.clientY).scale,
+    baseX: box.x,
+    baseY: box.y,
+    moved: false,
+    raf: 0,
+  };
+  window.addEventListener('pointermove', onBoxDragMove);
+  window.addEventListener('pointerup', onBoxDragEnd);
+  window.addEventListener('pointercancel', onBoxDragEnd);
+  hovered.value = null;
+}
+
+/** 指针移动只记录最新坐标，位置应用收敛到每帧一次（跟手的关键） */
+function onBoxDragMove(e: PointerEvent) {
+  const d = dragBox.value;
+  if (!d) return;
+  d.lastClientX = e.clientX;
+  d.lastClientY = e.clientY;
+  if (!d.raf) d.raf = requestAnimationFrame(applyBoxDrag);
+}
+
+function applyBoxDrag() {
+  const d = dragBox.value;
+  if (!d) return;
+  d.raf = 0;
+  const dx = (d.lastClientX - d.startClientX) / d.scale;
+  const dy = (d.lastClientY - d.startClientY) / d.scale;
+  if (!d.moved && Math.hypot(dx, dy) < 3) return;
+  d.moved = true;
+  setPositionOverride(d.id, { x: Math.round(d.baseX + dx), y: Math.round(d.baseY + dy) });
+}
+
+function endBoxDrag() {
+  const d = dragBox.value;
+  dragBox.value = null;
+  if (!d) return;
+  if (d.raf) cancelAnimationFrame(d.raf);
+  if (!d.moved) return;
+  suppressClick = true; // 拖拽松手后紧随的 click 不打开文档
+  const pos = relayouted.value?.get(d.id);
+  if (!pos) return;
+  const content = props.files[d.path];
+  if (content !== undefined) emit('save', d.path, writeFramePosition(content, pos));
+}
+
+function onBoxDragEnd() {
+  window.removeEventListener('pointermove', onBoxDragMove);
+  window.removeEventListener('pointerup', onBoxDragEnd);
+  window.removeEventListener('pointercancel', onBoxDragEnd);
+  endBoxDrag();
+}
+
+/** 框点击：拖拽结束后抑制一次；图编辑模式下单击不打开（避免拖框误触） */
+function onBoxClick(path: string) {
+  if (suppressClick) {
+    suppressClick = false;
+    return;
+  }
+  if (graphEditMode.value) return;
+  open(path);
+}
+
+/** 连线草稿：从框的连接点拖出，松手落在目标框上即创建；raf 节流同框拖拽 */
+const linkDraft = ref<{
+  fromId: string;
+  x: number;
+  y: number;
+  lastClientX: number;
+  lastClientY: number;
+  raf: number;
+} | null>(null);
+
+function onLinkStart(e: PointerEvent, box: DocBox) {
+  if (!graphEditMode.value) return;
+  if (e.button !== 0) return;
+  e.preventDefault();
+  const pt = toStageCoords(e.clientX, e.clientY);
+  linkDraft.value = { fromId: box.id, x: pt.x, y: pt.y, lastClientX: e.clientX, lastClientY: e.clientY, raf: 0 };
+  window.addEventListener('pointermove', onLinkMove);
+  window.addEventListener('pointerup', onLinkEnd);
+  window.addEventListener('pointercancel', onLinkCancel);
+  hovered.value = null;
+}
+
+function onLinkMove(e: PointerEvent) {
+  const d = linkDraft.value;
+  if (!d) return;
+  d.lastClientX = e.clientX;
+  d.lastClientY = e.clientY;
+  if (!d.raf) d.raf = requestAnimationFrame(applyLinkMove);
+}
+
+function applyLinkMove() {
+  const d = linkDraft.value;
+  if (!d) return;
+  d.raf = 0;
+  const pt = toStageCoords(d.lastClientX, d.lastClientY);
+  linkDraft.value = { ...d, x: pt.x, y: pt.y };
+}
+
+function removeLinkListeners() {
+  window.removeEventListener('pointermove', onLinkMove);
+  window.removeEventListener('pointerup', onLinkEnd);
+  window.removeEventListener('pointercancel', onLinkCancel);
+}
+
+function onLinkCancel() {
+  removeLinkListeners();
+  const d = linkDraft.value;
+  if (d?.raf) cancelAnimationFrame(d.raf);
+  linkDraft.value = null;
+}
+
+function onLinkEnd(e: PointerEvent) {
+  removeLinkListeners();
+  const d = linkDraft.value;
+  if (d?.raf) cancelAnimationFrame(d.raf);
+  linkDraft.value = null;
+  if (!d) return;
+  const pt = toStageCoords(e.clientX, e.clientY);
+  const target = layoutBoxes.value.find(
+    (b) => pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.y + b.h,
+  );
+  if (!target || target.id === d.fromId) return;
+  if (graph.value.relations.some((r) => r.from === d.fromId && r.to === target.id)) return;
+  addLink(d.fromId, target.id);
+}
+
+function addLink(fromId: string, toId: string) {
+  const from = graph.value.boxes.find((b) => b.id === fromId);
+  if (!from) return;
+  const content = props.files[from.docPath];
+  if (content === undefined) return;
+  emit('save', from.docPath, writeFrameLinks(content, [...readFrameLinks(content), toId]));
+}
+
+/** 草稿连线的预览路径：复用 edgeGeometry，目标视为光标处的零尺寸点 */
+const linkDraftPath = computed(() => {
+  const d = linkDraft.value;
+  if (!d) return null;
+  const from = layoutBoxes.value.find((b) => b.id === d.fromId);
+  if (!from) return null;
+  return edgeGeometry(from, { x: d.x, y: d.y, w: 0, h: 0 }).d;
+});
+
+/** 连线选中与删除（仅图编辑模式） */
+const selectedEdgeId = ref<string | null>(null);
+const selectedEdge = computed(
+  () => relationEdges.value.find((e) => e.id === selectedEdgeId.value) ?? null,
+);
+
+/** 连接边选项：null = 自动（按主导方向选边） */
+const SIDE_OPTIONS: { value: LinkSide | null; text: string }[] = [
+  { value: null, text: '自动' },
+  { value: 'top', text: '上' },
+  { value: 'right', text: '右' },
+  { value: 'bottom', text: '下' },
+  { value: 'left', text: '左' },
+];
+
+function onEdgeClick(edge: RelationEdge) {
+  if (!graphEditMode.value) return;
+  selectedEdgeId.value = edge.id;
+}
+
+/** 与 graph.ts 一致的引用解析：优先 id，其次相对路径（.md 可省略） */
+function resolveDocId(raw: string): string | undefined {
+  const ref = raw.trim();
+  const asPath = ref.endsWith('.md') ? ref : ref + '.md';
+  const boxes = graph.value.boxes;
+  return (
+    boxes.find((b) => b.id === ref) ??
+    boxes.find((b) => b.docPath === ref) ??
+    boxes.find((b) => b.docPath === asPath)
+  )?.id;
+}
+
+/** 改写选中连线的连接边（fromSide/toSide 其一或两者），null 表示恢复自动选边 */
+function setEdgeSides(which: 'from' | 'to', side: LinkSide | null) {
+  const edge = selectedEdge.value;
+  if (!edge) return;
+  const fromSide = which === 'from' ? side : edge.fromSide ?? null;
+  const toSide = which === 'to' ? side : edge.toSide ?? null;
+
+  const from = graph.value.boxes.find((b) => b.id === edge.fromId);
+  if (!from) return;
+  const content = props.files[from.docPath];
+  if (content === undefined) return;
+
+  const links = readFrameLinks(content).map((entry) => {
+    const parsed = parseLinkEntry(entry);
+    if (resolveDocId(parsed.ref) !== edge.toId) return entry;
+    return buildLinkEntry({
+      ref: parsed.ref,
+      label: parsed.label,
+      fromSide: fromSide ?? undefined,
+      toSide: toSide ?? undefined,
+    });
+  });
+  emit('save', from.docPath, writeFrameLinks(content, links));
+}
+
+function removeSelectedEdge() {
+  const edge = selectedEdge.value;
+  if (!edge) return;
+  const from = graph.value.boxes.find((b) => b.id === edge.fromId);
+  if (!from) return;
+  const content = props.files[from.docPath];
+  if (content === undefined) return;
+  const links = readFrameLinks(content).filter(
+    (entry) => resolveDocId(parseLinkEntry(entry).ref) !== edge.toId,
+  );
+  emit('save', from.docPath, writeFrameLinks(content, links));
+  selectedEdgeId.value = null;
+}
+
+function onGlobalKeydown(e: KeyboardEvent) {
+  if (currentPath.value || !graphEditMode.value || !selectedEdgeId.value) return;
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    e.preventDefault();
+    removeSelectedEdge();
+  }
+}
+if (typeof window !== 'undefined') window.addEventListener('keydown', onGlobalKeydown);
+const currentTitle = computed(() => {
+  if (!currentPath.value) return '';
+  return graph.value.boxes.find((b) => b.docPath === currentPath.value)?.title ?? currentPath.value;
+});
+
+function syncHash() {
+  // encodeURIComponent：浏览器会把 hash 中的非 ASCII（如中文路径）percent-encode，
+  // 写入时主动编码，读取时配对 decode，避免刷新/分享链接定位失败
+  const hash = currentPath.value ? `#${encodeURIComponent(currentPath.value)}` : '#';
+  history.replaceState(null, '', hash);
+}
+
+/** 打开某个文档 */
+function open(path: string) {
+  if (!props.files[path]) return;
+  editing.value = false;
+  currentPath.value = path;
+  emit('navigate', path);
+  syncHash();
+}
+
+/**
+ * 打开文档并滚动到指定分块锚点。
+ * 标题 id 由 MarkdownRenderer 以 `实例前缀-slug` 生成，用后缀匹配定位；
+ * 渲染是异步的（mermaid/dompurify 动态加载），多次尝试确保命中。
+ */
+function scrollToAnchor(anchor: string) {
+  document
+    .querySelector(`.pd-doc-view [data-heading-id$="-${anchor}"]`)
+    ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function openBlock(path: string, anchor: string) {
+  if (currentPath.value === path) {
+    scrollToAnchor(anchor);
+    return;
+  }
+  open(path);
+  nextTick(() => {
+    setTimeout(() => scrollToAnchor(anchor), 80);
+    setTimeout(() => scrollToAnchor(anchor), 320);
+  });
+}
+
+/** 返回图画布 */
+function backToGraph() {
+  currentPath.value = null;
+  syncHash();
+  nextTick(() => requestAnimationFrame(() => canvasRef.value?.fit?.()));
+}
+
+// 文档热更新：当前打开的文档被删除时退回图画布；
+// 坐标覆盖表逐项修剪——与文件坐标一致的（如拖拽已写回的）移除，已删除框的丢弃
+watch(
+  () => props.files,
+  (files) => {
+    if (currentPath.value && !files[currentPath.value]) backToGraph();
+    if (!relayouted.value) return;
+    const boxes = graph.value.boxes;
+    const next = new Map(relayouted.value);
+    for (const [id, ov] of next) {
+      const box = boxes.find((b) => b.id === id);
+      if (!box || (box.x === ov.x && box.y === ov.y)) next.delete(id);
+    }
+    relayouted.value = next.size > 0 ? next : null;
+  },
+);
+
+/** 编辑状态：编辑的是原始完整内容（含框架参数区），保存后由热更新回推渲染 */
+const editing = ref(false);
+const draft = ref('');
+
+const dirty = computed(
+  () => currentPath.value !== null && draft.value !== (props.files[currentPath.value] ?? ''),
+);
+
+function startEdit() {
+  if (!currentPath.value) return;
+  draft.value = props.files[currentPath.value] ?? '';
+  editing.value = true;
+}
+
+/** 画布上直接编辑：打开文档并进入编辑状态 */
+function openEdit(path: string) {
+  open(path);
+  startEdit();
+}
+
+function cancelEdit() {
+  editing.value = false;
+}
+
+function saveEdit() {
+  if (!currentPath.value || !dirty.value) return;
+  emit('save', currentPath.value, draft.value);
+}
+
+/** 编辑器内 Ctrl/Cmd+S 保存（MarkdownEditor 内部不拦截冒泡） */
+function onEditorKeydown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault();
+    saveEdit();
+  }
+}
+
+/** 框的键盘可达性：Enter / Space 打开 */
+function onBoxKeydown(e: KeyboardEvent, path: string) {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    open(path);
+  }
+}
+
+/** 正文内相对文档链接 → 相对文档根的路径 */
+function resolveHref(fromPath: string, href: string): string | null {
+  if (/^(https?:|mailto:|#)/.test(href)) return null;
+  const clean = href.split('#')[0].trim();
+  if (!clean.endsWith('.md')) return null;
+  const parts = clean.startsWith('/')
+    ? clean.split('/')
+    : [...fromPath.split('/').slice(0, -1), ...clean.split('/')];
+  const out: string[] = [];
+  for (const p of parts) {
+    if (p === '' || p === '.') continue;
+    if (p === '..') out.pop();
+    else out.push(p);
+  }
+  return out.join('/');
+}
+
+function onDocLink(href: string) {
+  if (!currentPath.value) return;
+  const target = resolveHref(currentPath.value, href);
+  if (target) open(target);
+}
+
+// 初始定位：地址栏 hash 指向的文档（decode 与 syncHash 的 encode 配对）
+if (typeof window !== 'undefined' && window.location.hash.length > 1) {
+  const initial = decodeURIComponent(window.location.hash.slice(1));
+  if (props.files[initial]) currentPath.value = initial;
+}
+</script>
+
+<template>
+  <div class="pd-graph-viewer">
+    <header class="pd-graph-header">
+      <span class="pd-graph-brand">📚 ProDoc</span>
+      <span v-if="currentPath" class="pd-graph-current">{{ currentTitle }}</span>
+      <div class="pd-graph-actions">
+        <template v-if="!currentPath">
+          <button
+            class="pd-back-btn"
+            :class="{ 'pd-back-btn--active': graphEditMode }"
+            @click="toggleGraphEdit"
+          >
+            {{ graphEditMode ? '✓ 完成' : '🛠 编辑图' }}
+          </button>
+          <button class="pd-back-btn" @click="toggleRelayout">
+            {{ relayouted ? '↩ 恢复坐标' : '🧭 分层重排' }}
+          </button>
+        </template>
+        <template v-if="currentPath">
+          <button v-if="!editing" class="pd-back-btn" @click="startEdit">✏️ 编辑</button>
+          <template v-else>
+            <button class="pd-back-btn" :disabled="!dirty" @click="saveEdit">💾 保存</button>
+            <button class="pd-back-btn" @click="cancelEdit">👁 预览</button>
+          </template>
+          <button class="pd-back-btn" @click="backToGraph">🗺 返回图</button>
+        </template>
+        <NeumorphismThemeToggle size="small" />
+      </div>
+    </header>
+
+    <div class="pd-graph-main">
+      <!-- 图画布视图：文档群的全部框 -->
+      <NeumorphismCanvas
+        v-if="!currentPath"
+        ref="canvasRef"
+        width="100%"
+        height="100%"
+        show-grid
+        grid-variant="dots"
+        show-fit
+        :min-zoom="0.25"
+        :max-zoom="3"
+      >
+        <div
+          ref="stageEl"
+          class="pd-graph-stage"
+          :class="{
+            'pd-graph-stage--dragging': dragBox?.moved || linkDraft,
+            'pd-graph-stage--editing': graphEditMode,
+          }"
+          :style="{ width: `${stage.w}px`, height: `${stage.h}px` }"
+          @click="selectedEdgeId = null"
+        >
+          <svg
+            v-if="relationEdges.length || linkDraftPath"
+            class="pd-relation-layer"
+            :width="stage.w"
+            :height="stage.h"
+            aria-label="文档连线"
+          >
+            <defs>
+              <marker
+                id="pd-relation-arrow"
+                markerWidth="8"
+                markerHeight="8"
+                refX="7"
+                refY="4"
+                orient="auto"
+                markerUnits="strokeWidth"
+              >
+                <path d="M 0 0 L 8 4 L 0 8 z" class="pd-relation-arrow" />
+              </marker>
+            </defs>
+            <g
+              v-for="edge in relationEdges"
+              :key="edge.id"
+              class="pd-relation"
+              :class="{
+                'pd-dim': isEdgeDimmed(edge),
+                'pd-hot': isEdgeHot(edge),
+                'pd-selected': edge.id === selectedEdgeId,
+              }"
+            >
+              <title>{{ edge.fromTitle }} → {{ edge.toTitle }}{{ edge.label ? `（${edge.label}）` : '' }}</title>
+              <!-- 加宽的透明命中路径，便于点选（仅图编辑模式可点） -->
+              <path class="pd-relation-hit" :d="edge.d" fill="none" @click.stop="onEdgeClick(edge)" />
+              <path :d="edge.d" fill="none" marker-end="url(#pd-relation-arrow)" pointer-events="none" />
+              <text v-if="edge.label" :x="edge.labelX" :y="edge.labelY" pointer-events="none">{{ edge.label }}</text>
+            </g>
+            <!-- 连线草稿：从连接点拖到目标框 -->
+            <path v-if="linkDraftPath" class="pd-relation-draft" :d="linkDraftPath" fill="none" />
+          </svg>
+          <!-- 选中连线的编辑卡片：调整连接边 / 删除连线 -->
+          <div
+            v-if="selectedEdge"
+            class="pd-edge-card"
+            :style="{ left: `${selectedEdge.labelX}px`, top: `${selectedEdge.labelY + 14}px` }"
+            data-nm-no-pan
+            @click.stop
+          >
+            <div class="pd-edge-card__row">
+              <span class="pd-edge-card__label">源边</span>
+              <button
+                v-for="opt in SIDE_OPTIONS"
+                :key="'f' + opt.value"
+                type="button"
+                class="pd-edge-card__side"
+                :class="{ 'pd-edge-card__side--active': (selectedEdge.fromSide ?? null) === opt.value }"
+                @click="setEdgeSides('from', opt.value)"
+              >{{ opt.text }}</button>
+            </div>
+            <div class="pd-edge-card__row">
+              <span class="pd-edge-card__label">目标边</span>
+              <button
+                v-for="opt in SIDE_OPTIONS"
+                :key="'t' + opt.value"
+                type="button"
+                class="pd-edge-card__side"
+                :class="{ 'pd-edge-card__side--active': (selectedEdge.toSide ?? null) === opt.value }"
+                @click="setEdgeSides('to', opt.value)"
+              >{{ opt.text }}</button>
+            </div>
+            <button type="button" class="pd-edge-card__delete" @click="removeSelectedEdge">
+              ✕ 删除连线
+            </button>
+          </div>
+          <div
+            v-for="box in layoutBoxes"
+            :key="box.id"
+            class="pd-doc-box"
+            :class="[`pd-doc-box--d${Math.min(box.depth, 3)}`, { 'pd-dim': isBoxDimmed(box.id) }]"
+            :style="{ left: `${box.x}px`, top: `${box.y}px`, width: `${box.w}px`, height: `${box.h}px` }"
+            role="link"
+            tabindex="0"
+            :aria-label="`${box.title}（跳转到文档）`"
+            data-nm-no-pan
+            @pointerdown="onBoxPointerdown($event, box)"
+            @click="onBoxClick(box.docPath)"
+            @keydown="onBoxKeydown($event, box.docPath)"
+            @mouseenter="onBoxHover(box.id)"
+            @mouseleave="onBoxHover(null)"
+          >
+            <div class="pd-doc-box__head">
+              <span class="pd-doc-box__title">{{ box.title }}</span>
+              <span class="pd-doc-box__icon" aria-hidden="true">↗</span>
+            </div>
+            <!-- 悬停显示的编辑入口：直接进入该文档的编辑状态 -->
+            <button
+              type="button"
+              class="pd-doc-box__edit"
+              :aria-label="`编辑 ${box.title}`"
+              title="编辑文档"
+              @click.stop="openEdit(box.docPath)"
+              @keydown.enter.stop="openEdit(box.docPath)"
+              @keydown.space.stop="openEdit(box.docPath)"
+            >✏️</button>
+            <!-- 连接点：拖到其他框创建连线（仅图编辑模式） -->
+            <button
+              v-if="graphEditMode"
+              type="button"
+              class="pd-doc-box__link-handle"
+              :aria-label="`从 ${box.title} 创建连线（拖到目标框）`"
+              title="拖到其他框创建连线"
+              @pointerdown.stop="onLinkStart($event, box)"
+              @click.stop
+            ></button>
+            <!-- 悬停展开的分块面板：点击条目直达正文对应标题 -->
+            <div
+              v-if="box.blocks.length"
+              class="pd-doc-blocks-pop"
+              :class="{ 'pd-doc-blocks-pop--above': panelAbove(box, stage.h) }"
+            >
+              <div class="pd-doc-blocks-pop__card" role="menu">
+                <button
+                  v-for="block in panelBlocks(box)"
+                  :key="block.anchor"
+                  type="button"
+                  class="pd-doc-blocks-pop__item"
+                  :title="block.title"
+                  :aria-label="`跳转到「${block.title}」分块`"
+                  @click.stop="openBlock(box.docPath, block.anchor)"
+                  @keydown.enter.stop="openBlock(box.docPath, block.anchor)"
+                  @keydown.space.stop="openBlock(box.docPath, block.anchor)"
+                >▸ {{ block.title }}</button>
+                <button
+                  v-if="panelOverflow(box) > 0"
+                  type="button"
+                  class="pd-doc-blocks-pop__item pd-doc-blocks-pop__item--more"
+                  :aria-label="`查看全部 ${box.blocks.length} 个分块`"
+                  @click.stop="open(box.docPath)"
+                >+{{ panelOverflow(box) }} 更多分块…</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </NeumorphismCanvas>
+
+      <!-- 文档正文视图：剥离框架参数区后的内容；编辑模式修改原始完整内容 -->
+      <div v-else class="pd-doc-view" :class="{ 'pd-doc-view--editing': editing }">
+        <MarkdownEditor
+          v-if="editing"
+          :key="currentPath"
+          :value="draft"
+          class="pd-doc-editor"
+          @change="draft = $event"
+          @keydown="onEditorKeydown"
+        />
+        <MarkdownRenderer
+          v-else
+          :key="currentPath"
+          :content="bodies[currentPath]"
+          :show-toc="true"
+          @docLink="onDocLink"
+        />
+      </div>
+    </div>
+  </div>
+</template>
