@@ -4,10 +4,10 @@ type __VLS_Props = {
 };
 declare const _default: import("vue").DefineComponent<__VLS_Props, {}, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {
     navigate: (path: string) => any;
-    save: (path: string, content: string) => any;
+    save: (path: string, content: string, base?: string | undefined) => any;
 }, string, import("vue").PublicProps, Readonly<__VLS_Props> & Readonly<{
     onNavigate?: ((path: string) => any) | undefined;
-    onSave?: ((path: string, content: string) => any) | undefined;
+    onSave?: ((path: string, content: string, base?: string | undefined) => any) | undefined;
 }>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, false, {}, any>;
 export default _default;
 //# sourceMappingURL=DocGraphViewer.vue.d.ts.map

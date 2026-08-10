@@ -80,12 +80,13 @@ function asNumber(v: unknown): number | undefined {
 
 const SIDE_CODES: Record<string, LinkSide> = { t: 'top', r: 'right', b: 'bottom', l: 'left' };
 const SIDE_LABELS: Record<LinkSide, string> = { top: 't', right: 'r', bottom: 'b', left: 'l' };
-const SIDES_PATTERN = /^([trbl])>([trbl])$/;
+/** 连接边段：`源边>目标边`，`_` 表示该端保持自动选边 */
+const SIDES_PATTERN = /^([trbl_])>([trbl_])$/;
 
 /**
  * 解析 link 条目：`目标 | 标签 | 源边>目标边`。
  * 标签与连接边均可省略；连接边按 `t/r/b/l`（上/右/下/左）模式识别，
- * 因此 `user | r>l` 等价于无标签仅指定连接边。
+ * `_` 表示该端自动，因此 `user | r>l`、`user | t>_` 均合法。
  */
 export function parseLinkEntry(raw: string): {
   ref: string;
@@ -98,8 +99,8 @@ export function parseLinkEntry(raw: string): {
   for (const seg of parts.slice(1)) {
     const m = seg.match(SIDES_PATTERN);
     if (m) {
-      result.fromSide = SIDE_CODES[m[1]];
-      result.toSide = SIDE_CODES[m[2]];
+      if (m[1] !== '_') result.fromSide = SIDE_CODES[m[1]];
+      if (m[2] !== '_') result.toSide = SIDE_CODES[m[2]];
     } else if (seg !== '') {
       result.label = seg;
     }
@@ -107,7 +108,7 @@ export function parseLinkEntry(raw: string): {
   return result;
 }
 
-/** 组装 link 条目（parseLinkEntry 的逆操作；连接边需成对给出） */
+/** 组装 link 条目（parseLinkEntry 的逆操作；只给一端时另一端写 `_` 占位） */
 export function buildLinkEntry(parts: {
   ref: string;
   label?: string;
@@ -116,8 +117,10 @@ export function buildLinkEntry(parts: {
 }): string {
   let entry = parts.ref;
   if (parts.label) entry += ` | ${parts.label}`;
-  if (parts.fromSide && parts.toSide) {
-    entry += ` | ${SIDE_LABELS[parts.fromSide]}>${SIDE_LABELS[parts.toSide]}`;
+  if (parts.fromSide || parts.toSide) {
+    const f = parts.fromSide ? SIDE_LABELS[parts.fromSide] : '_';
+    const t = parts.toSide ? SIDE_LABELS[parts.toSide] : '_';
+    entry += ` | ${f}>${t}`;
   }
   return entry;
 }

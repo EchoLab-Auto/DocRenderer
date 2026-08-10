@@ -163,70 +163,51 @@
   opacity: 0.9;
 }
 
-/* 选中连线的编辑卡片（连接边调整 + 删除） */
-.pd-edge-card {
+/* 吸附对齐参考线（拖框时显示） */
+.pd-guide {
+  stroke: var(--nm-primary-color, #cdfa4e);
+  stroke-width: 1;
+  stroke-dasharray: 5 4;
+  opacity: 0.9;
+}
+
+/* 选中连线的端点手柄（拖动调整连接边） */
+.pd-edge-handle {
+  fill: var(--nm-surface-raised, var(--nm-bg-color, #e0e0e0));
+  stroke: var(--nm-primary-color, #cdfa4e);
+  stroke-width: 2.5;
+  cursor: grab;
+  pointer-events: all;
+}
+
+.pd-edge-handle:hover {
+  fill: var(--nm-primary-color, #cdfa4e);
+}
+
+.pd-edge-handle:active {
+  cursor: grabbing;
+}
+
+/* 选中连线的删除按钮 */
+.pd-edge-delete {
   position: absolute;
   z-index: 20;
-  transform: translateX(-50%);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px 10px;
-  border-radius: 12px;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 50%;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--nm-text-primary, #333);
   background: var(--nm-surface-raised, var(--nm-bg-color, #e0e0e0));
   box-shadow:
-    5px 5px 10px var(--nm-shadow-dark, rgba(0, 0, 0, 0.15)),
-    -5px -5px 10px var(--nm-shadow-light, rgba(255, 255, 255, 0.7));
+    3px 3px 6px var(--nm-shadow-dark, rgba(0, 0, 0, 0.15)),
+    -3px -3px 6px var(--nm-shadow-light, rgba(255, 255, 255, 0.7));
 }
 
-.pd-edge-card__row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.pd-edge-card__label {
-  font-size: 11px;
-  color: var(--nm-text-secondary, #666);
-  width: 34px;
-  flex-shrink: 0;
-}
-
-.pd-edge-card__side {
-  border: none;
-  cursor: pointer;
-  font-size: 11px;
-  padding: 3px 7px;
-  border-radius: 6px;
-  color: var(--nm-text-secondary, #666);
-  background: var(--nm-bg-color, #e0e0e0);
-  box-shadow:
-    inset 1px 1px 3px var(--nm-shadow-dark, rgba(0, 0, 0, 0.1)),
-    inset -1px -1px 3px var(--nm-shadow-light, rgba(255, 255, 255, 0.6));
-}
-
-.pd-edge-card__side--active {
-  color: var(--nm-primary-color, #cdfa4e);
-  font-weight: 700;
-  box-shadow:
-    2px 2px 4px var(--nm-shadow-dark, rgba(0, 0, 0, 0.12)),
-    -2px -2px 4px var(--nm-shadow-light, rgba(255, 255, 255, 0.7));
-}
-
-.pd-edge-card__delete {
-  border: none;
-  cursor: pointer;
-  font-size: 11px;
-  padding: 4px 8px;
-  border-radius: 8px;
-  color: var(--nm-text-secondary, #666);
-  background: var(--nm-bg-color, #e0e0e0);
-  box-shadow:
-    2px 2px 4px var(--nm-shadow-dark, rgba(0, 0, 0, 0.1)),
-    -2px -2px 4px var(--nm-shadow-light, rgba(255, 255, 255, 0.6));
-}
-
-.pd-edge-card__delete:hover {
+.pd-edge-delete:hover {
   color: var(--nm-danger-color, #e05555);
 }
 

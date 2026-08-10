@@ -1,8 +1,8 @@
 ---
 id: project
 title: "echo-prodoc"
-x: 48
-y: 48
+x: 33
+y: 238
 link: ["develop | 开发指南", "user | 使用", "prodoc-rule"]
 ---
 

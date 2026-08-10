@@ -60,7 +60,7 @@ function v(t) {
 	return process.env.PRODOC_DEV === "1" && a.existsSync(r) ? r.replace(/\\/g, "/") : i.replace(/\\/g, "/");
 }
 function y() {
-	return "async (filePath, content) => {\n            try {\n              const res = await fetch('/__prodoc_api/save', {\n                method: 'POST',\n                headers: { 'Content-Type': 'application/json' },\n                body: JSON.stringify({ path: filePath, content }),\n              });\n              const data = await res.json();\n              if (data.success) {\n                console.log('[ProDoc] saved:', filePath);\n              } else {\n                console.error('[ProDoc] save failed:', data.error);\n              }\n            } catch (e) {\n              console.error('[ProDoc] save error:', e);\n            }\n          }";
+	return "async (filePath, content, base) => {\n            try {\n              const res = await fetch('/__prodoc_api/save', {\n                method: 'POST',\n                headers: { 'Content-Type': 'application/json' },\n                body: JSON.stringify({ path: filePath, content, base }),\n              });\n              const data = await res.json();\n              if (data.success) {\n                console.log('[ProDoc] saved:', filePath);\n              } else if (res.status === 409) {\n                console.warn('[ProDoc] save conflict:', filePath, '— 磁盘内容已被修改，本次保存被拒绝；请刷新页面后再操作');\n              } else {\n                console.error('[ProDoc] save failed:', data.error);\n              }\n            } catch (e) {\n              console.error('[ProDoc] save error:', e);\n            }\n          }";
 }
 function b(t, n) {
 	let r = t === "view" ? "DocGraphViewer" : "DocEditor", i = `import { ${r} } from '@prodoc/${t === "view" ? "renderer" : "editor"}';`, a = [
@@ -201,15 +201,30 @@ async function x(i, a, o = {}) {
 									i += e.toString();
 								}), n.on("end", async () => {
 									try {
-										let { path: n, content: o } = JSON.parse(i), s = e.resolve(a, n), c = e.resolve(a) + e.sep;
-										if (!e.resolve(s).startsWith(c)) {
+										let { path: n, content: o, base: s } = JSON.parse(i), c = e.resolve(a, n), l = e.resolve(a) + e.sep;
+										if (!e.resolve(c).startsWith(l)) {
 											r.statusCode = 403, r.setHeader("content-type", "application/json"), r.end(JSON.stringify({
 												success: !1,
 												error: "Forbidden: path outside doc root"
 											}));
 											return;
 										}
-										await t.writeFile(s, o, "utf-8"), r.setHeader("content-type", "application/json"), r.end(JSON.stringify({ success: !0 }));
+										if (typeof s == "string") {
+											let e = null;
+											try {
+												e = await t.readFile(c, "utf-8");
+											} catch {
+												e = null;
+											}
+											if (e !== s) {
+												r.statusCode = 409, r.setHeader("content-type", "application/json"), r.end(JSON.stringify({
+													success: !1,
+													error: "Conflict: file changed on disk"
+												}));
+												return;
+											}
+										}
+										await t.writeFile(c, o, "utf-8"), r.setHeader("content-type", "application/json"), r.end(JSON.stringify({ success: !0 }));
 									} catch (e) {
 										r.statusCode = 500, r.setHeader("content-type", "application/json"), r.end(JSON.stringify({
 											success: !1,

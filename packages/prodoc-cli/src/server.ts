@@ -141,18 +141,20 @@ function resolveProDocEntry(pkgName: string): string {
   return distEntry.replace(/\\/g, '/');
 }
 
-/** 构建保存处理函数代码 */
+/** 构建保存处理函数代码（base 为客户端依据的磁盘内容，服务端据此做冲突检测） */
 function buildSaveHandler(): string {
-  return `async (filePath, content) => {
+  return `async (filePath, content, base) => {
             try {
               const res = await fetch('/__prodoc_api/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ path: filePath, content }),
+                body: JSON.stringify({ path: filePath, content, base }),
               });
               const data = await res.json();
               if (data.success) {
                 console.log('[ProDoc] saved:', filePath);
+              } else if (res.status === 409) {
+                console.warn('[ProDoc] save conflict:', filePath, '— 磁盘内容已被修改，本次保存被拒绝；请刷新页面后再操作');
               } else {
                 console.error('[ProDoc] save failed:', data.error);
               }
@@ -378,7 +380,7 @@ export async function startProDocServer(
                 });
                 req.on('end', async () => {
                   try {
-                    const { path: filePath, content } = JSON.parse(body);
+                    const { path: filePath, content, base } = JSON.parse(body);
                     const fullPath = path.resolve(docRoot, filePath);
                     // 安全检查：确保文件在 docRoot 内
                     const resolvedDocRoot = path.resolve(docRoot) + path.sep;
@@ -388,6 +390,22 @@ export async function startProDocServer(
                       res.setHeader('content-type', 'application/json');
                       res.end(JSON.stringify({ success: false, error: 'Forbidden: path outside doc root' }));
                       return;
+                    }
+                    // 冲突检测：客户端声明了基准内容时，磁盘已偏离则拒绝写入
+                    //（过期页面/标签页的保存不会覆盖他人的修改）
+                    if (typeof base === 'string') {
+                      let current: string | null = null;
+                      try {
+                        current = await fs.readFile(fullPath, 'utf-8');
+                      } catch {
+                        current = null;
+                      }
+                      if (current !== base) {
+                        res.statusCode = 409;
+                        res.setHeader('content-type', 'application/json');
+                        res.end(JSON.stringify({ success: false, error: 'Conflict: file changed on disk' }));
+                        return;
+                      }
                     }
                     await fs.writeFile(fullPath, content, 'utf-8');
                     res.setHeader('content-type', 'application/json');

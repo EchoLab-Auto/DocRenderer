@@ -62,7 +62,7 @@ export declare const MAX_BLOCK_SLOTS = 6;
 /**
  * 解析 link 条目：`目标 | 标签 | 源边>目标边`。
  * 标签与连接边均可省略；连接边按 `t/r/b/l`（上/右/下/左）模式识别，
- * 因此 `user | r>l` 等价于无标签仅指定连接边。
+ * `_` 表示该端自动，因此 `user | r>l`、`user | t>_` 均合法。
  */
 export declare function parseLinkEntry(raw: string): {
     ref: string;
@@ -70,7 +70,7 @@ export declare function parseLinkEntry(raw: string): {
     fromSide?: LinkSide;
     toSide?: LinkSide;
 };
-/** 组装 link 条目（parseLinkEntry 的逆操作；连接边需成对给出） */
+/** 组装 link 条目（parseLinkEntry 的逆操作；只给一端时另一端写 `_` 占位） */
 export declare function buildLinkEntry(parts: {
     ref: string;
     label?: string;

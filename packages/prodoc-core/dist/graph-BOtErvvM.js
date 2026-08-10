@@ -99,18 +99,22 @@ var h = {
 	right: "r",
 	bottom: "b",
 	left: "l"
-}, _ = /^([trbl])>([trbl])$/;
+}, _ = /^([trbl_])>([trbl_])$/;
 function v(e) {
 	let t = e.split("|").map((e) => e.trim()), n = { ref: t[0] };
 	for (let e of t.slice(1)) {
 		let t = e.match(_);
-		t ? (n.fromSide = h[t[1]], n.toSide = h[t[2]]) : e !== "" && (n.label = e);
+		t ? (t[1] !== "_" && (n.fromSide = h[t[1]]), t[2] !== "_" && (n.toSide = h[t[2]])) : e !== "" && (n.label = e);
 	}
 	return n;
 }
 function y(e) {
 	let t = e.ref;
-	return e.label && (t += ` | ${e.label}`), e.fromSide && e.toSide && (t += ` | ${g[e.fromSide]}>${g[e.toSide]}`), t;
+	if (e.label && (t += ` | ${e.label}`), e.fromSide || e.toSide) {
+		let n = e.fromSide ? g[e.fromSide] : "_", r = e.toSide ? g[e.toSide] : "_";
+		t += ` | ${n}>${r}`;
+	}
+	return t;
 }
 function b(e) {
 	let t = e.match(/^#[ \t]+(.+)$/m);
@@ -286,4 +290,4 @@ function D(e) {
 //#endregion
 export { y as a, r as c, o as d, s as f, D as i, n as l, c as n, E as o, u as r, v as s, l as t, i as u };
 
-//# sourceMappingURL=graph-CepZYFyQ.js.map
+//# sourceMappingURL=graph-BOtErvvM.js.map

@@ -33,8 +33,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   /** 点击框或正文内文档链接时触发 */
   navigate: [path: string];
-  /** 保存文档（原始完整内容，含框架参数区） */
-  save: [path: string, content: string];
+  /** 保存文档（原始完整内容，含框架参数区）；base 为客户端依据的磁盘内容，用于服务端冲突检测 */
+  save: [path: string, content: string, base?: string];
 }>();
 
 /** 文档群 → 图（含布局与警告） */
@@ -82,6 +82,10 @@ interface RelationEdge {
   fromSide?: LinkSide;
   toSide?: LinkSide;
   d: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
   labelX: number;
   labelY: number;
 }
@@ -100,9 +104,24 @@ function sidePoint(box: Pick<DocBox, 'x' | 'y' | 'w' | 'h'>, side: LinkSide) {
   }
 }
 
+/** 自动选边：纵向流为底→顶，横向流为右→左（按目标方位取反） */
+function autoSides(
+  from: Pick<DocBox, 'x' | 'y' | 'w' | 'h'>,
+  to: Pick<DocBox, 'x' | 'y' | 'w' | 'h'>,
+): { fs: LinkSide; ts: LinkSide } {
+  const cx1 = from.x + from.w / 2;
+  const cy1 = from.y + from.h / 2;
+  const dx = to.x + to.w / 2 - cx1;
+  const dy = to.y + to.h / 2 - cy1;
+  const vertical = Math.abs(dy) >= Math.abs(dx);
+  return vertical
+    ? { fs: dy >= 0 ? 'bottom' : 'top', ts: dy >= 0 ? 'top' : 'bottom' }
+    : { fs: dx >= 0 ? 'right' : 'left', ts: dx >= 0 ? 'left' : 'right' };
+}
+
 /**
  * 连线几何：默认按两框中心的主导方向自动选边（上/下/左/右的边缘中点），
- * 也可用 fromSide/toSide 显式指定连接边（图编辑模式下用户调整）。
+ * 也可用 fromSide/toSide 显式指定连接边（图编辑模式下拖动端点调整）。
  * 控制点沿两端所连边的外法线布置，曲线在两端始终与边线法线相切。
  */
 function edgeGeometry(
@@ -111,18 +130,9 @@ function edgeGeometry(
   fromSide?: LinkSide,
   toSide?: LinkSide,
 ) {
-  const cx1 = from.x + from.w / 2;
-  const cy1 = from.y + from.h / 2;
-  const dx = to.x + to.w / 2 - cx1;
-  const dy = to.y + to.h / 2 - cy1;
-
-  // 自动选边：纵向流为底→顶，横向流为右→左（按目标方位取反）
-  const vertical = Math.abs(dy) >= Math.abs(dx);
-  const fs = fromSide ?? (vertical ? (dy >= 0 ? 'bottom' : 'top') : dx >= 0 ? 'right' : 'left');
-  const ts = toSide ?? (vertical ? (dy >= 0 ? 'top' : 'bottom') : dx >= 0 ? 'left' : 'right');
-
-  const p1 = sidePoint(from, fs);
-  const p2 = sidePoint(to, ts);
+  const auto = autoSides(from, to);
+  const p1 = sidePoint(from, fromSide ?? auto.fs);
+  const p2 = sidePoint(to, toSide ?? auto.ts);
   const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
   const k = Math.max(24, Math.min(dist * 0.45, 96));
 
@@ -132,12 +142,21 @@ function edgeGeometry(
 
 const relationEdges = computed<RelationEdge[]>(() => {
   const boxes = new Map(layoutBoxes.value.map((box) => [box.id, box]));
+  const preview = sideDrag.value;
   return graph.value.relations.flatMap((relation) => {
     const from = boxes.get(relation.from);
     const to = boxes.get(relation.to);
     if (!from || !to) return [];
 
-    const { x1, y1, x2, y2, d } = edgeGeometry(from, to, relation.fromSide, relation.toSide);
+    // 连接边拖拽预览：被拖端点实时跟随预览边
+    let fromSide = relation.fromSide;
+    let toSide = relation.toSide;
+    if (preview && preview.edgeId === relation.id) {
+      if (preview.which === 'from') fromSide = preview.side;
+      else toSide = preview.side;
+    }
+
+    const { x1, y1, x2, y2, d } = edgeGeometry(from, to, fromSide, toSide);
     return [{
       id: relation.id,
       fromId: from.id,
@@ -148,6 +167,10 @@ const relationEdges = computed<RelationEdge[]>(() => {
       fromSide: relation.fromSide,
       toSide: relation.toSide,
       d,
+      x1,
+      y1,
+      x2,
+      y2,
       labelX: (x1 + x2) / 2,
       labelY: (y1 + y2) / 2 - 7,
     }];
@@ -158,7 +181,7 @@ const relationEdges = computed<RelationEdge[]>(() => {
 const hovered = ref<string | null>(null);
 
 function onBoxHover(id: string | null) {
-  if (dragBox.value || linkDraft.value) return;
+  if (dragBox.value || linkDraft.value || sideDrag.value) return;
   hovered.value = id;
 }
 
@@ -245,6 +268,93 @@ const dragBox = ref<{
   raf: number;
 } | null>(null);
 
+/** 拖拽中的对齐参考线（吸附辅助） */
+interface AlignGuide {
+  axis: 'x' | 'y';
+  pos: number;
+  start: number;
+  end: number;
+}
+const activeGuides = ref<AlignGuide[]>([]);
+
+/**
+ * 吸附对齐：候选位置与其他框的六条特征线（左/中/右、上/中/下）比较，
+ * 阈值内吸附到最近线并返回应显示的参考线。阈值按缩放折算（屏幕 8px，限幅 4–12 舞台 px）。
+ */
+function snapPosition(id: string, rawX: number, rawY: number, scale: number) {
+  const me = layoutBoxes.value.find((b) => b.id === id);
+  if (!me) return { x: rawX, y: rawY, guides: [] as AlignGuide[] };
+  const T = Math.min(Math.max(8 / scale, 4), 12);
+  const others = layoutBoxes.value.filter((b) => b.id !== id);
+
+  let x = rawX;
+  let y = rawY;
+  const guides: AlignGuide[] = [];
+
+  // x 轴：找最近吸附线
+  let bestX: { delta: number } | null = null;
+  for (const o of others) {
+    for (const line of [o.x, o.x + o.w / 2, o.x + o.w]) {
+      for (const mine of [rawX, rawX + me.w / 2, rawX + me.w]) {
+        const delta = line - mine;
+        if (Math.abs(delta) <= T && (!bestX || Math.abs(delta) < Math.abs(bestX.delta))) {
+          bestX = { delta };
+        }
+      }
+    }
+  }
+  if (bestX) x = rawX + bestX.delta;
+
+  // y 轴同理
+  let bestY: { delta: number } | null = null;
+  for (const o of others) {
+    for (const line of [o.y, o.y + o.h / 2, o.y + o.h]) {
+      for (const mine of [rawY, rawY + me.h / 2, rawY + me.h]) {
+        const delta = line - mine;
+        if (Math.abs(delta) <= T && (!bestY || Math.abs(delta) < Math.abs(bestY.delta))) {
+          bestY = { delta };
+        }
+      }
+    }
+  }
+  if (bestY) y = rawY + bestY.delta;
+
+  // 吸附后收集所有对齐线（一条线可对到多个框），按 pos 去重并合并跨度
+  const seen = new Set<string>();
+  for (const o of others) {
+    for (const line of [o.x, o.x + o.w / 2, o.x + o.w]) {
+      if (![x, x + me.w / 2, x + me.w].some((m) => Math.abs(m - line) < 0.5)) continue;
+      const key = `x${line}`;
+      const start = Math.min(y, o.y);
+      const end = Math.max(y + me.h, o.y + o.h);
+      const prev = seen.has(key) ? guides.find((g) => g.axis === 'x' && g.pos === line) : undefined;
+      if (prev) {
+        prev.start = Math.min(prev.start, start);
+        prev.end = Math.max(prev.end, end);
+      } else {
+        seen.add(key);
+        guides.push({ axis: 'x', pos: line, start, end });
+      }
+    }
+    for (const line of [o.y, o.y + o.h / 2, o.y + o.h]) {
+      if (![y, y + me.h / 2, y + me.h].some((m) => Math.abs(m - line) < 0.5)) continue;
+      const key = `y${line}`;
+      const start = Math.min(x, o.x);
+      const end = Math.max(x + me.w, o.x + o.w);
+      const prev = seen.has(key) ? guides.find((g) => g.axis === 'y' && g.pos === line) : undefined;
+      if (prev) {
+        prev.start = Math.min(prev.start, start);
+        prev.end = Math.max(prev.end, end);
+      } else {
+        seen.add(key);
+        guides.push({ axis: 'y', pos: line, start, end });
+      }
+    }
+  }
+
+  return { x: Math.round(x), y: Math.round(y), guides };
+}
+
 let suppressClick = false;
 
 function onBoxPointerdown(e: PointerEvent, box: DocBox) {
@@ -287,12 +397,15 @@ function applyBoxDrag() {
   const dy = (d.lastClientY - d.startClientY) / d.scale;
   if (!d.moved && Math.hypot(dx, dy) < 3) return;
   d.moved = true;
-  setPositionOverride(d.id, { x: Math.round(d.baseX + dx), y: Math.round(d.baseY + dy) });
+  const snapped = snapPosition(d.id, d.baseX + dx, d.baseY + dy, d.scale);
+  setPositionOverride(d.id, { x: snapped.x, y: snapped.y });
+  activeGuides.value = snapped.guides;
 }
 
 function endBoxDrag() {
   const d = dragBox.value;
   dragBox.value = null;
+  activeGuides.value = [];
   if (!d) return;
   if (d.raf) cancelAnimationFrame(d.raf);
   if (!d.moved) return;
@@ -300,7 +413,7 @@ function endBoxDrag() {
   const pos = relayouted.value?.get(d.id);
   if (!pos) return;
   const content = props.files[d.path];
-  if (content !== undefined) emit('save', d.path, writeFramePosition(content, pos));
+  if (content !== undefined) emit('save', d.path, writeFramePosition(content, pos), content);
 }
 
 function onBoxDragEnd() {
@@ -391,7 +504,7 @@ function addLink(fromId: string, toId: string) {
   if (!from) return;
   const content = props.files[from.docPath];
   if (content === undefined) return;
-  emit('save', from.docPath, writeFrameLinks(content, [...readFrameLinks(content), toId]));
+  emit('save', from.docPath, writeFrameLinks(content, [...readFrameLinks(content), toId]), content);
 }
 
 /** 草稿连线的预览路径：复用 edgeGeometry，目标视为光标处的零尺寸点 */
@@ -409,18 +522,113 @@ const selectedEdge = computed(
   () => relationEdges.value.find((e) => e.id === selectedEdgeId.value) ?? null,
 );
 
-/** 连接边选项：null = 自动（按主导方向选边） */
-const SIDE_OPTIONS: { value: LinkSide | null; text: string }[] = [
-  { value: null, text: '自动' },
-  { value: 'top', text: '上' },
-  { value: 'right', text: '右' },
-  { value: 'bottom', text: '下' },
-  { value: 'left', text: '左' },
-];
-
 function onEdgeClick(edge: RelationEdge) {
   if (!graphEditMode.value) return;
   selectedEdgeId.value = edge.id;
+}
+
+/** 连接边拖拽：拖动选中连线的端点手柄，按光标相对框心的方位实时预览目标边 */
+const sideDrag = ref<{
+  edgeId: string;
+  which: 'from' | 'to';
+  side: LinkSide;
+  lastClientX: number;
+  lastClientY: number;
+  raf: number;
+} | null>(null);
+
+/** 光标方位 → 边：按框宽高归一化后的主导轴判定（宽框的左右边判定域更窄） */
+function sideFromPoint(box: DocBox, x: number, y: number): LinkSide {
+  const dx = x - (box.x + box.w / 2);
+  const dy = y - (box.y + box.h / 2);
+  const rx = Math.abs(dx) / (box.w / 2);
+  const ry = Math.abs(dy) / (box.h / 2);
+  return rx >= ry ? (dx >= 0 ? 'right' : 'left') : dy >= 0 ? 'bottom' : 'top';
+}
+
+function onSideHandleDown(e: PointerEvent, edge: RelationEdge, which: 'from' | 'to') {
+  if (e.button !== 0) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const from = layoutBoxes.value.find((b) => b.id === edge.fromId)!;
+  const to = layoutBoxes.value.find((b) => b.id === edge.toId)!;
+  const auto = autoSides(from, to);
+  sideDrag.value = {
+    edgeId: edge.id,
+    which,
+    side: (which === 'from' ? edge.fromSide : edge.toSide) ?? (which === 'from' ? auto.fs : auto.ts),
+    lastClientX: e.clientX,
+    lastClientY: e.clientY,
+    raf: 0,
+  };
+  window.addEventListener('pointermove', onSideDragMove);
+  window.addEventListener('pointerup', onSideDragEnd);
+  window.addEventListener('pointercancel', onSideDragCancel);
+  hovered.value = null;
+}
+
+function onSideDragMove(e: PointerEvent) {
+  const d = sideDrag.value;
+  if (!d) return;
+  d.lastClientX = e.clientX;
+  d.lastClientY = e.clientY;
+  if (!d.raf) d.raf = requestAnimationFrame(applySideDrag);
+}
+
+function applySideDrag() {
+  const d = sideDrag.value;
+  if (!d) return;
+  d.raf = 0;
+  const edge = relationEdges.value.find((e) => e.id === d.edgeId);
+  if (!edge) return;
+  const owner = layoutBoxes.value.find((b) => b.id === (d.which === 'from' ? edge.fromId : edge.toId));
+  if (!owner) return;
+  const pt = toStageCoords(d.lastClientX, d.lastClientY);
+  const side = sideFromPoint(owner, pt.x, pt.y);
+  if (side !== d.side) sideDrag.value = { ...d, side };
+}
+
+function removeSideDragListeners() {
+  window.removeEventListener('pointermove', onSideDragMove);
+  window.removeEventListener('pointerup', onSideDragEnd);
+  window.removeEventListener('pointercancel', onSideDragCancel);
+}
+
+function onSideDragCancel() {
+  removeSideDragListeners();
+  const d = sideDrag.value;
+  if (d?.raf) cancelAnimationFrame(d.raf);
+  sideDrag.value = null;
+}
+
+function onSideDragEnd() {
+  removeSideDragListeners();
+  const d = sideDrag.value;
+  if (d?.raf) cancelAnimationFrame(d.raf);
+  sideDrag.value = null;
+  if (!d) return;
+  const edge = relationEdges.value.find((e) => e.id === d.edgeId);
+  if (!edge) return;
+  const fromSide = d.which === 'from' ? d.side : edge.fromSide;
+  const toSide = d.which === 'to' ? d.side : edge.toSide;
+  // 与现状一致时不写文件（纯点击手柄不视为修改）
+  if (fromSide === edge.fromSide && toSide === edge.toSide) return;
+  persistEdgeSides(edge, fromSide, toSide);
+}
+
+/** 写回选中连线的连接边（只给一端时另一端写 `_`，保持自动） */
+function persistEdgeSides(edge: RelationEdge, fromSide: LinkSide | undefined, toSide: LinkSide | undefined) {
+  const from = graph.value.boxes.find((b) => b.id === edge.fromId);
+  if (!from) return;
+  const content = props.files[from.docPath];
+  if (content === undefined) return;
+
+  const links = readFrameLinks(content).map((entry) => {
+    const parsed = parseLinkEntry(entry);
+    if (resolveDocId(parsed.ref) !== edge.toId) return entry;
+    return buildLinkEntry({ ref: parsed.ref, label: parsed.label, fromSide, toSide });
+  });
+  emit('save', from.docPath, writeFrameLinks(content, links), content);
 }
 
 /** 与 graph.ts 一致的引用解析：优先 id，其次相对路径（.md 可省略） */
@@ -435,31 +643,6 @@ function resolveDocId(raw: string): string | undefined {
   )?.id;
 }
 
-/** 改写选中连线的连接边（fromSide/toSide 其一或两者），null 表示恢复自动选边 */
-function setEdgeSides(which: 'from' | 'to', side: LinkSide | null) {
-  const edge = selectedEdge.value;
-  if (!edge) return;
-  const fromSide = which === 'from' ? side : edge.fromSide ?? null;
-  const toSide = which === 'to' ? side : edge.toSide ?? null;
-
-  const from = graph.value.boxes.find((b) => b.id === edge.fromId);
-  if (!from) return;
-  const content = props.files[from.docPath];
-  if (content === undefined) return;
-
-  const links = readFrameLinks(content).map((entry) => {
-    const parsed = parseLinkEntry(entry);
-    if (resolveDocId(parsed.ref) !== edge.toId) return entry;
-    return buildLinkEntry({
-      ref: parsed.ref,
-      label: parsed.label,
-      fromSide: fromSide ?? undefined,
-      toSide: toSide ?? undefined,
-    });
-  });
-  emit('save', from.docPath, writeFrameLinks(content, links));
-}
-
 function removeSelectedEdge() {
   const edge = selectedEdge.value;
   if (!edge) return;
@@ -470,7 +653,7 @@ function removeSelectedEdge() {
   const links = readFrameLinks(content).filter(
     (entry) => resolveDocId(parseLinkEntry(entry).ref) !== edge.toId,
   );
-  emit('save', from.docPath, writeFrameLinks(content, links));
+  emit('save', from.docPath, writeFrameLinks(content, links), content);
   selectedEdgeId.value = null;
 }
 
@@ -576,7 +759,7 @@ function cancelEdit() {
 
 function saveEdit() {
   if (!currentPath.value || !dirty.value) return;
-  emit('save', currentPath.value, draft.value);
+  emit('save', currentPath.value, draft.value, props.files[currentPath.value]);
 }
 
 /** 编辑器内 Ctrl/Cmd+S 保存（MarkdownEditor 内部不拦截冒泡） */
@@ -672,7 +855,7 @@ if (typeof window !== 'undefined' && window.location.hash.length > 1) {
           ref="stageEl"
           class="pd-graph-stage"
           :class="{
-            'pd-graph-stage--dragging': dragBox?.moved || linkDraft,
+            'pd-graph-stage--dragging': dragBox?.moved || linkDraft || sideDrag,
             'pd-graph-stage--editing': graphEditMode,
           }"
           :style="{ width: `${stage.w}px`, height: `${stage.h}px` }"
@@ -716,41 +899,48 @@ if (typeof window !== 'undefined' && window.location.hash.length > 1) {
             </g>
             <!-- 连线草稿：从连接点拖到目标框 -->
             <path v-if="linkDraftPath" class="pd-relation-draft" :d="linkDraftPath" fill="none" />
+            <!-- 吸附对齐参考线（拖框时） -->
+            <line
+              v-for="(g, i) in activeGuides"
+              :key="'guide' + i"
+              class="pd-guide"
+              :x1="g.axis === 'x' ? g.pos : g.start"
+              :y1="g.axis === 'x' ? g.start : g.pos"
+              :x2="g.axis === 'x' ? g.pos : g.end"
+              :y2="g.axis === 'x' ? g.end : g.pos"
+            />
+            <!-- 选中连线的端点手柄：拖到目标边调整连接位置 -->
+            <g v-if="graphEditMode && selectedEdge" class="pd-edge-handles">
+              <circle
+                class="pd-edge-handle"
+                :cx="selectedEdge.x1"
+                :cy="selectedEdge.y1"
+                r="6"
+                @pointerdown.stop="onSideHandleDown($event, selectedEdge, 'from')"
+              >
+                <title>拖动调整源框连接边</title>
+              </circle>
+              <circle
+                class="pd-edge-handle"
+                :cx="selectedEdge.x2"
+                :cy="selectedEdge.y2"
+                r="6"
+                @pointerdown.stop="onSideHandleDown($event, selectedEdge, 'to')"
+              >
+                <title>拖动调整目标框连接边</title>
+              </circle>
+            </g>
           </svg>
-          <!-- 选中连线的编辑卡片：调整连接边 / 删除连线 -->
-          <div
-            v-if="selectedEdge"
-            class="pd-edge-card"
-            :style="{ left: `${selectedEdge.labelX}px`, top: `${selectedEdge.labelY + 14}px` }"
-            data-nm-no-pan
-            @click.stop
-          >
-            <div class="pd-edge-card__row">
-              <span class="pd-edge-card__label">源边</span>
-              <button
-                v-for="opt in SIDE_OPTIONS"
-                :key="'f' + opt.value"
-                type="button"
-                class="pd-edge-card__side"
-                :class="{ 'pd-edge-card__side--active': (selectedEdge.fromSide ?? null) === opt.value }"
-                @click="setEdgeSides('from', opt.value)"
-              >{{ opt.text }}</button>
-            </div>
-            <div class="pd-edge-card__row">
-              <span class="pd-edge-card__label">目标边</span>
-              <button
-                v-for="opt in SIDE_OPTIONS"
-                :key="'t' + opt.value"
-                type="button"
-                class="pd-edge-card__side"
-                :class="{ 'pd-edge-card__side--active': (selectedEdge.toSide ?? null) === opt.value }"
-                @click="setEdgeSides('to', opt.value)"
-              >{{ opt.text }}</button>
-            </div>
-            <button type="button" class="pd-edge-card__delete" @click="removeSelectedEdge">
-              ✕ 删除连线
-            </button>
-          </div>
+          <!-- 选中连线的删除按钮（位于连线中点） -->
+          <button
+            v-if="graphEditMode && selectedEdge"
+            type="button"
+            class="pd-edge-delete"
+            :style="{ left: `${selectedEdge.labelX}px`, top: `${selectedEdge.labelY}px` }"
+            :aria-label="`删除连线 ${selectedEdge.fromTitle} → ${selectedEdge.toTitle}`"
+            title="删除连线（Delete）"
+            @click.stop="removeSelectedEdge"
+          >✕</button>
           <div
             v-for="box in layoutBoxes"
             :key="box.id"

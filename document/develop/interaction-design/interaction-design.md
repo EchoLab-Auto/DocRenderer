@@ -1,8 +1,8 @@
 ---
 id: interaction-design
 title: "交互设计"
-x: 48
-y: 384
+x: 624
+y: 510
 ---
 
 # 交互设计
@@ -36,10 +36,10 @@ graph TB
   Toggle[点 🛠 编辑图] --> Mode[进入图编辑模式]
   Mode --> Drag[拖拽框调整位置]
   Mode --> Handle[连接点拖出创建连线]
-  Mode --> Pick[单击连线弹出编辑卡片]
-  Pick --> Sides[调整源边与目标边：自动 上 右 下 左]
-  Pick --> Del[✕ 删除连线]
-  Sides --> Entry[写回 link 条目第三段，如 b>l]
+  Mode --> Pick[单击连线选中]
+  Pick --> SideDrag[拖动端点手柄到目标边，实时预览]
+  Pick --> Del[中点 ✕ 或 Delete 删除]
+  SideDrag --> Entry[写回 link 条目第三段，如 b>_]
   Drag --> Save[保存，热更新回推]
   Handle --> Save
   Del --> Save
@@ -61,7 +61,7 @@ graph TB
   Save --> Loop[热更新回推，图重建固定新坐标]
 ```
 
-拖拽中连线实时跟随（几何基于覆盖坐标计算）；松手瞬间的 click 事件被抑制，不会误打开文档。跟手性的三个要点：位置更新收敛到**每帧一次**（rAF 节流）、拖拽期间**禁用框的过渡动画**（过渡只为分层重排服务）、缩放在按下时缓存（避免逐帧强制布局）。
+拖拽中连线实时跟随（几何基于覆盖坐标计算）；松手瞬间的 click 事件被抑制，不会误打开文档。拖动接近其他框的**左/中/右、上/中/下**特征线时自动吸附并显示对齐参考线。跟手性的三个要点：位置更新收敛到**每帧一次**（rAF 节流）、拖拽期间**禁用框的过渡动画**（过渡只为分层重排服务）、缩放在按下时缓存（避免逐帧强制布局）。
 
 ## 四、创建连线
 
@@ -83,12 +83,13 @@ graph TB
 
 ```prodoc-flow
 graph TB
-  Click[单击连线] --> Selected[选中：主色加粗，中点弹出编辑卡片]
-  Selected --> How{删除方式}
-  How -->|卡片的 ✕ 删除连线| Remove[从源文档 link 移除匹配条目]
-  How -->|Delete 或 Backspace| Remove
-  Remove --> Keep[其余条目含标签原文保留]
-  Keep --> Save[保存，热更新回推]
+  Click[单击连线] --> Selected[选中：主色加粗，端点出手柄，中点出 ✕]
+  Selected --> How{后续操作}
+  How -->|拖动端点手柄| SidePrev[按光标方位实时预览目标边]
+  SidePrev -->|松手| Rewrite[写回条目第三段]
+  How -->|点 ✕ 或 Delete| Remove[从源文档 link 移除匹配条目]
+  Rewrite --> Save[保存，热更新回推]
+  Remove --> Save
 ```
 
 连线有一条 14px 宽的透明命中路径，让点选不需要精确命中 2px 的可见曲线；点选仅在图编辑模式下可用。

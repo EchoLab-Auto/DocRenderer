@@ -1,8 +1,8 @@
 ---
 id: develop
 title: "开发指南"
-x: 48
-y: 216
+x: 362
+y: 508
 link: ["interaction-design | 交互设计"]
 ---
 
