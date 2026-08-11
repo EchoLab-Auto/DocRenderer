@@ -1,1 +1,0 @@
-Object.defineProperty(exports,Symbol.toStringTag,{value:`Module`});let e=require("@echolab-auto/ui-frame/doc");require("@echolab-auto/ui-frame/dist/style.css"),Object.defineProperty(exports,"DocEditor",{enumerable:!0,get:function(){return e.DocEditor}}),Object.defineProperty(exports,"MarkdownEditor",{enumerable:!0,get:function(){return e.MarkdownEditor}});

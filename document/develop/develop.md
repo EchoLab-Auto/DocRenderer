@@ -12,7 +12,7 @@ link: ["interaction-design | 交互设计"]
 
 ```bash
 npm install      # 安装依赖（npm workspaces）
-npm run build    # 构建全部包（core / renderer / editor / cli）
+npm run build    # 构建全部包（core / renderer / cli）
 ```
 
 ## 本地验证
@@ -31,9 +31,8 @@ npm run dev:view ./document  # 开发模式：tsx 直跑源码，HMR 热更新
 | 包 | 职责 |
 |------|------|
 | `@prodoc/core` | 框架参数区解析（frame）、文档图构建（graph） |
-| `@prodoc/renderer` | 查看器 DocGraphViewer（图画布 + 正文渲染） |
-| `@prodoc/editor` | 编辑器 DocEditor（edit 模式） |
-| `@prodoc/cli` | `echo-prodoc` 命令行（view / edit 服务器） |
+| `@prodoc/renderer` | 查看器 DocGraphViewer（图画布 + 正文渲染 + 内置编辑） |
+| `@prodoc/cli` | `echo-prodoc` 命令行（view 渲染服务器） |
 
 > UI 组件统一来自 `@echolab-auto/ui-frame`（新拟态设计系统）；核心逻辑只存在于 ui-frame/doc，各包仅做重新导出，不重复实现。
 

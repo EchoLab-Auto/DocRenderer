@@ -13,7 +13,7 @@ const { execSync } = require('child_process');
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const PACKAGES_DIR = path.join(PROJECT_ROOT, 'packages');
 
-const PACKAGES = ['prodoc-core', 'prodoc-renderer', 'prodoc-editor', 'prodoc-cli'];
+const PACKAGES = ['prodoc-core', 'prodoc-renderer', 'prodoc-cli'];
 
 function distExists(pkgName) {
   const distDir = path.join(PACKAGES_DIR, pkgName, 'dist');

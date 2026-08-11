@@ -7,7 +7,7 @@ y: 162
 
 # 命令行参考
 
-`echo-prodoc` 提供两个子命令。
+`echo-prodoc` 提供一个子命令。
 
 ## view — 渲染服务器
 
@@ -20,14 +20,6 @@ echo-prodoc view <document-path>
 - **文档热更新**：服务运行期间新增、修改、删除目录中的 `.md` 文件，页面**原地更新**（不刷新，保留画布平移/缩放与当前打开的文档）；当前文档被删除时自动退回图画布
 - **浏览编辑一体化**：打开任意文档后点「✏️ 编辑」即可修改原始内容（含框架参数区），Ctrl/Cmd+S 保存，画布即时反映修改
 - **保存冲突防护**：保存请求携带客户端依据的内容基准，若磁盘文件已被外部修改则拒绝写入（409），过期页面/标签页不会覆盖他人修改
-
-## edit — 编辑服务器
-
-```bash
-echo-prodoc edit <document-path>
-```
-
-启动旧版独立编辑器（基于文档树模型的 `DocEditor`，遗留模式）。新文档图模型下浏览与编辑已一体化，日常使用 `view` 即可。
 
 ## 选项
 
@@ -42,6 +34,6 @@ echo-prodoc edit <document-path>
 
 ```bash
 echo-prodoc view ./docs
-echo-prodoc edit ./docs --port 8080 --no-open
+echo-prodoc view ./docs --port 8080 --no-open
 ```
 

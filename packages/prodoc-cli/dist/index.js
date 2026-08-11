@@ -62,33 +62,25 @@ function v(t) {
 function y() {
 	return "async (filePath, content, base) => {\n            try {\n              const res = await fetch('/__prodoc_api/save', {\n                method: 'POST',\n                headers: { 'Content-Type': 'application/json' },\n                body: JSON.stringify({ path: filePath, content, base }),\n              });\n              const data = await res.json();\n              if (data.success) {\n                console.log('[ProDoc] saved:', filePath);\n              } else if (res.status === 409) {\n                console.warn('[ProDoc] save conflict:', filePath, '— 磁盘内容已被修改，本次保存被拒绝；请刷新页面后再操作');\n              } else {\n                console.error('[ProDoc] save failed:', data.error);\n              }\n            } catch (e) {\n              console.error('[ProDoc] save error:', e);\n            }\n          }";
 }
-function b(t, n) {
-	let r = t === "view" ? "DocGraphViewer" : "DocEditor", i = `import { ${r} } from '@prodoc/${t === "view" ? "renderer" : "editor"}';`, a = [
-		`import '${g("@echolab-auto/ui-frame")}';`,
-		..._() ? [`import '${_()}';`] : [],
-		`import '${e.join(u("@prodoc/renderer"), "dist", "index.css").replace(/\\/g, "/")}'`
-	];
-	t === "edit" && a.push(`import '${e.join(u("@prodoc/editor"), "dist", "index.css").replace(/\\/g, "/")}'`);
-	let o = t === "view" ? `{ files: state.files, onSave: ${y()} }` : `{
-          root: docRoot,
-          initialPath,
-          onDocLink: (p) => { console.log('[ProDoc] navigate to:', p); history.replaceState(null, '', '#' + p); },
-          onSave: ${y()},
-        }`, s = t === "edit" ? "import { buildDocTree } from '@prodoc/core/pure';\nconst docRoot = buildDocTree(state.files);\nconst initialPath = window.location.hash ? window.location.hash.slice(1) : undefined;" : "", c = t === "view" ? "if (import.meta.hot) {\n  import.meta.hot.on('prodoc:docs-update', (updated) => {\n    state.files = updated;\n  });\n}" : "";
+function b(t) {
+	let n = `{ files: state.files, onSave: ${y()} }`;
 	return `
 import { createApp, h, reactive } from 'vue';
 import uiFrame, { ThemeProvider } from '@echolab-auto/ui-frame';
-${i}
-${a.join("\n")};
+import { DocGraphViewer } from '@prodoc/renderer';
+${[
+		`import '${g("@echolab-auto/ui-frame")}';`,
+		..._() ? [`import '${_()}';`] : [],
+		`import '${e.join(u("@prodoc/renderer"), "dist", "index.css").replace(/\\/g, "/")}'`
+	].join("\n")};
 
-const state = reactive({ files: ${JSON.stringify(n)} });
-${s}
+const state = reactive({ files: ${JSON.stringify(t)} });
 
 const app = createApp({
   render() {
     return h('div', { style: { height: '100vh', width: '100vw', overflow: 'hidden' } }, [
       h(ThemeProvider, { defaultTheme: 'auto', storageKey: 'prodoc-theme', followSystem: true }, {
-        default: () => h(${r}, ${o}),
+        default: () => h(DocGraphViewer, ${n}),
       }),
     ]);
   },
@@ -104,40 +96,38 @@ app.use(uiFrame, {
 });
 app.mount('#app');
 
-${c}
+// 文档热更新 —— 服务器通过 WS 推送最新文件映射，原地替换 state.files
+// （不刷新页面，保留画布平移/缩放与当前打开的文档）
+if (import.meta.hot) {
+  import.meta.hot.on('prodoc:docs-update', (updated) => {
+    state.files = updated;
+  });
+}
 `;
 }
-async function x(i, a, o = {}) {
-	let s = o.port ?? d;
-	console.log(`📂 Loading documents from: ${e.resolve(a)}`);
-	let c = await m(a), l = Object.keys(c).length;
-	if (l === 0) throw Error(`No .md files found in: ${a}`);
-	if (console.log(`✅ Loaded ${l} document(s)`), i === "view") {
-		let e = await h(a, c);
-		e.length > 0 && console.log(`📍 Wrote auto-layout coordinates to ${e.length} document(s)`);
-	}
+async function x(i, a = {}) {
+	let o = a.port ?? d;
+	console.log(`📂 Loading documents from: ${e.resolve(i)}`);
+	let s = await m(i), c = Object.keys(s).length;
+	if (c === 0) throw Error(`No .md files found in: ${i}`);
+	console.log(`✅ Loaded ${c} document(s)`);
+	let l = await h(i, s);
+	l.length > 0 && console.log(`📍 Wrote auto-layout coordinates to ${l.length} document(s)`);
 	let u = await n({
 		root: process.cwd(),
 		configFile: !1,
 		server: {
-			port: s,
-			open: o.open ?? !0,
+			port: o,
+			open: a.open ?? !0,
 			host: !0
 		},
-		resolve: { alias: [
-			{
-				find: "@prodoc/core",
-				replacement: v("@prodoc/core")
-			},
-			{
-				find: "@prodoc/renderer",
-				replacement: v("@prodoc/renderer")
-			},
-			{
-				find: "@prodoc/editor",
-				replacement: v("@prodoc/editor")
-			}
-		] },
+		resolve: { alias: [{
+			find: "@prodoc/core",
+			replacement: v("@prodoc/core")
+		}, {
+			find: "@prodoc/renderer",
+			replacement: v("@prodoc/renderer")
+		}] },
 		optimizeDeps: { include: [
 			"marked",
 			"mermaid",
@@ -164,32 +154,32 @@ async function x(i, a, o = {}) {
 					if (e === "/@prodoc/entry") return "\0prodoc-entry";
 				},
 				load(e) {
-					if (e === "\0prodoc-entry") return b(i, c);
+					if (e === "\0prodoc-entry") return b(s);
 				}
 			},
-			...i === "view" ? [{
+			{
 				name: "prodoc-docs-watch",
 				configureServer(t) {
-					let n = e.resolve(a);
+					let n = e.resolve(i);
 					t.watcher.add(n);
-					let r = null, i = async () => {
+					let r = null, a = async () => {
 						let e = await m(n), r = await h(n, e);
-						c = e, t.ws.send("prodoc:docs-update", c), console.log(`🔄 Documents reloaded (${Object.keys(c).length} file(s)` + (r.length > 0 ? `, wrote coordinates to ${r.length}` : "") + ")");
+						s = e, t.ws.send("prodoc:docs-update", s), console.log(`🔄 Documents reloaded (${Object.keys(s).length} file(s)` + (r.length > 0 ? `, wrote coordinates to ${r.length}` : "") + ")");
 					}, o = (e) => {
 						!e.startsWith(n) || !e.endsWith(".md") || (r && clearTimeout(r), r = setTimeout(() => {
-							i().catch((e) => console.error("[ProDoc] reload failed:", e));
+							a().catch((e) => console.error("[ProDoc] reload failed:", e));
 						}, 100));
 					};
 					t.watcher.on("add", o), t.watcher.on("change", o), t.watcher.on("unlink", o);
 				}
-			}] : [],
+			},
 			{
 				name: "prodoc-save-api",
 				configureServer(n) {
-					n.middlewares.use(async (n, r, i) => {
+					n.middlewares.use(async (n, r, a) => {
 						if (n.url === "/__prodoc_api/save" && n.method === "POST") {
 							try {
-								let i = "", o = 0;
+								let a = "", o = 0;
 								n.on("data", (e) => {
 									if (o += e.length, o > f) {
 										r.statusCode = 413, r.setHeader("content-type", "application/json"), r.end(JSON.stringify({
@@ -198,10 +188,10 @@ async function x(i, a, o = {}) {
 										}));
 										return;
 									}
-									i += e.toString();
+									a += e.toString();
 								}), n.on("end", async () => {
 									try {
-										let { path: n, content: o, base: s } = JSON.parse(i), c = e.resolve(a, n), l = e.resolve(a) + e.sep;
+										let { path: n, content: o, base: s } = JSON.parse(a), c = e.resolve(i, n), l = e.resolve(i) + e.sep;
 										if (!e.resolve(c).startsWith(l)) {
 											r.statusCode = 403, r.setHeader("content-type", "application/json"), r.end(JSON.stringify({
 												success: !1,
@@ -240,7 +230,7 @@ async function x(i, a, o = {}) {
 							}
 							return;
 						}
-						i();
+						a();
 					});
 				}
 			}
@@ -250,8 +240,8 @@ async function x(i, a, o = {}) {
 	let g = u.resolvedUrls ?? {
 		local: [],
 		network: []
-	}, _ = g.local[0] ?? `http://localhost:${s}`;
-	return console.log("\n🚀 Echo-ProDoc server is running!\n"), console.log(`   Mode:    ${i === "view" ? "👁  View" : "✏️  Edit"}`), console.log(`   Docs:    ${e.resolve(a)}`), console.log(`   Local:   ${_}`), g.network.length > 0 && console.log(`   Network: ${g.network[0]}`), console.log(""), i === "edit" && console.log("   Press Ctrl+S in the editor to save changes.\n"), u;
+	}, _ = g.local[0] ?? `http://localhost:${o}`;
+	return console.log("\n🚀 Echo-ProDoc server is running!\n"), console.log(`   Docs:    ${e.resolve(i)}`), console.log(`   Local:   ${_}`), g.network.length > 0 && console.log(`   Network: ${g.network[0]}`), console.log(""), u;
 }
 //#endregion
 //#region src/index.ts
@@ -262,7 +252,6 @@ ${S} v${C}
 
 Usage:
   ${S} view <document-path>   Start a rendering server for the document directory
-  ${S} edit <document-path>   Start an editing server for the document directory
   ${S} --help                 Show this help message
   ${S} --version              Show version
 
@@ -272,7 +261,7 @@ Options:
 
 Examples:
   ${S} view ./docs
-  ${S} edit ./docs --port 8080
+  ${S} view ./docs --port 8080
 `);
 }
 function T(e) {
@@ -283,7 +272,7 @@ function T(e) {
 	};
 	for (let e = 0; e < t.length; e++) {
 		let r = t[e];
-		r === "--help" || r === "-h" ? n.help = !0 : r === "--version" || r === "-v" ? n.version = !0 : r === "--port" || r === "-p" ? ((e + 1 >= t.length || isNaN(parseInt(t[e + 1], 10))) && (console.error("Error: --port requires a valid number"), process.exit(1)), n.port = parseInt(t[++e], 10)) : r === "--no-open" ? n.open = !1 : r.startsWith("-") || (n.command ? n.docPath ||= r : r === "view" || r === "edit" ? n.command = r : (console.error(`Unknown command: ${r}`), process.exit(1)));
+		r === "--help" || r === "-h" ? n.help = !0 : r === "--version" || r === "-v" ? n.version = !0 : r === "--port" || r === "-p" ? ((e + 1 >= t.length || isNaN(parseInt(t[e + 1], 10))) && (console.error("Error: --port requires a valid number"), process.exit(1)), n.port = parseInt(t[++e], 10)) : r === "--no-open" ? n.open = !1 : r.startsWith("-") || (n.command ? n.docPath ||= r : r === "view" ? n.command = r : r === "edit" ? (console.error("Error: The \"edit\" command has been removed. Browsing and editing are integrated — use \"view\" instead."), process.exit(1)) : (console.error(`Unknown command: ${r}`), process.exit(1)));
 	}
 	return n;
 }
@@ -298,17 +287,17 @@ async function E(n) {
 }
 async function D() {
 	let e = T(process.argv);
-	e.help && (w(), process.exit(0)), e.version && (console.log(`${S} v${C}`), process.exit(0)), e.command || (console.error("Error: No command specified. Use \"view\" or \"edit\"."), console.error(`\nRun "${S} --help" for usage information.`), process.exit(1)), e.docPath || (console.error("Error: No document path specified."), console.error(`\nRun "${S} --help" for usage information.`), process.exit(1));
+	e.help && (w(), process.exit(0)), e.version && (console.log(`${S} v${C}`), process.exit(0)), e.command || (console.error("Error: No command specified. Use \"view\"."), console.error(`\nRun "${S} --help" for usage information.`), process.exit(1)), e.docPath || (console.error("Error: No document path specified."), console.error(`\nRun "${S} --help" for usage information.`), process.exit(1));
 	try {
-		let t = await E(e.docPath), n = await x(e.command, t, {
+		let t = await x(await E(e.docPath), {
 			port: e.port,
 			open: e.open
-		}), r = () => {
-			console.log("\n👋 Shutting down..."), n.close().then(() => {
+		}), n = () => {
+			console.log("\n👋 Shutting down..."), t.close().then(() => {
 				process.exit(0);
 			});
 		};
-		process.on("SIGINT", r), process.on("SIGTERM", r);
+		process.on("SIGINT", n), process.on("SIGTERM", n);
 	} catch (e) {
 		console.error(`\n❌ Error: ${e.message}\n`), process.exit(1);
 	}

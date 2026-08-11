@@ -165,11 +165,11 @@ function buildSaveHandler(): string {
 }
 
 /** 生成客户端入口代码 */
-function generateClientEntry(mode: 'view' | 'edit', files: Record<string, string>): string {
-  // 查看模式：新文档图模型 —— DocGraphViewer 直接消费文件映射，
-  // 框架参数区解析、图构建、正文剥离都在 @prodoc/core + 组件内完成
-  const componentName = mode === 'view' ? 'DocGraphViewer' : 'DocEditor';
-  const componentImport = `import { ${componentName} } from '@prodoc/${mode === 'view' ? 'renderer' : 'editor'}';`;
+function generateClientEntry(files: Record<string, string>): string {
+  // 文档图模型：DocGraphViewer 直接消费文件映射，
+  // 框架参数区解析、图构建、正文剥离都在 @prodoc/core + 组件内完成；
+  // 浏览与编辑一体化，内置编辑器通过 onSave 走保存 API 写回源文件
+  const componentProps = `{ files: state.files, onSave: ${buildSaveHandler()} }`;
 
   // 使用绝对路径导入 CSS，避免 Vite alias 对 CSS 解析问题
   const cssImports = [
@@ -178,55 +178,20 @@ function generateClientEntry(mode: 'view' | 'edit', files: Record<string, string
     ...(resolveDocCssPath() ? [`import '${resolveDocCssPath()}';`] : []),
     `import '${path.join(resolvePkgDir('@prodoc/renderer'), 'dist', 'index.css').replace(/\\/g, '/')}'`,
   ];
-  if (mode === 'edit') {
-    cssImports.push(`import '${path.join(resolvePkgDir('@prodoc/editor'), 'dist', 'index.css').replace(/\\/g, '/')}'`);
-  }
-
-  // 浏览/编辑一体化：view 模式的 DocGraphViewer 内置编辑器，通过 onSave 保存；
-  // edit 模式沿用旧文档树模型的 DocEditor
-  const componentProps =
-    mode === 'view'
-      ? `{ files: state.files, onSave: ${buildSaveHandler()} }`
-      : `{
-          root: docRoot,
-          initialPath,
-          onDocLink: (p) => { console.log('[ProDoc] navigate to:', p); history.replaceState(null, '', '#' + p); },
-          onSave: ${buildSaveHandler()},
-        }`;
-
-  // edit 模式才需要旧文档树；view 模式 DocGraphViewer 只消费 files，避免无用的 buildDocTree
-  const legacyTreeSetup =
-    mode === 'edit'
-      ? `import { buildDocTree } from '@prodoc/core/pure';
-const docRoot = buildDocTree(state.files);
-const initialPath = window.location.hash ? window.location.hash.slice(1) : undefined;`
-      : '';
-
-  // view 模式：文档热更新 —— 服务器通过 WS 推送最新文件映射，原地替换 state.files
-  // （不刷新页面，保留画布平移/缩放与当前打开的文档）
-  const hotUpdateSetup =
-    mode === 'view'
-      ? `if (import.meta.hot) {
-  import.meta.hot.on('prodoc:docs-update', (updated) => {
-    state.files = updated;
-  });
-}`
-      : '';
 
   return `
 import { createApp, h, reactive } from 'vue';
 import uiFrame, { ThemeProvider } from '@echolab-auto/ui-frame';
-${componentImport}
+import { DocGraphViewer } from '@prodoc/renderer';
 ${cssImports.join('\n')};
 
 const state = reactive({ files: ${JSON.stringify(files)} });
-${legacyTreeSetup}
 
 const app = createApp({
   render() {
     return h('div', { style: { height: '100vh', width: '100vw', overflow: 'hidden' } }, [
       h(ThemeProvider, { defaultTheme: 'auto', storageKey: 'prodoc-theme', followSystem: true }, {
-        default: () => h(${componentName}, ${componentProps}),
+        default: () => h(DocGraphViewer, ${componentProps}),
       }),
     ]);
   },
@@ -242,19 +207,24 @@ app.use(uiFrame, {
 });
 app.mount('#app');
 
-${hotUpdateSetup}
+// 文档热更新 —— 服务器通过 WS 推送最新文件映射，原地替换 state.files
+// （不刷新页面，保留画布平移/缩放与当前打开的文档）
+if (import.meta.hot) {
+  import.meta.hot.on('prodoc:docs-update', (updated) => {
+    state.files = updated;
+  });
+}
 `;
 }
 
 /** 启动 ProDoc 服务器 */
 export async function startProDocServer(
-  mode: 'view' | 'edit',
   docRoot: string,
   options: { port?: number; open?: boolean } = {}
 ): Promise<ViteDevServer> {
   const port = options.port ?? DEFAULT_PORT;
 
-  // 1. 加载文档文件（view 模式下会被目录监听的热更新重新赋值）
+  // 1. 加载文档文件（会被目录监听的热更新重新赋值）
   console.log(`📂 Loading documents from: ${path.resolve(docRoot)}`);
   let files = await loadMarkdownFiles(docRoot);
   const fileCount = Object.keys(files).length;
@@ -263,11 +233,9 @@ export async function startProDocServer(
   }
   console.log(`✅ Loaded ${fileCount} document(s)`);
 
-  if (mode === 'view') {
-    const positionedFiles = await persistAutoLayout(docRoot, files);
-    if (positionedFiles.length > 0) {
-      console.log(`📍 Wrote auto-layout coordinates to ${positionedFiles.length} document(s)`);
-    }
+  const positionedFiles = await persistAutoLayout(docRoot, files);
+  if (positionedFiles.length > 0) {
+    console.log(`📍 Wrote auto-layout coordinates to ${positionedFiles.length} document(s)`);
   }
 
   // 2. 创建 Vite 服务器
@@ -283,7 +251,6 @@ export async function startProDocServer(
       alias: [
         { find: '@prodoc/core', replacement: resolveProDocEntry('@prodoc/core') },
         { find: '@prodoc/renderer', replacement: resolveProDocEntry('@prodoc/renderer') },
-        { find: '@prodoc/editor', replacement: resolveProDocEntry('@prodoc/editor') },
       ],
     },
     optimizeDeps: {
@@ -316,50 +283,46 @@ export async function startProDocServer(
         },
         load(id) {
           if (id === '\0prodoc-entry') {
-            return generateClientEntry(mode, files);
+            return generateClientEntry(files);
           }
         },
       },
 
-      // 插件：view 模式下监听文档目录，变更时重载并通过 WS 推送最新文件映射
+      // 插件：监听文档目录，变更时重载并通过 WS 推送最新文件映射
       //（persistAutoLayout 自身的坐标写回会再次触发 change，但二次重载
       //  不再产生写入，推送内容与上次一致，不会形成循环）
-      ...(mode === 'view'
-        ? [
-            {
-              name: 'prodoc-docs-watch',
-              configureServer(s: ViteDevServer) {
-                const resolvedRoot = path.resolve(docRoot);
-                s.watcher.add(resolvedRoot);
+      {
+        name: 'prodoc-docs-watch',
+        configureServer(s: ViteDevServer) {
+          const resolvedRoot = path.resolve(docRoot);
+          s.watcher.add(resolvedRoot);
 
-                let timer: ReturnType<typeof setTimeout> | null = null;
-                const reload = async () => {
-                  const updated = await loadMarkdownFiles(resolvedRoot);
-                  const positioned = await persistAutoLayout(resolvedRoot, updated);
-                  files = updated;
-                  s.ws.send('prodoc:docs-update', files);
-                  console.log(
-                    `🔄 Documents reloaded (${Object.keys(files).length} file(s)` +
-                      (positioned.length > 0 ? `, wrote coordinates to ${positioned.length}` : '') +
-                      ')',
-                  );
-                };
-                const onDocEvent = (file: string) => {
-                  if (!file.startsWith(resolvedRoot) || !file.endsWith('.md')) return;
-                  if (timer) clearTimeout(timer);
-                  timer = setTimeout(() => {
-                    reload().catch((err) => console.error('[ProDoc] reload failed:', err));
-                  }, 100);
-                };
-                s.watcher.on('add', onDocEvent);
-                s.watcher.on('change', onDocEvent);
-                s.watcher.on('unlink', onDocEvent);
-              },
-            },
-          ]
-        : []),
+          let timer: ReturnType<typeof setTimeout> | null = null;
+          const reload = async () => {
+            const updated = await loadMarkdownFiles(resolvedRoot);
+            const positioned = await persistAutoLayout(resolvedRoot, updated);
+            files = updated;
+            s.ws.send('prodoc:docs-update', files);
+            console.log(
+              `🔄 Documents reloaded (${Object.keys(files).length} file(s)` +
+              (positioned.length > 0 ? `, wrote coordinates to ${positioned.length}` : '') +
+              ')',
+            );
+          };
+          const onDocEvent = (file: string) => {
+            if (!file.startsWith(resolvedRoot) || !file.endsWith('.md')) return;
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(() => {
+              reload().catch((err) => console.error('[ProDoc] reload failed:', err));
+            }, 100);
+          };
+          s.watcher.on('add', onDocEvent);
+          s.watcher.on('change', onDocEvent);
+          s.watcher.on('unlink', onDocEvent);
+        },
+      },
 
-      // 插件：保存 API（view 模式内置编辑器与 edit 模式共用）
+      // 插件：保存 API（内置编辑器与画布编辑共用）
       {
         name: 'prodoc-save-api',
         configureServer(s: ViteDevServer) {
@@ -437,17 +400,12 @@ export async function startProDocServer(
   const localUrl = addresses.local[0] ?? `http://localhost:${port}`;
 
   console.log('\n🚀 Echo-ProDoc server is running!\n');
-  console.log(`   Mode:    ${mode === 'view' ? '👁  View' : '✏️  Edit'}`);
   console.log(`   Docs:    ${path.resolve(docRoot)}`);
   console.log(`   Local:   ${localUrl}`);
   if (addresses.network.length > 0) {
     console.log(`   Network: ${addresses.network[0]}`);
   }
   console.log('');
-
-  if (mode === 'edit') {
-    console.log('   Press Ctrl+S in the editor to save changes.\n');
-  }
 
   return server;
 }

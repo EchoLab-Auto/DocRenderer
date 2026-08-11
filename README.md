@@ -30,7 +30,6 @@ echo-prodoc view ./document --port 8080
 ```bash
 # 开发模式（源码运行，HMR 热更新）
 npm run dev:view ./document
-npm run dev:edit ./document
 ```
 
 开发模式通过 `PRODOC_DEV=1` + `tsx` 直接运行 TypeScript 源码，无需预先构建。详见 [开发指南](document/develop/develop.md)。

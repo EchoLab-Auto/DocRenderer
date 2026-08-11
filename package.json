@@ -21,9 +21,7 @@
     "type-check": "npm run type-check --workspaces",
     "clean": "npm run clean --workspaces",
     "view": "node ./packages/prodoc-cli/dist/index.js view",
-    "edit": "node ./packages/prodoc-cli/dist/index.js edit",
     "dev:view": "PRODOC_DEV=1 tsx packages/prodoc-cli/src/index.ts view",
-    "dev:edit": "PRODOC_DEV=1 tsx packages/prodoc-cli/src/index.ts edit",
     "prepublishOnly": "npm run build",
     "use-local-ui-frame": "node scripts/switch-ui-frame.js local",
     "use-npm-ui-frame": "node scripts/switch-ui-frame.js npm"
@@ -40,7 +38,6 @@
   "dependencies": {
     "@echolab-auto/ui-frame": "^1.1.1",
     "@prodoc/core": "file:packages/prodoc-core",
-    "@prodoc/editor": "file:packages/prodoc-editor",
     "@prodoc/renderer": "file:packages/prodoc-renderer",
     "@vitejs/plugin-vue": "^6.0.7",
     "marked": "^18.0.5",

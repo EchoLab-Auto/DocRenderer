@@ -3,8 +3,7 @@
  * Echo-ProDoc CLI 入口
  *
  * 命令：
- *   echo-prodoc view <document-path>  — 启动渲染服务器
- *   echo-prodoc edit <document-path>  — 启动编辑服务器
+ *   echo-prodoc view <document-path>  — 启动渲染服务器（浏览与编辑一体化）
  */
 
 import path from 'path';
@@ -21,7 +20,6 @@ ${PKG_NAME} v${PKG_VERSION}
 
 Usage:
   ${PKG_NAME} view <document-path>   Start a rendering server for the document directory
-  ${PKG_NAME} edit <document-path>   Start an editing server for the document directory
   ${PKG_NAME} --help                 Show this help message
   ${PKG_NAME} --version              Show version
 
@@ -31,7 +29,7 @@ Options:
 
 Examples:
   ${PKG_NAME} view ./docs
-  ${PKG_NAME} edit ./docs --port 8080
+  ${PKG_NAME} view ./docs --port 8080
 `);
 }
 
@@ -39,7 +37,7 @@ Examples:
 function parseArgs(argv: string[]) {
   const args = argv.slice(2);
   const result: {
-    command?: 'view' | 'edit';
+    command?: 'view';
     docPath?: string;
     port?: number;
     open: boolean;
@@ -64,8 +62,11 @@ function parseArgs(argv: string[]) {
       result.open = false;
     } else if (!arg.startsWith('-')) {
       if (!result.command) {
-        if (arg === 'view' || arg === 'edit') {
+        if (arg === 'view') {
           result.command = arg;
+        } else if (arg === 'edit') {
+          console.error('Error: The "edit" command has been removed. Browsing and editing are integrated — use "view" instead.');
+          process.exit(1);
         } else {
           console.error(`Unknown command: ${arg}`);
           process.exit(1);
@@ -111,7 +112,7 @@ async function main() {
   }
 
   if (!args.command) {
-    console.error('Error: No command specified. Use "view" or "edit".');
+    console.error('Error: No command specified. Use "view".');
     console.error(`\nRun "${PKG_NAME} --help" for usage information.`);
     process.exit(1);
   }
@@ -124,7 +125,7 @@ async function main() {
 
   try {
     const docRoot = await validateDocPath(args.docPath);
-    const server = await startProDocServer(args.command, docRoot, {
+    const server = await startProDocServer(docRoot, {
       port: args.port,
       open: args.open,
     });

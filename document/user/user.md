@@ -61,5 +61,5 @@ link: ["guide | 指南"]
 
 ## 深入
 
-- [命令行参考](./cli.md) — view / edit 命令与全部选项
+- [命令行参考](./cli.md) — view 命令与全部选项
 - [交互设计](../develop/interaction-design/interaction-design.md) — 查看器完整交互逻辑的流程图

@@ -8,8 +8,7 @@
 
 ## cli 
 * 拥有命令 echo-prodoc
-    * echo-prodoc view <document-path> 
-    * echo-prodoc edit <document-path>
+    * echo-prodoc view <document-path>（浏览与编辑一体化，编辑能力已并入 view）
 
 ## 部署层面:
 1. 支持从源代码安装

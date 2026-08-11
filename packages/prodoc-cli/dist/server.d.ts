@@ -6,7 +6,7 @@
  */
 import { type ViteDevServer } from 'vite';
 /** 启动 ProDoc 服务器 */
-export declare function startProDocServer(mode: 'view' | 'edit', docRoot: string, options?: {
+export declare function startProDocServer(docRoot: string, options?: {
     port?: number;
     open?: boolean;
 }): Promise<ViteDevServer>;
