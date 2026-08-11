@@ -37,10 +37,23 @@ const emit = defineEmits<{
   save: [path: string, content: string, base?: string];
 }>();
 
-/** 文档群 → 图（含布局与警告） */
-const graph = computed<DocGraph>(() => buildDocGraph(props.files));
+/** 图编辑模式的暂存修改：docPath → 修改后的完整内容（未写盘，「💾 保存」统一写回） */
+const pendingDrafts = ref<Map<string, string>>(new Map());
 
-/** 每个文件剥离参数区后的正文 */
+/** 有待保存的图修改 */
+const graphDirty = computed(() => pendingDrafts.value.size > 0);
+
+/** 画布消费的文件映射：磁盘内容 + 暂存修改覆盖（暂存即时反映在画布上） */
+const effectiveFiles = computed<Record<string, string>>(() =>
+  pendingDrafts.value.size
+    ? { ...props.files, ...Object.fromEntries(pendingDrafts.value) }
+    : props.files,
+);
+
+/** 文档群 → 图（含布局与警告）；基于含暂存修改的有效内容构建 */
+const graph = computed<DocGraph>(() => buildDocGraph(effectiveFiles.value));
+
+/** 每个文件剥离参数区后的正文（基于磁盘内容：图编辑暂存期间不开放正文视图） */
 const bodies = computed<Record<string, string>>(() =>
   Object.fromEntries(
     Object.entries(props.files).map(([path, content]) => [path, parseFrameBlock(content).body]),
@@ -232,14 +245,63 @@ const panelHeight = (box: DocBox) =>
   (panelBlocks(box).length + (panelOverflow(box) > 0 ? 1 : 0)) * PANEL_ITEM_H + 12;
 const panelAbove = (box: DocBox, stageH: number) => box.y + box.h + 6 + panelHeight(box) > stageH;
 
-/* ============ 画布编辑：图编辑模式（拖框 + 连线增删 + 连接边调整） ============ */
+/* ============ 画布编辑：图编辑模式（修改暂存 → 保存统一写回 / 放弃整批丢弃） ============ */
 
 /** 图编辑模式开关：关闭时画布纯浏览（单击打开文档），开启后才能拖框与编辑连线 */
 const graphEditMode = ref(false);
 
+/** 当前有效内容：暂存草稿优先，其次磁盘已知内容 */
+function stagedContent(path: string): string | undefined {
+  return pendingDrafts.value.get(path) ?? props.files[path];
+}
+
+/** 暂存图修改；改回原样（与磁盘一致）时撤销该文件的暂存 */
+function stageDraft(path: string, next: string) {
+  const map = new Map(pendingDrafts.value);
+  if (next === props.files[path]) map.delete(path);
+  else map.set(path, next);
+  pendingDrafts.value = map;
+}
+
+/** 保存批量写回中（防止重复提交；热更新回推后复位） */
+const graphSaving = ref(false);
+
+/** 💾 保存：全部暂存修改逐文件写回；暂存不清空，待热更新回推后按内容比对修剪（避免闪烁） */
+function saveGraphEdits() {
+  if (!graphDirty.value || graphSaving.value) return;
+  graphSaving.value = true;
+  for (const [path, content] of pendingDrafts.value) {
+    emit('save', path, content, props.files[path]);
+  }
+}
+
+/** ↩ 放弃更改：丢弃全部暂存（含拖框的位置覆盖），退出编辑模式 */
+function discardGraphEdits() {
+  if (!graphDirty.value) return;
+  const stagedIds = new Set(
+    [...pendingDrafts.value.keys()]
+      .map((p) => graph.value.boxes.find((b) => b.docPath === p)?.id)
+      .filter((id): id is string => Boolean(id)),
+  );
+  pendingDrafts.value = new Map();
+  if (relayouted.value) {
+    const next = new Map(relayouted.value);
+    stagedIds.forEach((id) => next.delete(id));
+    relayouted.value = next.size > 0 ? next : null;
+  }
+  selectedEdgeId.value = null;
+  graphEditMode.value = false;
+}
+
+/** 进入/退出编辑模式；有暂存修改时只能经保存或放弃退出 */
 function toggleGraphEdit() {
-  graphEditMode.value = !graphEditMode.value;
-  if (!graphEditMode.value) selectedEdgeId.value = null;
+  if (graphEditMode.value) {
+    if (graphDirty.value) return;
+    selectedEdgeId.value = null;
+    graphEditMode.value = false;
+  } else {
+    graphEditMode.value = true;
+  }
 }
 
 /** 舞台元素与坐标换算（屏幕 px → 画布坐标，按当前缩放折算） */
@@ -412,8 +474,8 @@ function endBoxDrag() {
   suppressClick = true; // 拖拽松手后紧随的 click 不打开文档
   const pos = relayouted.value?.get(d.id);
   if (!pos) return;
-  const content = props.files[d.path];
-  if (content !== undefined) emit('save', d.path, writeFramePosition(content, pos), content);
+  const content = stagedContent(d.path);
+  if (content !== undefined) stageDraft(d.path, writeFramePosition(content, pos));
 }
 
 function onBoxDragEnd() {
@@ -502,9 +564,9 @@ function onLinkEnd(e: PointerEvent) {
 function addLink(fromId: string, toId: string) {
   const from = graph.value.boxes.find((b) => b.id === fromId);
   if (!from) return;
-  const content = props.files[from.docPath];
+  const content = stagedContent(from.docPath);
   if (content === undefined) return;
-  emit('save', from.docPath, writeFrameLinks(content, [...readFrameLinks(content), toId]), content);
+  stageDraft(from.docPath, writeFrameLinks(content, [...readFrameLinks(content), toId]));
 }
 
 /** 草稿连线的预览路径：复用 edgeGeometry，目标视为光标处的零尺寸点 */
@@ -616,11 +678,11 @@ function onSideDragEnd() {
   persistEdgeSides(edge, fromSide, toSide);
 }
 
-/** 写回选中连线的连接边（只给一端时另一端写 `_`，保持自动） */
+/** 暂存选中连线的连接边（只给一端时另一端写 `_`，保持自动） */
 function persistEdgeSides(edge: RelationEdge, fromSide: LinkSide | undefined, toSide: LinkSide | undefined) {
   const from = graph.value.boxes.find((b) => b.id === edge.fromId);
   if (!from) return;
-  const content = props.files[from.docPath];
+  const content = stagedContent(from.docPath);
   if (content === undefined) return;
 
   const links = readFrameLinks(content).map((entry) => {
@@ -628,7 +690,7 @@ function persistEdgeSides(edge: RelationEdge, fromSide: LinkSide | undefined, to
     if (resolveDocId(parsed.ref) !== edge.toId) return entry;
     return buildLinkEntry({ ref: parsed.ref, label: parsed.label, fromSide, toSide });
   });
-  emit('save', from.docPath, writeFrameLinks(content, links), content);
+  stageDraft(from.docPath, writeFrameLinks(content, links));
 }
 
 /** 与 graph.ts 一致的引用解析：优先 id，其次相对路径（.md 可省略） */
@@ -648,12 +710,12 @@ function removeSelectedEdge() {
   if (!edge) return;
   const from = graph.value.boxes.find((b) => b.id === edge.fromId);
   if (!from) return;
-  const content = props.files[from.docPath];
+  const content = stagedContent(from.docPath);
   if (content === undefined) return;
   const links = readFrameLinks(content).filter(
     (entry) => resolveDocId(parseLinkEntry(entry).ref) !== edge.toId,
   );
-  emit('save', from.docPath, writeFrameLinks(content, links), content);
+  stageDraft(from.docPath, writeFrameLinks(content, links));
   selectedEdgeId.value = null;
 }
 
@@ -717,11 +779,20 @@ function backToGraph() {
 }
 
 // 文档热更新：当前打开的文档被删除时退回图画布；
+// 暂存草稿逐项修剪——热更新回推内容与暂存一致（保存生效）或文件被删除时丢弃；
 // 坐标覆盖表逐项修剪——与文件坐标一致的（如拖拽已写回的）移除，已删除框的丢弃
 watch(
   () => props.files,
   (files) => {
+    graphSaving.value = false;
     if (currentPath.value && !files[currentPath.value]) backToGraph();
+    if (pendingDrafts.value.size) {
+      const drafts = new Map(pendingDrafts.value);
+      for (const [p, c] of drafts) {
+        if (files[p] === c || files[p] === undefined) drafts.delete(p);
+      }
+      pendingDrafts.value = drafts;
+    }
     if (!relayouted.value) return;
     const boxes = graph.value.boxes;
     const next = new Map(relayouted.value);
@@ -770,8 +841,9 @@ function onEditorKeydown(e: KeyboardEvent) {
   }
 }
 
-/** 框的键盘可达性：Enter / Space 打开 */
+/** 框的键盘可达性：Enter / Space 打开（图编辑模式下屏蔽，与单击一致） */
 function onBoxKeydown(e: KeyboardEvent, path: string) {
+  if (graphEditMode.value) return;
   if (e.key === 'Enter' || e.key === ' ') {
     e.preventDefault();
     open(path);
@@ -824,13 +896,13 @@ if (typeof window !== 'undefined' && window.location.hash.length > 1) {
       <span v-if="currentPath" class="pd-graph-current">{{ currentTitle }}</span>
       <div class="pd-graph-actions">
         <template v-if="!currentPath">
-          <button
-            class="pd-back-btn"
-            :class="{ 'pd-back-btn--active': graphEditMode }"
-            @click="toggleGraphEdit"
-          >
-            {{ graphEditMode ? '✓ 完成' : '🛠 编辑图' }}
-          </button>
+          <button v-if="!graphEditMode" class="pd-back-btn" @click="toggleGraphEdit">🛠 编辑图</button>
+          <template v-else>
+            <!-- 编辑模式退出路径：有暂存修改时只能保存（留在编辑模式）或放弃（丢弃并退出） -->
+            <button class="pd-back-btn" :disabled="!graphDirty || graphSaving" @click="saveGraphEdits">💾 保存</button>
+            <button v-if="graphDirty" class="pd-back-btn" :disabled="graphSaving" @click="discardGraphEdits">↩ 放弃更改</button>
+            <button v-else class="pd-back-btn pd-back-btn--active" @click="toggleGraphEdit">✓ 完成</button>
+          </template>
           <button class="pd-back-btn" @click="toggleRelayout">
             {{ relayouted ? '↩ 恢复坐标' : '🧭 分层重排' }}
           </button>
@@ -970,8 +1042,9 @@ if (typeof window !== 'undefined' && window.location.hash.length > 1) {
               <span class="pd-doc-box__title">{{ box.title }}</span>
               <span class="pd-doc-box__icon" aria-hidden="true">↗</span>
             </div>
-            <!-- 悬停显示的编辑入口：直接进入该文档的编辑状态 -->
+            <!-- 悬停显示的编辑入口：直接进入该文档的编辑状态（图编辑模式下隐藏，避免带着暂存离开画布） -->
             <button
+              v-if="!graphEditMode"
               type="button"
               class="pd-doc-box__edit"
               :aria-label="`编辑 ${box.title}`"
@@ -990,9 +1063,9 @@ if (typeof window !== 'undefined' && window.location.hash.length > 1) {
               @pointerdown.stop="onLinkStart($event, box)"
               @click.stop
             ></button>
-            <!-- 悬停展开的分块面板：点击条目直达正文对应标题 -->
+            <!-- 悬停展开的分块面板：点击条目直达正文对应标题（图编辑模式下隐藏） -->
             <div
-              v-if="box.blocks.length"
+              v-if="box.blocks.length && !graphEditMode"
               class="pd-doc-blocks-pop"
               :class="{ 'pd-doc-blocks-pop--above': panelAbove(box, stage.h) }"
             >
