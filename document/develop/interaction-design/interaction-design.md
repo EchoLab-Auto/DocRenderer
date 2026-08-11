@@ -1,8 +1,8 @@
 ---
 id: interaction-design
 title: "交互设计"
-x: 624
-y: 510
+x: 675
+y: 508
 ---
 
 # 交互设计
