@@ -107,6 +107,11 @@
     -6px -6px 12px var(--nm-shadow-light, rgba(255, 255, 255, 0.7));
 }
 
+/* 图编辑模式：不弹出悬停分块面板（避免遮挡拖拽与连线操作） */
+.pd-graph-stage--editing .pd-doc-blocks-pop {
+  display: none;
+}
+
 .pd-back-btn--active {
   box-shadow:
     inset 3px 3px 6px var(--nm-shadow-dark, rgba(0, 0, 0, 0.12)),

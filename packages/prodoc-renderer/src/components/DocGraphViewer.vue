@@ -9,7 +9,7 @@
 
 import { computed, nextTick, ref, watch } from 'vue';
 import { NeumorphismCanvas, NeumorphismThemeToggle } from '@echolab-auto/ui-frame';
-import { MarkdownEditor, MarkdownRenderer } from '@echolab-auto/ui-frame/doc';
+import { MarkdownEditor, MarkdownRenderer, writeFlowNodePosition } from '@echolab-auto/ui-frame/doc';
 import {
   buildDocGraph,
   computeLayeredLayout,
@@ -801,6 +801,15 @@ function onDocLink(href: string) {
   if (target) open(target);
 }
 
+/** 流程画布节点拖拽落点 → 坐标编码回 prodoc-flow 块（`id @ x, y`）并保存 */
+function onFlowNodeMove(p: { id: string; x: number; y: number; source: string }) {
+  if (!currentPath.value) return;
+  const content = props.files[currentPath.value];
+  if (content === undefined) return;
+  const updated = writeFlowNodePosition(content, p.source, p.id, p.x, p.y);
+  if (updated !== content) emit('save', currentPath.value, updated, content);
+}
+
 // 初始定位：地址栏 hash 指向的文档（decode 与 syncHash 的 encode 配对）
 if (typeof window !== 'undefined' && window.location.hash.length > 1) {
   const initial = decodeURIComponent(window.location.hash.slice(1));
@@ -1027,7 +1036,9 @@ if (typeof window !== 'undefined' && window.location.hash.length > 1) {
           :key="currentPath"
           :content="bodies[currentPath]"
           :show-toc="true"
+          :flow-editable="true"
           @docLink="onDocLink"
+          @flowNodeMove="onFlowNodeMove"
         />
       </div>
     </div>
