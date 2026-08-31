@@ -664,6 +664,50 @@ function onEdgeClick(edge: RelationEdge) {
   selectedEdgeId.value = edge.id;
 }
 
+/** 连线标签编辑（仅图编辑模式）：双击连线，在中点弹出内联输入框 */
+const labelEdit = ref<{ edgeId: string; value: string } | null>(null);
+const labelInputEl = ref<HTMLInputElement | null>(null);
+
+function onEdgeDblClick(edge: RelationEdge) {
+  if (!graphEditMode.value) return;
+  selectedEdgeId.value = edge.id;
+  labelEdit.value = { edgeId: edge.id, value: edge.label ?? '' };
+  nextTick(() => {
+    labelInputEl.value?.focus();
+    labelInputEl.value?.select();
+  });
+}
+
+/** 确认标签编辑：重建该 link 条目（保留引用原文与连接边；清空即移除标签段）并暂存 */
+function commitLabelEdit() {
+  const edit = labelEdit.value;
+  labelEdit.value = null;
+  if (!edit) return;
+  const edge = relationEdges.value.find((e) => e.id === edit.edgeId);
+  if (!edge) return;
+  const value = edit.value.trim();
+  if (value === (edge.label ?? '')) return; // 未修改，不产生暂存
+  const from = graph.value.boxes.find((b) => b.id === edge.fromId);
+  if (!from) return;
+  const content = stagedContent(from.docPath);
+  if (content === undefined) return;
+  const links = readFrameLinks(content).map((entry) => {
+    const parsed = parseLinkEntry(entry);
+    if (resolveDocId(parsed.ref) !== edge.toId) return entry;
+    return buildLinkEntry({
+      ref: parsed.ref,
+      label: value || undefined,
+      fromSide: parsed.fromSide,
+      toSide: parsed.toSide,
+    });
+  });
+  stageDraft(from.docPath, writeFrameLinks(content, links));
+}
+
+function cancelLabelEdit() {
+  labelEdit.value = null;
+}
+
 /** 连接边拖拽：拖动选中连线的端点手柄，按光标相对框心的方位实时预览目标边 */
 const sideDrag = ref<{
   edgeId: string;
@@ -1055,6 +1099,7 @@ function onGroupResizeEnd() {
 
 function onGlobalKeydown(e: KeyboardEvent) {
   if (currentPath.value || !graphEditMode.value || !selectedEdgeId.value) return;
+  if (labelEdit.value) return; // 标签输入框编辑中，Delete/Backspace 作用于文本
   if (e.key === 'Delete' || e.key === 'Backspace') {
     e.preventDefault();
     removeSelectedEdge();
@@ -1334,7 +1379,7 @@ if (typeof window !== 'undefined' && window.location.hash.length > 1) {
             >
               <title>{{ edge.fromTitle }} → {{ edge.toTitle }}{{ edge.label ? `（${edge.label}）` : '' }}</title>
               <!-- 加宽的透明命中路径，便于点选（仅图编辑模式可点） -->
-              <path class="pd-relation-hit" :d="edge.d" fill="none" @click.stop="onEdgeClick(edge)" />
+              <path class="pd-relation-hit" :d="edge.d" fill="none" @click.stop="onEdgeClick(edge)" @dblclick.stop="onEdgeDblClick(edge)" />
               <path :d="edge.d" fill="none" marker-end="url(#pd-relation-arrow)" pointer-events="none" />
               <text v-if="edge.label" :x="edge.labelX" :y="edge.labelY" pointer-events="none">{{ edge.label }}</text>
             </g>
@@ -1372,9 +1417,9 @@ if (typeof window !== 'undefined' && window.location.hash.length > 1) {
               </circle>
             </g>
           </svg>
-          <!-- 选中连线的删除按钮（位于连线中点） -->
+          <!-- 选中连线的删除按钮（位于连线中点；标签编辑中隐藏） -->
           <button
-            v-if="graphEditMode && selectedEdge"
+            v-if="graphEditMode && selectedEdge && !labelEdit"
             type="button"
             class="pd-edge-delete"
             :style="{ left: `${selectedEdge.labelX}px`, top: `${selectedEdge.labelY}px` }"
@@ -1382,6 +1427,22 @@ if (typeof window !== 'undefined' && window.location.hash.length > 1) {
             :title="`删除连线（Delete）`"
             @click.stop="removeSelectedEdge"
           >✕</button>
+          <!-- 连线标签内联编辑输入框（双击连线弹出，位于连线中点） -->
+          <input
+            v-if="graphEditMode && selectedEdge && labelEdit && labelEdit.edgeId === selectedEdge.id"
+            ref="labelInputEl"
+            v-model="labelEdit.value"
+            type="text"
+            class="pd-edge-label-input"
+            :style="{ left: `${selectedEdge.labelX}px`, top: `${selectedEdge.labelY}px` }"
+            :aria-label="`编辑连线标签 ${selectedEdge.fromTitle} → ${selectedEdge.toTitle}`"
+            placeholder="连线标签（留空移除）"
+            data-nm-no-pan
+            @keydown.enter.prevent="commitLabelEdit"
+            @keydown.esc.prevent="cancelLabelEdit"
+            @blur="commitLabelEdit"
+            @click.stop
+          />
           <div
             v-for="box in layoutBoxes"
             :key="box.id"

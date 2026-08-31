@@ -216,6 +216,26 @@
   color: var(--nm-danger-color, #e05555);
 }
 
+/* 连线标签内联编辑输入框（图编辑模式双击连线，位于连线中点） */
+.pd-edge-label-input {
+  position: absolute;
+  z-index: 21;
+  transform: translate(-50%, -50%);
+  width: 150px;
+  padding: 4px 10px;
+  box-sizing: border-box;
+  font-size: 12px;
+  text-align: center;
+  color: var(--nm-text-primary, #333);
+  border: 1.5px solid var(--nm-primary-color, #cdfa4e);
+  border-radius: 10px;
+  background: var(--nm-surface-raised, var(--nm-bg-color, #e0e0e0));
+  outline: none;
+  box-shadow:
+    3px 3px 6px var(--nm-shadow-dark, rgba(0, 0, 0, 0.15)),
+    -3px -3px 6px var(--nm-shadow-light, rgba(255, 255, 255, 0.7));
+}
+
 .pd-relation-arrow {
   fill: var(--nm-text-secondary, #666);
   opacity: 0.82;
