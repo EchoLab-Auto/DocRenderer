@@ -406,6 +406,85 @@ export function computeLayeredLayout(
 }
 
 /**
+ * 树状布局：基于 parent（包含关系）关系组织，无 parent 的文档为根并列顶层；
+ * 深度 = parent 链长；同层按 DFS 中序分配水平位置（子树连续区间）。
+ * 未声明 parent 的文档（孤立/仅 link）作为独立根排在右侧。
+ * 返回坐标覆盖表（id → {x,y}），不写回文件；与分层布局一样是临时视图。
+ */
+export function computeTreeLayout(
+  boxes: ReadonlyArray<Pick<DocBox, 'id' | 'title' | 'w' | 'h'>>,
+  relations: DocRelation[],
+  paramsOf?: Map<string, BoxParams>,
+): Map<string, { x: number; y: number }> {
+  const GAP_X = 64;
+  const GAP_Y = 72;
+  const PAD = 48;
+
+  // 1) parent 边：方向为「子文档 → 父文档」（与 link 的 from→to 语义一致）；
+  //    因此 parentOf: 子→父，childrenOf: 父→[子]。
+  const parentOf = new Map<string, string>();
+  const childrenOf = new Map<string, string[]>();
+  for (const r of relations) {
+    if (r.type !== 'parent') continue;
+    if (parentOf.has(r.from)) continue;
+    parentOf.set(r.from, r.to);
+    if (!childrenOf.has(r.to)) childrenOf.set(r.to, []);
+    childrenOf.get(r.to)!.push(r.from);
+  }
+  // 排序 children（按标题字典序稳定，保证树的层级稳定可预期）
+  const titleOf = new Map(boxes.map((b) => [b.id, b]));
+  const titleKey = (id: string) => titleOf.get(id)?.title ?? id;
+  for (const list of childrenOf.values()) {
+    list.sort((a, b) => titleKey(a).localeCompare(titleKey(b)));
+  }
+
+  const result = new Map<string, { x: number; y: number }>();
+  const roots = boxes.filter((b) => !parentOf.has(b.id));
+  let cursorX = PAD;
+  const maxDepth = new Map<string, number>();
+
+  // 2) 计算每节点深度
+  function depthOf(id: string): number {
+    const cached = maxDepth.get(id);
+    if (cached !== undefined) return cached;
+    const p = parentOf.get(id);
+    const d = p ? depthOf(p) + 1 : 0;
+    maxDepth.set(id, d);
+    return d;
+  }
+  for (const b of boxes) depthOf(b.id);
+
+  // 3) DFS 中序分配 x（子树连续），y = 深度
+  let leafIndex = 0;
+  function place(id: string, depth: number): { x: number; y: number } {
+    const b = titleOf.get(id);
+    if (!b) return { x: cursorX, y: PAD + depth * GAP_Y };
+    const kids = childrenOf.get(id) ?? [];
+    let x: number;
+    if (kids.length === 0) {
+      x = cursorX;
+      cursorX += b.w + GAP_X;
+      leafIndex += 1;
+    } else {
+      const kidXs = kids.map((k) => place(k, depth + 1).x);
+      x = (kidXs[0] + kidXs[kidXs.length - 1]) / 2;
+    }
+    const y = PAD + depth * GAP_Y;
+    result.set(id, { x, y });
+    // 更新（父节点位置由后序控制；此处返回用于递归）
+    return { x, y };
+  }
+
+  for (const root of roots) {
+    place(root.id, 0);
+  }
+  // 孤立（无 parent 也无根？本就包含在 roots）——无 parent 的都是根。
+
+  return result;
+}
+
+
+/**
  * 从文件映射构建文档图。
  *
  * @param files 相对路径 → 文件完整内容

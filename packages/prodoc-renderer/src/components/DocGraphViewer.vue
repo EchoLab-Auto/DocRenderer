@@ -14,6 +14,7 @@ import { MarkdownEditor, MarkdownRenderer, writeFlowNodePosition } from '@echola
 import {
   buildDocGraph,
   computeLayeredLayout,
+  computeTreeLayout,
   computeGroupRegion,
   parseFrameBlock,
   parseLinkEntry,
@@ -123,8 +124,9 @@ watch(
     }
   },
 );
-// 初次挂载：展开一级目录，让索引立即可见
+// 初次挂载：默认树状布局（parent 驱动）+ 展开一级目录
 onMounted(() => {
+  applyTreeLayout();
   for (const child of docTree.value.children) {
     if (child.isDir) treeExpanded.value[child.path] = true;
   }
@@ -292,8 +294,26 @@ const isEdgeHot = (edge: RelationEdge) =>
   hovered.value !== null && (edge.fromId === hovered.value || edge.toId === hovered.value);
 const isEdgeDimmed = (edge: RelationEdge) => hovered.value !== null && !isEdgeHot(edge);
 
-/** 坐标覆盖表（分层重排全量、拖拽单框增量）；null 表示全部使用文件坐标 */
+/** 坐标覆盖表（树状/分层重排全量、拖拽单框增量）；null 表示全部使用文件坐标 */
 const relayouted = ref<Map<string, { x: number; y: number }> | null>(null);
+/** 布局模式：'file' 文件坐标 / 'tree' 树状（parent 驱动）/ 'layered' 分层（link 驱动） */
+const layoutMode = ref<'file' | 'tree' | 'layered'>('tree');
+
+/** 应用树状布局（parent 包含关系驱动，默认视图） */
+function applyTreeLayout() {
+  layoutMode.value = 'tree';
+  relayouted.value = computeTreeLayout(graph.value.boxes, graph.value.relations);
+}
+/** 应用分层布局（link 导航驱动） */
+function applyLayered() {
+  layoutMode.value = 'layered';
+  relayouted.value = computeLayeredLayout(graph.value.boxes, graph.value.relations);
+}
+/** 恢复文件坐标 */
+function restoreFileLayout() {
+  layoutMode.value = 'file';
+  relayouted.value = null;
+}
 
 /** 应用坐标覆盖后的框（舞台尺寸、连线、模板统一消费） */
 const layoutBoxes = computed<DocBox[]>(() =>
@@ -340,9 +360,8 @@ const isGroupDimmed = (group: DocGroup) =>
 
 /** 一键分层重排：忽略文件坐标，按连线层级重新排布（仅当前视图，不写回文件） */
 function toggleRelayout() {
-  relayouted.value = relayouted.value
-    ? null
-    : computeLayeredLayout(graph.value.boxes, graph.value.relations);
+  // 兼容旧调用：有覆盖则恢复文件坐标，无覆盖则分层（原语义）
+  relayouted.value = relayouted.value ? null : computeLayeredLayout(graph.value.boxes, graph.value.relations);
 }
 
 /** 悬停分块面板：条目、溢出行数与弹出方向（贴近画布底边时向上弹出） */
@@ -1302,8 +1321,14 @@ if (typeof window !== 'undefined' && window.location.hash.length > 1) {
             <button v-if="graphDirty" class="pd-back-btn" :disabled="graphSaving" @click="discardGraphEdits">↩ 放弃更改</button>
             <button v-else class="pd-back-btn pd-back-btn--active" @click="toggleGraphEdit">✓ 完成</button>
           </template>
-          <button class="pd-back-btn" @click="toggleRelayout">
-            {{ relayouted ? '↩ 恢复坐标' : '🧭 分层重排' }}
+          <button class="pd-back-btn" :class="{ 'pd-back-btn--active': layoutMode === 'tree' }" @click="applyTreeLayout">
+            🌳 树状排列
+          </button>
+          <button class="pd-back-btn" :class="{ 'pd-back-btn--active': layoutMode === 'layered' }" @click="applyLayered">
+            🕸 分层排列
+          </button>
+          <button class="pd-back-btn" :class="{ 'pd-back-btn--active': layoutMode === 'file' }" @click="restoreFileLayout">
+            📄 文件坐标
           </button>
         </template>
         <template v-if="currentPath">

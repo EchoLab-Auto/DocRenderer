@@ -125,6 +125,11 @@ export declare function buildGroupEntry(parts: {
 export declare function computeGroupRegion(members: ReadonlyArray<Pick<DocBox, 'x' | 'y' | 'w' | 'h'>>, explicit?: GroupGeometry): GroupGeometry;
 /** 与 ui-frame slugify 一致：小写、去除非字母数字字符、空白转连字符 */
 export declare function slugify(text: string): string;
+/** 框的原始坐标声明（分层布局时区分显式坐标与缺省坐标） */
+interface BoxParams {
+    rawX?: number;
+    rawY?: number;
+}
 /**
  * 对一组框整体计算分层布局坐标（忽略现有坐标），用于查看器的
  * 「分层重排」：不改文件，只返回每个框应有的位置。
@@ -134,9 +139,20 @@ export declare function computeLayeredLayout(boxes: ReadonlyArray<Pick<DocBox, '
     y: number;
 }>;
 /**
+ * 树状布局：基于 parent（包含关系）关系组织，无 parent 的文档为根并列顶层；
+ * 深度 = parent 链长；同层按 DFS 中序分配水平位置（子树连续区间）。
+ * 未声明 parent 的文档（孤立/仅 link）作为独立根排在右侧。
+ * 返回坐标覆盖表（id → {x,y}），不写回文件；与分层布局一样是临时视图。
+ */
+export declare function computeTreeLayout(boxes: ReadonlyArray<Pick<DocBox, 'id' | 'title' | 'w' | 'h'>>, relations: DocRelation[], paramsOf?: Map<string, BoxParams>): Map<string, {
+    x: number;
+    y: number;
+}>;
+/**
  * 从文件映射构建文档图。
  *
  * @param files 相对路径 → 文件完整内容
  */
 export declare function buildDocGraph(files: Record<string, string>): DocGraph;
+export {};
 //# sourceMappingURL=graph.d.ts.map
