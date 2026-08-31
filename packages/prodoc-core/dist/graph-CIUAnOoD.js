@@ -70,7 +70,16 @@ function o(e, t, r) {
 	let a = e.split(/\r?\n/), o = a.findIndex((e, t) => t > 0 && e.trim() === "---");
 	if (o === -1) return e;
 	let s = RegExp(`^${t}\\s*:`), c = a.slice(1, o).findIndex((e) => s.test(e));
-	return r === null ? c >= 0 && a.splice(c + 1, 1) : c >= 0 ? a[c + 1] = r : a.splice(o, 0, r), a.join(i);
+	if (c >= 0) {
+		let e = c + 1, t = 1, n = a[e].replace(s, "");
+		if (n.trimStart().startsWith("[") && !/\]\s*$/.test(n)) {
+			let n = e + 1;
+			for (; n < o && !/\]\s*$/.test(a[n]);) n++;
+			n < o && (t = n - e + 1);
+		}
+		r === null ? a.splice(e, t) : a.splice(e, t, r);
+	} else r !== null && a.splice(o, 0, r);
+	return a.join(i);
 }
 function s(e, t) {
 	return o(e, "link", t.length > 0 ? `link: [${t.map(a).join(", ")}]` : null);
@@ -372,4 +381,4 @@ function F(e) {
 //#endregion
 export { s as _, f as a, C as c, T as d, S as f, c as g, i as h, p as i, D as l, n as m, u as n, F as o, r as p, m as r, E as s, d as t, P as u, l as v };
 
-//# sourceMappingURL=graph-DfgBSDc2.js.map
+//# sourceMappingURL=graph-CIUAnOoD.js.map

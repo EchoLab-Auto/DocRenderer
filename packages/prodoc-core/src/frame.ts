@@ -166,11 +166,20 @@ function writeFrameParamLine(content: string, key: string, paramLine: string | n
     .slice(1, closeIdx)
     .findIndex((line) => keyPattern.test(line));
 
-  if (paramLine === null) {
-    if (existingIdx >= 0) lines.splice(existingIdx + 1, 1);
-  } else if (existingIdx >= 0) {
-    lines[existingIdx + 1] = paramLine;
-  } else {
+  if (existingIdx >= 0) {
+    const start = existingIdx + 1;
+    let span = 1;
+    // 现有参数是跨行数组（值以 [ 开头、本行未闭合）时，连同续行一起替换/移除，
+    // 否则会留下无法再被解析的孤儿行（污染参数区）
+    const firstValue = lines[start].replace(keyPattern, '');
+    if (firstValue.trimStart().startsWith('[') && !/\]\s*$/.test(firstValue)) {
+      let scan = start + 1;
+      while (scan < closeIdx && !/\]\s*$/.test(lines[scan])) scan++;
+      if (scan < closeIdx) span = scan - start + 1; // 找到闭合行才按跨行处理（容错）
+    }
+    if (paramLine === null) lines.splice(start, span);
+    else lines.splice(start, span, paramLine);
+  } else if (paramLine !== null) {
     lines.splice(closeIdx, 0, paramLine);
   }
 

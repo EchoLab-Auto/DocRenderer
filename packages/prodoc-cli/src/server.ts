@@ -141,7 +141,9 @@ function resolveProDocEntry(pkgName: string): string {
   return distEntry.replace(/\\/g, '/');
 }
 
-/** 构建保存处理函数代码（base 为客户端依据的磁盘内容，服务端据此做冲突检测） */
+/** 构建保存处理函数代码（base 为客户端依据的磁盘内容，服务端据此做冲突检测；
+ *  返回是否写盘成功——失败时查看器保留对应暂存；成功即同步本地基准，
+ *  后续编辑不必等待热更新推送） */
 function buildSaveHandler(): string {
   return `async (filePath, content, base) => {
             try {
@@ -153,13 +155,20 @@ function buildSaveHandler(): string {
               const data = await res.json();
               if (data.success) {
                 console.log('[ProDoc] saved:', filePath);
-              } else if (res.status === 409) {
-                console.warn('[ProDoc] save conflict:', filePath, '— 磁盘内容已被修改，本次保存被拒绝；请刷新页面后再操作');
-              } else {
-                console.error('[ProDoc] save failed:', data.error);
+                // 乐观同步本地基准：磁盘内容现在就是 content，
+                // 后续编辑/保存以它为基准，不再依赖热更新推送的时序
+                state.files[filePath] = content;
+                return true;
               }
+              if (res.status === 409) {
+                alert('[ProDoc] 保存被拒绝：' + filePath + ' 在磁盘上已被其他程序修改。\\n你的修改仍保留在画布暂存中；请刷新页面同步最新内容后重试（或点「↩ 放弃更改」丢弃）。');
+                return false;
+              }
+              alert('[ProDoc] 保存失败：' + filePath + ' — ' + (data.error || '未知错误'));
+              return false;
             } catch (e) {
-              console.error('[ProDoc] save error:', e);
+              alert('[ProDoc] 保存请求出错：' + filePath + ' — ' + e);
+              return false;
             }
           }`;
 }
@@ -168,8 +177,8 @@ function buildSaveHandler(): string {
 function generateClientEntry(files: Record<string, string>): string {
   // 文档图模型：DocGraphViewer 直接消费文件映射，
   // 框架参数区解析、图构建、正文剥离都在 @prodoc/core + 组件内完成；
-  // 浏览与编辑一体化，内置编辑器通过 onSave 走保存 API 写回源文件
-  const componentProps = `{ files: state.files, onSave: ${buildSaveHandler()} }`;
+  // 浏览与编辑一体化，内置编辑器通过 saveHandler 走保存 API 写回源文件
+  const componentProps = `{ files: state.files, saveHandler: ${buildSaveHandler()} }`;
 
   // 使用绝对路径导入 CSS，避免 Vite alias 对 CSS 解析问题
   const cssImports = [
