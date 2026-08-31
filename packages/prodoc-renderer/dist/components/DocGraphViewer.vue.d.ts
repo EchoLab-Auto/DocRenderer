@@ -1,6 +1,8 @@
 type __VLS_Props = {
     /** 相对路径 → 文件完整内容 */
     files: Record<string, string>;
+    /** 保存处理器（可选）：返回是否写盘成功；提供时优先于 save 事件（可感知失败） */
+    saveHandler?: (path: string, content: string, base?: string) => Promise<boolean>;
 };
 declare const _default: import("vue").DefineComponent<__VLS_Props, {}, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {
     navigate: (path: string) => any;

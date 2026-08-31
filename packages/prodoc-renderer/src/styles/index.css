@@ -72,6 +72,58 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  position: relative;
+}
+
+/* ============ 图编辑模式：底部工具栏 ============ */
+
+/* 底部居中悬浮于缩放控件上方（NeumorphismCanvas 缩放栏固定在底部居中，避让 12px） */
+.pd-edit-toolbar {
+  position: absolute;
+  bottom: 68px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 25;
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  border-radius: var(--nm-border-radius-md, 16px);
+  background: var(--nm-bg-color, #e0e0e0);
+  box-shadow:
+    4px 4px 8px var(--nm-shadow-dark, rgba(0, 0, 0, 0.12)),
+    -4px -4px 8px var(--nm-shadow-light, rgba(255, 255, 255, 0.7));
+}
+
+.pd-edit-toolbar__btn {
+  border: none;
+  cursor: pointer;
+  font-size: 12.5px;
+  padding: 6px 12px;
+  border-radius: 12px;
+  color: var(--nm-text-secondary, #666);
+  background: transparent;
+  transition: color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.pd-edit-toolbar__btn:hover {
+  color: var(--nm-text-primary, #333);
+}
+
+.pd-edit-toolbar__btn--active {
+  color: var(--nm-primary-color, #cdfa4e);
+  font-weight: 600;
+  box-shadow:
+    inset 3px 3px 6px var(--nm-shadow-dark, rgba(0, 0, 0, 0.12)),
+    inset -3px -3px 6px var(--nm-shadow-light, rgba(255, 255, 255, 0.7));
+}
+
+/* 工具光标：连线工具下框即连线起点；节点工具下画布呈现创建姿态 */
+.pd-graph-stage--tool-link .pd-doc-box {
+  cursor: crosshair;
+}
+
+.pd-graph-stage--tool-node {
+  cursor: copy;
 }
 
 /* ============ 图画布：文档框 ============ */

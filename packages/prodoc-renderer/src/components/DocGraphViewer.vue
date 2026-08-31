@@ -24,6 +24,8 @@ import {
   writeFramePosition,
   MAX_BLOCK_SLOTS,
   GROUP_PAD,
+  BOX_DEFAULT_W,
+  BOX_DEFAULT_H,
   type DocGraph,
   type DocBox,
   type DocGroup,
@@ -33,6 +35,8 @@ import {
 const props = defineProps<{
   /** 相对路径 → 文件完整内容 */
   files: Record<string, string>;
+  /** 保存处理器（可选）：返回是否写盘成功；提供时优先于 save 事件（可感知失败） */
+  saveHandler?: (path: string, content: string, base?: string) => Promise<boolean>;
 }>();
 
 const emit = defineEmits<{
@@ -41,6 +45,13 @@ const emit = defineEmits<{
   /** 保存文档（原始完整内容，含框架参数区）；base 为客户端依据的磁盘内容，用于服务端冲突检测 */
   save: [path: string, content: string, base?: string];
 }>();
+
+/** 保存通道：优先 saveHandler prop（返回成败），否则 fire-and-forget 的 save 事件 */
+function requestSave(path: string, content: string, base?: string): Promise<boolean> {
+  if (props.saveHandler) return props.saveHandler(path, content, base);
+  emit('save', path, content, base);
+  return Promise.resolve(true);
+}
 
 /** 图编辑模式的暂存修改：docPath → 修改后的完整内容（未写盘，「💾 保存」统一写回） */
 const pendingDrafts = ref<Map<string, string>>(new Map());
@@ -288,6 +299,12 @@ const panelAbove = (box: DocBox, stageH: number) => box.y + box.h + 6 + panelHei
 /** 图编辑模式开关：关闭时画布纯浏览（单击打开文档），开启后才能拖框与编辑连线 */
 const graphEditMode = ref(false);
 
+/** 编辑状态的工具栏：🖱 选择（默认）/ 🔗 连线 / 📄 节点；退出编辑状态复位 */
+const editTool = ref<'select' | 'link' | 'node'>('select');
+
+/** 暂存中的新建文件路径（热更新修剪时「磁盘上不存在」对它们是正常状态，不视为删除信号） */
+const newDraftPaths = new Set<string>();
+
 /** 当前有效内容：暂存草稿优先，其次磁盘已知内容 */
 function stagedContent(path: string): string | undefined {
   return pendingDrafts.value.get(path) ?? props.files[path];
@@ -296,24 +313,43 @@ function stagedContent(path: string): string | undefined {
 /** 暂存图修改；改回原样（与磁盘一致）时撤销该文件的暂存 */
 function stageDraft(path: string, next: string) {
   const map = new Map(pendingDrafts.value);
-  if (next === props.files[path]) map.delete(path);
-  else map.set(path, next);
+  if (next === props.files[path]) {
+    map.delete(path);
+    newDraftPaths.delete(path);
+  } else {
+    map.set(path, next);
+    if (!(path in props.files)) newDraftPaths.add(path);
+  }
   pendingDrafts.value = map;
 }
 
 /** 保存批量写回中（防止重复提交；热更新回推后复位） */
 const graphSaving = ref(false);
 
-/** 💾 保存：全部暂存修改逐文件写回；暂存不清空，待热更新回推后按内容比对修剪（避免闪烁） */
-function saveGraphEdits() {
+/** 💾 保存：全部暂存修改逐文件写回；写盘失败（如 409 冲突）的文件保留暂存，便于重试或放弃 */
+async function saveGraphEdits() {
   if (!graphDirty.value || graphSaving.value) return;
   graphSaving.value = true;
+  const failed: string[] = [];
   for (const [path, content] of pendingDrafts.value) {
-    emit('save', path, content, props.files[path]);
+    // 逐个 await：结果顺序与暂存一一对应；失败的保留暂存（handler 负责弹窗提示）
+    if (!(await requestSave(path, content, props.files[path]))) failed.push(path);
   }
-  // 保存请求已发出：直接清理暂存并复位按钮（服务端热更新随后会推送
-  // 最新文件映射；即使推送丢失/被修剪，也不让"💾 保存"永久卡灰）。
-  pendingDrafts.value = new Map();
+  if (failed.length > 0) {
+    const drafts = new Map(pendingDrafts.value);
+    for (const path of drafts.keys()) {
+      if (!failed.includes(path)) {
+        drafts.delete(path);
+        newDraftPaths.delete(path);
+      }
+    }
+    pendingDrafts.value = drafts;
+  } else {
+    // 全部写盘成功：清空暂存并复位按钮（服务端热更新随后会推送
+    // 最新文件映射；即使推送丢失/被修剪，也不让按钮卡灰）
+    pendingDrafts.value = new Map();
+    newDraftPaths.clear();
+  }
   graphSaving.value = false;
 }
 
@@ -332,6 +368,8 @@ function discardGraphEdits() {
     relayouted.value = next.size > 0 ? next : null;
   }
   selectedEdgeId.value = null;
+  editTool.value = 'select';
+  newDraftPaths.clear();
   graphEditMode.value = false;
 }
 
@@ -340,6 +378,7 @@ function toggleGraphEdit() {
   if (graphEditMode.value) {
     if (graphDirty.value) return;
     selectedEdgeId.value = null;
+    editTool.value = 'select';
     graphEditMode.value = false;
   } else {
     graphEditMode.value = true;
@@ -498,6 +537,12 @@ function onBoxPointerdown(e: PointerEvent, box: DocBox) {
   if (!graphEditMode.value) return;
   if (e.button !== 0) return;
   if ((e.target as HTMLElement).closest('button')) return; // 编辑/连线按钮不触发拖拽
+  // 工具分流：连线工具下整框即连线起点；节点工具下框不响应（点空白才创建）
+  if (editTool.value === 'link') {
+    startLinkDraft(e, box);
+    return;
+  }
+  if (editTool.value === 'node') return;
   dragBox.value = {
     id: box.id,
     path: box.docPath,
@@ -580,7 +625,8 @@ const linkDraft = ref<{
   raf: number;
 } | null>(null);
 
-function onLinkStart(e: PointerEvent, box: DocBox) {
+/** 拖出连线草稿（连接点或连线工具下整框共用） */
+function startLinkDraft(e: PointerEvent, box: DocBox) {
   if (!graphEditMode.value) return;
   if (e.button !== 0) return;
   e.preventDefault();
@@ -590,6 +636,10 @@ function onLinkStart(e: PointerEvent, box: DocBox) {
   window.addEventListener('pointerup', onLinkEnd);
   window.addEventListener('pointercancel', onLinkCancel);
   hovered.value = null;
+}
+
+function onLinkStart(e: PointerEvent, box: DocBox) {
+  startLinkDraft(e, box);
 }
 
 function onLinkMove(e: PointerEvent) {
@@ -652,6 +702,42 @@ const linkDraftPath = computed(() => {
   if (!from) return null;
   return edgeGeometry(from, { x: d.x, y: d.y, w: 0, h: 0 }).d;
 });
+
+/* ============ 节点工具：点空白创建新文档框（新文件暂存草稿） ============ */
+
+/** 节点工具的按下点（松手位移 < 3px 才算点击，避免与画布平移冲突） */
+let nodeTap: { clientX: number; clientY: number } | null = null;
+
+function onStagePointerdown(e: PointerEvent) {
+  if (!graphEditMode.value || editTool.value !== 'node') return;
+  if (e.button !== 0) return;
+  if (e.target !== stageEl.value) return; // 只响应空白（框/连线/组区域均不命中 stage 本体）
+  nodeTap = { clientX: e.clientX, clientY: e.clientY };
+  window.addEventListener('pointerup', onStagePointerup);
+}
+
+function onStagePointerup(e: PointerEvent) {
+  window.removeEventListener('pointerup', onStagePointerup);
+  const tap = nodeTap;
+  nodeTap = null;
+  if (!tap) return;
+  if (Math.hypot(e.clientX - tap.clientX, e.clientY - tap.clientY) >= 3) return; // 视为平移
+  const pt = toStageCoords(e.clientX, e.clientY);
+  createNodeAt(pt.x, pt.y);
+}
+
+/** 在画布坐标 (x, y) 处创建新文档框：暂存 untitled-N.md 新文件草稿（点击点居中取整） */
+function createNodeAt(x: number, y: number) {
+  const px = Math.round(x - BOX_DEFAULT_W / 2);
+  const py = Math.round(y - BOX_DEFAULT_H / 2);
+  // 编号取磁盘文件与暂存新文件中未占用的最小 N
+  const known = new Set([...Object.keys(props.files), ...pendingDrafts.value.keys()]);
+  let n = 1;
+  while (known.has(`untitled-${n}.md`)) n++;
+  const path = `untitled-${n}.md`;
+  const title = `未命名文档 ${n}`;
+  stageDraft(path, `---\ntitle: "${title}"\nx: ${px}\ny: ${py}\n---\n\n# ${title}\n`);
+}
 
 /** 连线选中与删除（仅图编辑模式） */
 const selectedEdgeId = ref<string | null>(null);
@@ -1098,7 +1184,13 @@ function onGroupResizeEnd() {
 }
 
 function onGlobalKeydown(e: KeyboardEvent) {
-  if (currentPath.value || !graphEditMode.value || !selectedEdgeId.value) return;
+  if (currentPath.value || !graphEditMode.value) return;
+  if (e.key === 'Escape') {
+    // Esc 切回选择工具（标签输入框编辑中的 Esc 由输入框自行处理）
+    if (!labelEdit.value && editTool.value !== 'select') editTool.value = 'select';
+    return;
+  }
+  if (!selectedEdgeId.value) return;
   if (labelEdit.value) return; // 标签输入框编辑中，Delete/Backspace 作用于文本
   if (e.key === 'Delete' || e.key === 'Backspace') {
     e.preventDefault();
@@ -1168,7 +1260,14 @@ watch(
     if (pendingDrafts.value.size) {
       const drafts = new Map(pendingDrafts.value);
       for (const [p, c] of drafts) {
-        if (files[p] === c || files[p] === undefined) drafts.delete(p);
+        // 内容一致（保存生效）→ 清除；磁盘上被删除 → 清除；
+        // 新建文件草稿例外：写盘前磁盘上本就不存在，不是删除信号
+        if (files[p] === c) {
+          drafts.delete(p);
+          newDraftPaths.delete(p);
+        } else if (files[p] === undefined && !newDraftPaths.has(p)) {
+          drafts.delete(p);
+        }
       }
       pendingDrafts.value = drafts;
     }
@@ -1209,7 +1308,7 @@ function cancelEdit() {
 
 function saveEdit() {
   if (!currentPath.value || !dirty.value) return;
-  emit('save', currentPath.value, draft.value, props.files[currentPath.value]);
+  requestSave(currentPath.value, draft.value, props.files[currentPath.value]);
 }
 
 /** 编辑器内 Ctrl/Cmd+S 保存（MarkdownEditor 内部不拦截冒泡） */
@@ -1258,7 +1357,7 @@ function onFlowNodeMove(p: { id: string; x: number; y: number; source: string })
   const content = props.files[currentPath.value];
   if (content === undefined) return;
   const updated = writeFlowNodePosition(content, p.source, p.id, p.x, p.y);
-  if (updated !== content) emit('save', currentPath.value, updated, content);
+  if (updated !== content) requestSave(currentPath.value, updated, content);
 }
 
 // 初始定位：地址栏 hash 指向的文档（decode 与 syncHash 的 encode 配对）
@@ -1317,8 +1416,11 @@ if (typeof window !== 'undefined' && window.location.hash.length > 1) {
           :class="{
             'pd-graph-stage--dragging': dragBox?.moved || linkDraft || sideDrag || groupDrag?.moved || groupResize?.moved,
             'pd-graph-stage--editing': graphEditMode,
+            'pd-graph-stage--tool-link': graphEditMode && editTool === 'link',
+            'pd-graph-stage--tool-node': graphEditMode && editTool === 'node',
           }"
           :style="{ width: `${stage.w}px`, height: `${stage.h}px` }"
+          @pointerdown="onStagePointerdown"
           @click="selectedEdgeId = null"
         >
           <!-- 分组区域：同组框的圆角矩形围合（位于连线与框之下；区域本体不响应指针） -->
@@ -1534,6 +1636,31 @@ if (typeof window !== 'undefined' && window.location.hash.length > 1) {
           @docLink="onDocLink"
           @flowNodeMove="onFlowNodeMove"
         />
+      </div>
+
+      <!-- 编辑状态工具栏：画布底部居中（🖱 选择 / 🔗 连线 / 📄 节点） -->
+      <div v-if="!currentPath && graphEditMode" class="pd-edit-toolbar" role="toolbar" aria-label="图编辑工具栏">
+        <button
+          type="button"
+          class="pd-edit-toolbar__btn"
+          :class="{ 'pd-edit-toolbar__btn--active': editTool === 'select' }"
+          title="选择工具（Esc）"
+          @click="editTool = 'select'"
+        >🖱 选择</button>
+        <button
+          type="button"
+          class="pd-edit-toolbar__btn"
+          :class="{ 'pd-edit-toolbar__btn--active': editTool === 'link' }"
+          title="连线工具：从任意框拖到目标框创建连线"
+          @click="editTool = 'link'"
+        >🔗 连线</button>
+        <button
+          type="button"
+          class="pd-edit-toolbar__btn"
+          :class="{ 'pd-edit-toolbar__btn--active': editTool === 'node' }"
+          title="节点工具：点画布空白创建新文档框"
+          @click="editTool = 'node'"
+        >📄 节点</button>
       </div>
     </div>
   </div>
