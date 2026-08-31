@@ -4,7 +4,6 @@ export type { FrameBlock, FramePosition } from './frame.js';
 export {
   buildDocGraph,
   computeLayeredLayout,
-  computeTreeLayout,
   computeGroupRegion,
   BOX_DEFAULT_W,
   BOX_DEFAULT_H,

@@ -278,45 +278,7 @@ function P(e, t) {
 		y: e.y
 	}]));
 }
-function F(e, t, n) {
-	let r = /* @__PURE__ */ new Map(), i = /* @__PURE__ */ new Map();
-	for (let e of t) e.type === "parent" && (r.has(e.from) || (r.set(e.from, e.to), i.has(e.to) || i.set(e.to, []), i.get(e.to).push(e.from)));
-	let a = new Map(e.map((e) => [e.id, e])), o = (e) => a.get(e)?.title ?? e;
-	for (let e of i.values()) e.sort((e, t) => o(e).localeCompare(o(t)));
-	let s = /* @__PURE__ */ new Map(), c = e.filter((e) => !r.has(e.id)), l = 48, u = /* @__PURE__ */ new Map();
-	function d(e) {
-		let t = u.get(e);
-		if (t !== void 0) return t;
-		let n = r.get(e), i = n ? d(n) + 1 : 0;
-		return u.set(e, i), i;
-	}
-	for (let t of e) d(t.id);
-	let f = 0;
-	function p(e, t) {
-		let n = a.get(e);
-		if (!n) return {
-			x: l,
-			y: 48 + t * 72
-		};
-		let r = i.get(e) ?? [], o;
-		if (r.length === 0) o = l, l += n.w + 64, f += 1;
-		else {
-			let e = r.map((e) => p(e, t + 1).x);
-			o = (e[0] + e[e.length - 1]) / 2;
-		}
-		let c = 48 + t * 72;
-		return s.set(e, {
-			x: o,
-			y: c
-		}), {
-			x: o,
-			y: c
-		};
-	}
-	for (let e of c) p(e.id, 0);
-	return s;
-}
-function I(e) {
+function F(e) {
 	let t = Object.keys(e).sort(), i = [], a = /* @__PURE__ */ new Map(), o = /* @__PURE__ */ new Map(), s = /* @__PURE__ */ new Map();
 	for (let r of t) {
 		let { params: t, body: c } = n(e[r]), l = typeof t.id == "string" && t.id.trim() !== "" ? t.id.trim() : r.replace(/\.md$/, ""), u = typeof t.title == "string" && t.title.trim() !== "" && t.title.trim() || O(c) || l, d = j(c), f = v(t.w) ?? 220, p = v(t.h) ?? 96, m = {};
@@ -413,20 +375,20 @@ function I(e) {
 }
 //#endregion
 //#region src/tree.ts
-function L(e, t) {
+function I(e, t) {
 	let r = n(e), i = r.params.title;
 	if (typeof i == "string" && i.trim()) return i.trim();
 	let a = r.body.match(/^#\s+(.+)$/m);
 	return a ? a[1].trim() : (t.split("/").pop() ?? t).replace(/\.md$/, "");
 }
-function R(e) {
+function L(e) {
 	let t = [], r = [], i = /* @__PURE__ */ new Map();
 	for (let a of e) {
 		let e = n(a.content).params, o = typeof e.id == "string" && e.id.trim() ? e.id.trim() : a.path.replace(/\.md$/, ""), s = typeof e.order == "number" ? e.order : typeof e.order == "string" && Number(e.order) || 0, c = typeof e.parent == "string" && e.parent.trim() ? e.parent.trim() : void 0;
 		r.push({
 			path: a.path,
 			id: o,
-			title: L(a.content, a.path),
+			title: I(a.content, a.path),
 			order: s,
 			parent: c
 		}), i.has(o) && t.push(`duplicate id "${o}" in tree (${i.get(o)} / ${a.path})`), i.set(o, a.path);
@@ -505,14 +467,14 @@ function R(e) {
 		warnings: t
 	};
 }
-function z(e) {
+function R(e) {
 	let t = [], n = (e) => {
 		t.push(e);
 		for (let t of e.children) n(t);
 	};
 	return n(e), t;
 }
-function B(e, t) {
+function z(e, t) {
 	let n = [], r = (e) => {
 		if (e === t) return !0;
 		for (let t of e.children) {
@@ -524,6 +486,6 @@ function B(e, t) {
 	return r(e), n;
 }
 //#endregion
-export { l as S, r as _, u as a, c as b, f as c, C as d, D as f, S as g, T as h, d as i, I as l, F as m, R as n, m as o, P as p, z as r, p as s, B as t, E as u, n as v, s as x, i as y };
+export { n as _, u as a, s as b, f as c, C as d, D as f, r as g, S as h, d as i, F as l, T as m, L as n, m as o, P as p, R as r, p as s, z as t, E as u, i as v, l as x, c as y };
 
-//# sourceMappingURL=tree-zDMnN1rT.js.map
+//# sourceMappingURL=tree-COjFGaac.js.map
