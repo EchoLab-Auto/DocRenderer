@@ -9,7 +9,8 @@
  */
 
 // ============ 框架参数区 + 文档图 ============
-export { parseFrameBlock, writeFramePosition, readFrameLinks, writeFrameLinks, writeFrameGroup, asRefs } from './frame.js';
+export { parseFrameBlock, writeFramePosition, readFrameLinks, writeFrameLinks, writeFrameGroup,
+  writeFrameParent, asRefs } from './frame.js';
 export type { FrameBlock, FramePosition } from './frame.js';
 export {
   buildDocGraph,

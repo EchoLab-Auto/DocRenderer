@@ -22,6 +22,7 @@ import {
   readFrameLinks,
   writeFrameLinks,
   writeFrameGroup,
+  writeFrameParent,
   writeFramePosition,
   MAX_BLOCK_SLOTS,
   GROUP_PAD,
@@ -849,6 +850,17 @@ function resolveDocId(raw: string): string | undefined {
 function removeSelectedEdge() {
   const edge = selectedEdge.value;
   if (!edge) return;
+  // parent（包含）边：删除子文档（from）的 parent 参数声明即可移除关系。
+  if (edge.kind === 'parent') {
+    const child = graph.value.boxes.find((b) => b.id === edge.fromId);
+    if (!child) return;
+    const content = stagedContent(child.docPath);
+    if (content === undefined) return;
+    stageDraft(child.docPath, writeFrameParent(content, null));
+    selectedEdgeId.value = null;
+    return;
+  }
+  // link（导航）边：从源文档（from）的 link 参数中过滤掉指向该目标的条目。
   const from = graph.value.boxes.find((b) => b.id === edge.fromId);
   if (!from) return;
   const content = stagedContent(from.docPath);
@@ -1469,8 +1481,8 @@ if (typeof window !== 'undefined' && window.location.hash.length > 1) {
             type="button"
             class="pd-edge-delete"
             :style="{ left: `${selectedEdge.labelX}px`, top: `${selectedEdge.labelY}px` }"
-            :aria-label="`删除连线 ${selectedEdge.fromTitle} → ${selectedEdge.toTitle}`"
-            title="删除连线（Delete）"
+            :aria-label="`删除${selectedEdge.kind === 'parent' ? '包含关系' : '连线'} ${selectedEdge.fromTitle} → ${selectedEdge.toTitle}`"
+            :title="`删除${selectedEdge.kind === 'parent' ? '包含关系' : '连线'}（Delete）`"
             @click.stop="removeSelectedEdge"
           >✕</button>
           <div
