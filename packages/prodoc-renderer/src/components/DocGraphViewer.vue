@@ -382,6 +382,10 @@ function saveGraphEdits() {
   for (const [path, content] of pendingDrafts.value) {
     emit('save', path, content, props.files[path]);
   }
+  // 保存请求已发出：直接清理暂存并复位按钮（服务端热更新随后会推送
+  // 最新文件映射；即使推送丢失/被修剪，也不让"💾 保存"永久卡灰）。
+  pendingDrafts.value = new Map();
+  graphSaving.value = false;
 }
 
 /** ↩ 放弃更改：丢弃全部暂存（含拖框的位置覆盖），退出编辑模式 */

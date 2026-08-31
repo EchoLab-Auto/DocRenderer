@@ -1,1 +1,1 @@
-{"version":3,"file":"DocGraphViewer.vue.d.ts","sourceRoot":"","sources":["../../src/components/DocGraphViewer.vue"],"names":[],"mappings":"AAolDA,KAAK,WAAW,GAAG;IACjB,oBAAoB;IACpB,KAAK,EAAE,MAAM,CAAC,MAAM,EAAE,MAAM,CAAC,CAAC;CAC/B,CAAC;;;;;;;;AAy5DF,wBAOG"}
+{"version":3,"file":"DocGraphViewer.vue.d.ts","sourceRoot":"","sources":["../../src/components/DocGraphViewer.vue"],"names":[],"mappings":"AAwlDA,KAAK,WAAW,GAAG;IACjB,oBAAoB;IACpB,KAAK,EAAE,MAAM,CAAC,MAAM,EAAE,MAAM,CAAC,CAAC;CAC/B,CAAC;;;;;;;;AA65DF,wBAOG"}

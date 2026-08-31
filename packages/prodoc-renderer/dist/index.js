@@ -750,6 +750,7 @@ var Fe = { class: "pd-graph-viewer" }, Ie = { class: "pd-graph-header" }, Le = {
 			if (!(!x.value || V.value)) {
 				V.value = !0;
 				for (let [e, t] of b.value) y("save", e, t, v.files[e]);
+				b.value = /* @__PURE__ */ new Map(), V.value = !1;
 			}
 		}
 		function xt() {
