@@ -90,11 +90,28 @@ export function parseFrameBlock(content: string): FrameBlock {
   }
 
   const params: Record<string, unknown> = {};
-  for (const line of lines.slice(0, closeIdx)) {
+  let i = 0;
+  const frameLines = lines.slice(0, closeIdx);
+  while (i < frameLines.length) {
+    const line = frameLines[i];
+    i += 1;
     if (line.trim() === '') continue;
     const m = line.match(/^([A-Za-z_][A-Za-z0-9_-]*)\s*:\s*([\s\S]*)$/);
     if (!m) continue; // 无法识别的行跳过，不中断解析
-    params[m[1]] = parseValue(m[2]);
+    const key = m[1];
+    let raw = m[2];
+    // 多行数组：值以 [ 开头但本行未闭合 → 跨行收集直到闭括号或参数区结束
+    if (raw.trimStart().startsWith('[') && !/\]\s*$/.test(raw)) {
+      const collected = [raw];
+      while (i < frameLines.length) {
+        const next = frameLines[i];
+        i += 1;
+        collected.push(next);
+        if (/\]\s*$/.test(next)) break;
+      }
+      raw = collected.join('\n');
+    }
+    params[key] = parseValue(raw);
   }
 
   return { params, body: lines.slice(closeIdx + 1).join('\n'), hasFrame: true };

@@ -62,6 +62,23 @@ const effectiveFiles = computed<Record<string, string>>(() =>
 /** 文档群 → 图（含布局与警告）；基于含暂存修改的有效内容构建 */
 const graph = computed<DocGraph>(() => buildDocGraph(effectiveFiles.value));
 
+/** 每个文件剥离参数区后的正文（基于磁盘内容：图编辑暂存期间不开放正文视图） */
+const bodies = computed<Record<string, string>>(() =>
+  Object.fromEntries(
+    Object.entries(props.files).map(([path, content]) => [path, parseFrameBlock(content).body]),
+  ),
+);
+
+// 构建警告输出到控制台（容错，不阻断渲染）
+watch(
+  () => graph.value.warnings,
+  (warnings) => warnings.forEach((w) => console.warn('[ProDoc]', w)),
+  { immediate: true },
+);
+
+/** 当前打开的文档路径；null 表示处于图画布视图 */
+const currentPath = ref<string | null>(null);
+
 /** 文档树（分级与包含关系）：目录层级/order 自组织；用于左侧树状索引 */
 const docTree = computed<DocTreeNode>(() => {
   const files = Object.entries(effectiveFiles.value).map(([path, content]) => ({
@@ -125,23 +142,6 @@ function goTreeNode(node: DocTreeNode) {
   }
 }
 
-/** 每个文件剥离参数区后的正文（基于磁盘内容：图编辑暂存期间不开放正文视图） */
-const bodies = computed<Record<string, string>>(() =>
-  Object.fromEntries(
-    Object.entries(props.files).map(([path, content]) => [path, parseFrameBlock(content).body]),
-  ),
-);
-
-// 构建警告输出到控制台（容错，不阻断渲染）
-watch(
-  () => graph.value.warnings,
-  (warnings) => warnings.forEach((w) => console.warn('[ProDoc]', w)),
-  { immediate: true },
-);
-
-/** 当前打开的文档路径；null 表示处于图画布视图 */
-const currentPath = ref<string | null>(null);
-
 const canvasRef = ref<{ fit?: () => void } | null>(null);
 
 /** 画布舞台尺寸：容纳所有框与分组区域 + 边距 */
@@ -163,6 +163,7 @@ const stage = computed(() => {
 
 interface RelationEdge {
   id: string;
+  kind: 'link' | 'parent';
   fromId: string;
   toId: string;
   fromTitle: string;
@@ -236,6 +237,7 @@ const relationEdges = computed<RelationEdge[]>(() => {
     const from = boxes.get(relation.from);
     const to = boxes.get(relation.to);
     if (!from || !to) return [];
+    const kind = relation.type;
 
     // 连接边拖拽预览：被拖端点实时跟随预览边
     let fromSide = relation.fromSide;
@@ -248,6 +250,7 @@ const relationEdges = computed<RelationEdge[]>(() => {
     const { x1, y1, x2, y2, d } = edgeGeometry(from, to, fromSide, toSide);
     return [{
       id: relation.id,
+      kind,
       fromId: from.id,
       toId: to.id,
       fromTitle: from.title,
@@ -1414,6 +1417,7 @@ if (typeof window !== 'undefined' && window.location.hash.length > 1) {
               :key="edge.id"
               class="pd-relation"
               :class="{
+                'pd-relation--parent': edge.kind === 'parent',
                 'pd-dim': isEdgeDimmed(edge),
                 'pd-hot': isEdgeHot(edge),
                 'pd-selected': edge.id === selectedEdgeId,

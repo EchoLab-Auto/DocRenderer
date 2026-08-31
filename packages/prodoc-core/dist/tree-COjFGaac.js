@@ -32,11 +32,22 @@ function n(e) {
 		body: e,
 		hasFrame: !1
 	};
-	let a = {};
-	for (let e of r.slice(0, i)) {
-		if (e.trim() === "") continue;
+	let a = {}, o = 0, s = r.slice(0, i);
+	for (; o < s.length;) {
+		let e = s[o];
+		if (o += 1, e.trim() === "") continue;
 		let n = e.match(/^([A-Za-z_][A-Za-z0-9_-]*)\s*:\s*([\s\S]*)$/);
-		n && (a[n[1]] = t(n[2]));
+		if (!n) continue;
+		let r = n[1], i = n[2];
+		if (i.trimStart().startsWith("[") && !/\]\s*$/.test(i)) {
+			let e = [i];
+			for (; o < s.length;) {
+				let t = s[o];
+				if (o += 1, e.push(t), /\]\s*$/.test(t)) break;
+			}
+			i = e.join("\n");
+		}
+		a[r] = t(i);
 	}
 	return {
 		params: a,
@@ -91,7 +102,9 @@ var u = 220, d = 96, f = 6, p = 24, m = 34, h = 72, g = 48, _ = /* @__PURE__ */ 
 	"w",
 	"h",
 	"link",
-	"group"
+	"group",
+	"parent",
+	"order"
 ]);
 function v(e) {
 	return typeof e == "number" && Number.isFinite(e) ? e : void 0;
@@ -302,24 +315,24 @@ function F(e) {
 		let t = e.trim(), n = t.endsWith(".md") ? t : t + ".md";
 		return a.get(t) ?? l.get(t) ?? l.get(n);
 	}
-	function p(e, t, n, r) {
-		let a = f(e), o = f(t);
-		if (!a || !o) {
-			let n = a ? t : e;
+	function p(e, t, n, r, a = "link") {
+		let o = f(e), s = f(t);
+		if (!o || !s) {
+			let n = o ? t : e;
 			i.push("连线 " + r + " 引用了不存在的文档 \"" + n + "\"");
 			return;
 		}
-		if (a.id === o.id) {
-			i.push("文档 \"" + a.id + "\" 不能连线自身");
+		if (o.id === s.id) {
+			i.push("文档 \"" + o.id + "\" 不能连线自身");
 			return;
 		}
-		let s = a.id + "->" + o.id;
-		d.has(s) || (d.add(s), u.push({
-			id: s,
-			type: "link",
-			from: a.id,
-			to: o.id,
-			label: n.label,
+		let c = o.id + "->" + s.id;
+		d.has(c) || (d.add(c), u.push({
+			id: c,
+			type: a,
+			from: o.id,
+			to: s.id,
+			label: a === "parent" ? "包含" : n.label,
 			fromSide: n.fromSide,
 			toSide: n.toSide
 		}));
@@ -334,6 +347,8 @@ function F(e) {
 				toSide: a
 			}, t.id + ".link");
 		}
+		let a = i.parent;
+		typeof a == "string" && a.trim() !== "" && p(t.id, a, {}, t.id + ".parent", "parent");
 	}
 	let m = M(c, u);
 	for (let e of c) e.depth = m.get(e.id) ?? 0;
@@ -473,4 +488,4 @@ function z(e, t) {
 //#endregion
 export { n as _, u as a, s as b, f as c, C as d, D as f, r as g, S as h, d as i, F as l, T as m, L as n, m as o, P as p, R as r, p as s, z as t, E as u, i as v, l as x, c as y };
 
-//# sourceMappingURL=tree-BskcCljG.js.map
+//# sourceMappingURL=tree-COjFGaac.js.map
