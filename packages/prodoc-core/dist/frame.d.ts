@@ -40,6 +40,13 @@ export declare function readFrameLinks(content: string): string[];
  */
 export declare function writeFrameLinks(content: string, links: string[]): string;
 /**
+ * 将 group 条目写回框架参数区（单值参数），保留其他参数和正文。
+ *
+ * 已有 group 行被替换；没有则插入参数区末尾；传入 null 时移除 group 行；
+ * 文件原本没有参数区时，在文件开头创建参数区。
+ */
+export declare function writeFrameGroup(content: string, group: string | null): string;
+/**
  * 将画布坐标写入框架参数区，同时保留其他参数和正文。
  *
  * 仅传入需要写入的坐标轴。已有同名字段会被替换；没有合法参数区时，

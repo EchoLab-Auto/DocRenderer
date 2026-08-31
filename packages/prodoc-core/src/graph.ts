@@ -5,6 +5,7 @@
  * 框的属性（id、标题、位置、尺寸等）来自文件最前方的框架参数区；
  * 缺少位置参数的框按 link 连线结构分层自动排布（根框在顶层，逐层向下）。
  * 正文 H2 标题提取为文档内分块（≥2 个时），在框内渲染为可跳转子块。
+ * group 参数把同组框围入一个圆角矩形分组区域（几何可显式声明）。
  * 同一 id 重复声明时后者覆盖前者并记录警告。
  */
 
@@ -55,10 +56,36 @@ export interface DocRelation {
   toSide?: LinkSide;
 }
 
+/** 组区域的显式几何（`group: "名称 @ x, y, w, h"`） */
+export interface GroupGeometry {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** 文档分组：相同 group 名的框被围入同一个圆角矩形区域 */
+export interface DocGroup {
+  /** 组名（group 参数值，即区域标签文字） */
+  name: string;
+  /** 成员框 id（按文件路径字典序） */
+  members: string[];
+  /** 区域位置与尺寸（px）：显式几何为声明值，否则为成员包围盒 + 内边距 */
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** 是否显式声明了几何；显式时区域不随成员移动自动重算 */
+  explicit: boolean;
+  /** 几何持有者的文档路径（声明了几何的首个成员；无显式几何时为首个成员）——画布调整的写回目标 */
+  holder: string;
+}
+
 /** 一份文档群的图 */
 export interface DocGraph {
   boxes: DocBox[];
   relations: DocRelation[];
+  groups: DocGroup[];
   warnings: string[];
 }
 
@@ -67,12 +94,15 @@ export const BOX_DEFAULT_W = 220;
 export const BOX_DEFAULT_H = 96;
 /** 悬停展开的分块面板最多展示的条目数（超出折叠为 +N 项） */
 export const MAX_BLOCK_SLOTS = 6;
+/** 分组区域内边距：左右/下为 GROUP_PAD，顶部为 GROUP_LABEL_H（留组名标签位） */
+export const GROUP_PAD = 24;
+export const GROUP_LABEL_H = 34;
 const LAYER_GAP_X = 64;
 const LAYER_GAP_Y = 72;
 const LAYOUT_PADDING = 48;
 
 /** 框架保留字段（不进入 attrs） */
-const RESERVED_KEYS = new Set(['id', 'title', 'x', 'y', 'w', 'h', 'link']);
+const RESERVED_KEYS = new Set(['id', 'title', 'x', 'y', 'w', 'h', 'link', 'group']);
 
 function asNumber(v: unknown): number | undefined {
   return typeof v === 'number' && Number.isFinite(v) ? v : undefined;
@@ -123,6 +153,60 @@ export function buildLinkEntry(parts: {
     entry += ` | ${f}>${t}`;
   }
   return entry;
+}
+
+/** 组条目几何段：`名称 @ x, y, w, h`（沿用 prodoc-flow 的 @ 坐标语法，扩展为四元组） */
+const GROUP_GEO_PATTERN = /^(.*)\s*@\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/;
+
+/**
+ * 解析 group 条目：`名称` 或 `名称 @ x, y, w, h`。
+ * 几何段不完整/不匹配时整个值视为组名（容错，不中断）。
+ */
+export function parseGroupEntry(raw: string): { name: string; geo?: GroupGeometry } {
+  const m = raw.match(GROUP_GEO_PATTERN);
+  if (!m || !m[1].trim()) return { name: raw.trim() };
+  return {
+    name: m[1].trim(),
+    geo: { x: Number(m[2]), y: Number(m[3]), w: Number(m[4]), h: Number(m[5]) },
+  };
+}
+
+/** 组装 group 条目（parseGroupEntry 的逆操作；几何四元组缺一即只写组名） */
+export function buildGroupEntry(parts: { name: string } & Partial<GroupGeometry>): string {
+  const { name, x, y, w, h } = parts;
+  const nums = [x, y, w, h];
+  if (nums.every((v): v is number => typeof v === 'number' && Number.isFinite(v))) {
+    return `${name} @ ${x}, ${y}, ${w}, ${h}`;
+  }
+  return name;
+}
+
+/**
+ * 分组区域几何：显式声明优先（原样采用）；
+ * 否则取成员包围盒 + 内边距（左右/下 GROUP_PAD，顶部 GROUP_LABEL_H 留标签位）。
+ */
+export function computeGroupRegion(
+  members: ReadonlyArray<Pick<DocBox, 'x' | 'y' | 'w' | 'h'>>,
+  explicit?: GroupGeometry,
+): GroupGeometry {
+  if (explicit) return { ...explicit };
+  if (members.length === 0) return { x: 0, y: 0, w: 0, h: 0 };
+  let x1 = Infinity;
+  let y1 = Infinity;
+  let x2 = -Infinity;
+  let y2 = -Infinity;
+  for (const m of members) {
+    x1 = Math.min(x1, m.x);
+    y1 = Math.min(y1, m.y);
+    x2 = Math.max(x2, m.x + m.w);
+    y2 = Math.max(y2, m.y + m.h);
+  }
+  return {
+    x: x1 - GROUP_PAD,
+    y: y1 - GROUP_LABEL_H,
+    w: x2 - x1 + GROUP_PAD * 2,
+    h: y2 - y1 + GROUP_LABEL_H + GROUP_PAD,
+  };
 }
 
 function firstH1(body: string): string | undefined {
@@ -330,6 +414,8 @@ export function buildDocGraph(files: Record<string, string>): DocGraph {
   const warnings: string[] = [];
   const byId = new Map<string, DocBox>();
   const paramsOf = new Map<string, BoxParams>();
+  /** 框 id → group 声明（成员关系 + 可选显式几何） */
+  const groupDecls = new Map<string, { name: string; geo?: GroupGeometry }>();
 
   for (const docPath of paths) {
     const { params, body } = parseFrameBlock(files[docPath]);
@@ -366,6 +452,21 @@ export function buildDocGraph(files: Record<string, string>): DocGraph {
       attrs,
     };
     paramsOf.set(id, { rawX: asNumber(params.x), rawY: asNumber(params.y) });
+
+    // group 声明：单值；声明多个（列表）时仅取第一个并告警
+    if (params.group !== undefined) {
+      const rawList = Array.isArray(params.group) ? params.group : [params.group];
+      const entries = rawList
+        .map((item) => (typeof item === 'string' ? item : typeof item === 'number' ? String(item) : ''))
+        .filter((item) => item.trim() !== '');
+      if (entries.length > 1) {
+        warnings.push(`文档 "${id}" 声明了多个 group，仅取第一个 "${parseGroupEntry(entries[0]).name || entries[0]}"`);
+      }
+      if (entries.length > 0) {
+        const { name, geo } = parseGroupEntry(entries[0]);
+        if (name) groupDecls.set(id, { name, geo });
+      }
+    }
 
     if (byId.has(id)) {
       warnings.push(`重复 id "${id}"：${byId.get(id)!.docPath} 被 ${docPath} 覆盖`);
@@ -429,5 +530,40 @@ export function buildDocGraph(files: Record<string, string>): DocGraph {
   for (const box of boxes) box.depth = depthOf.get(box.id) ?? 0;
   applyLayeredLayout(boxes, relations, depthOf, paramsOf);
 
-  return { boxes, relations, warnings };
+  // 分组：相同组名的框围入同一区域。几何取「几何持有者」（按路径字典序首个
+  // 声明了显式几何的成员）的声明值；多成员声明且不一致时取首个并告警；
+  // 无显式几何时区域 = 成员包围盒 + 内边距（随成员移动自动重算）。
+  const groupMap = new Map<string, { members: DocBox[]; geo?: GroupGeometry; holder?: string }>();
+  for (const box of boxes) {
+    const decl = groupDecls.get(box.id);
+    if (!decl) continue;
+    let group = groupMap.get(decl.name);
+    if (!group) {
+      group = { members: [] };
+      groupMap.set(decl.name, group);
+    }
+    group.members.push(box);
+    if (decl.geo) {
+      if (!group.geo) {
+        group.geo = decl.geo;
+        group.holder = box.docPath;
+      } else if (
+        group.geo.x !== decl.geo.x ||
+        group.geo.y !== decl.geo.y ||
+        group.geo.w !== decl.geo.w ||
+        group.geo.h !== decl.geo.h
+      ) {
+        warnings.push(`组 "${decl.name}" 的显式几何被多个成员声明且不一致，取 ${group.holder} 的声明`);
+      }
+    }
+  }
+  const groups: DocGroup[] = [...groupMap.entries()].map(([name, group]) => ({
+    name,
+    members: group.members.map((box) => box.id),
+    ...computeGroupRegion(group.members, group.geo),
+    explicit: group.geo !== undefined,
+    holder: group.holder ?? group.members[0].docPath,
+  }));
+
+  return { boxes, relations, groups, warnings };
 }

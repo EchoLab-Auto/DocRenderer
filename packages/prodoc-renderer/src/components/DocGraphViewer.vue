@@ -9,19 +9,28 @@
 
 import { computed, nextTick, ref, watch } from 'vue';
 import { NeumorphismCanvas, NeumorphismThemeToggle } from '@echolab-auto/ui-frame';
+import TreeItem from './DocTreeItem.vue';
 import { MarkdownEditor, MarkdownRenderer, writeFlowNodePosition } from '@echolab-auto/ui-frame/doc';
 import {
   buildDocGraph,
   computeLayeredLayout,
+  computeGroupRegion,
   parseFrameBlock,
   parseLinkEntry,
   buildLinkEntry,
+  buildGroupEntry,
   readFrameLinks,
   writeFrameLinks,
+  writeFrameGroup,
   writeFramePosition,
   MAX_BLOCK_SLOTS,
+  GROUP_PAD,
+  buildDocTree,
+  flattenTree,
   type DocGraph,
   type DocBox,
+  type DocGroup,
+  type DocTreeNode,
   type LinkSide,
 } from '@prodoc/core';
 
@@ -53,6 +62,61 @@ const effectiveFiles = computed<Record<string, string>>(() =>
 /** 文档群 → 图（含布局与警告）；基于含暂存修改的有效内容构建 */
 const graph = computed<DocGraph>(() => buildDocGraph(effectiveFiles.value));
 
+/** 文档树（分级与包含关系）：目录层级/order 自组织；用于左侧树状索引 */
+const docTree = computed<DocTreeNode>(() => {
+  const files = Object.entries(effectiveFiles.value).map(([path, content]) => ({
+    path,
+    content,
+  }));
+  return buildDocTree(files).root;
+});
+/** 扁平列表：path → 节点（含目录虚节点），供高亮/搜索 */
+const flatTree = computed<DocTreeNode[]>(() => flattenTree(docTree.value));
+/** 当前文档的祖先链（树面包屑与展开） */
+const currentAncestors = computed<DocTreeNode[]>(() => {
+  if (!currentPath.value) return [];
+  const node = flatTree.value.find((n) => n.path === currentPath.value && !n.isDir);
+  if (!node) return [];
+  const chain: DocTreeNode[] = [];
+  const walk = (item: DocTreeNode, trail: DocTreeNode[]): boolean => {
+    if (item === node) {
+      chain.push(...trail, item);
+      return true;
+    }
+    for (const c of item.children) {
+      if (walk(c, [...trail, item])) return true;
+    }
+    return false;
+  };
+  walk(docTree.value, []);
+  return chain;
+});
+/** 树状索引侧栏是否展开（默认展开） */
+const treeSidebarOpen = ref(true);
+/** 树节点展开状态（path → 是否展开）；当前文档祖先默认展开 */
+const treeExpanded = ref<Record<string, boolean>>({});
+watch(
+  currentAncestors,
+  (ancestors) => {
+    for (const a of ancestors) {
+      if (a.isDir) treeExpanded.value[a.path] = true;
+    }
+  },
+  { immediate: true },
+);
+function toggleTree(node: DocTreeNode) {
+  if (node.isDir || node.children.length) {
+    treeExpanded.value[node.path] = !treeExpanded.value[node.path];
+  }
+}
+function goTreeNode(node: DocTreeNode) {
+  if (!node.isDir) {
+    open(node.path);
+  } else {
+    toggleTree(node);
+  }
+}
+
 /** 每个文件剥离参数区后的正文（基于磁盘内容：图编辑暂存期间不开放正文视图） */
 const bodies = computed<Record<string, string>>(() =>
   Object.fromEntries(
@@ -72,7 +136,7 @@ const currentPath = ref<string | null>(null);
 
 const canvasRef = ref<{ fit?: () => void } | null>(null);
 
-/** 画布舞台尺寸：容纳所有框 + 边距 */
+/** 画布舞台尺寸：容纳所有框与分组区域 + 边距 */
 const stage = computed(() => {
   const PADDING = 48;
   let w = 0;
@@ -80,6 +144,10 @@ const stage = computed(() => {
   for (const box of layoutBoxes.value) {
     w = Math.max(w, box.x + box.w + PADDING);
     h = Math.max(h, box.y + box.h + PADDING);
+  }
+  for (const group of groupRegions.value) {
+    w = Math.max(w, group.x + group.w + PADDING);
+    h = Math.max(h, group.y + group.h + PADDING);
   }
   return { w: Math.max(w, 640), h: Math.max(h, 480) };
 });
@@ -230,6 +298,35 @@ function setPositionOverride(id: string, pos: { x: number; y: number }) {
   relayouted.value = map;
 }
 
+/**
+ * 画布消费的分组区域：自动区域按成员实时位置（含覆盖坐标）重算包围盒；
+ * 显式几何区域不随成员移动，仅在组拖拽/尺寸拖拽中给预览值。
+ */
+const groupRegions = computed<DocGroup[]>(() => {
+  const drag = groupDrag.value;
+  const resize = groupResize.value;
+  return graph.value.groups.map((group) => {
+    if (resize && resize.moved && resize.name === group.name) {
+      // 尺寸预览：原点取拖拽开始时的视觉区域（自动区域在覆盖坐标下同样正确）
+      return { ...group, x: resize.baseRegion.x, y: resize.baseRegion.y, w: resize.curW, h: resize.curH };
+    }
+    if (group.explicit) {
+      if (drag && drag.moved && drag.name === group.name) {
+        return { ...group, x: drag.baseRegion.x + drag.dx, y: drag.baseRegion.y + drag.dy };
+      }
+      return group;
+    }
+    const memberBoxes = group.members
+      .map((id) => layoutBoxes.value.find((b) => b.id === id))
+      .filter((b): b is DocBox => Boolean(b));
+    return { ...group, ...computeGroupRegion(memberBoxes) };
+  });
+});
+
+/** 悬停高亮联动：组内无任何 hover 邻居时区域一并淡出 */
+const isGroupDimmed = (group: DocGroup) =>
+  hovered.value !== null && !group.members.some((id) => hoverNeighbors.value.has(id));
+
 /** 一键分层重排：忽略文件坐标，按连线层级重新排布（仅当前视图，不写回文件） */
 function toggleRelayout() {
   relayouted.value = relayouted.value
@@ -339,82 +436,115 @@ interface AlignGuide {
 }
 const activeGuides = ref<AlignGuide[]>([]);
 
+/** 参与吸附的矩形形状（框或分组区域） */
+interface SnapRectShape {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** 单轴上的特征线：起点 / 中点 / 终点 */
+type AxisLineKey = 'start' | 'center' | 'end';
+
+/** 全部六条特征线（移动吸附：框拖拽、整组移动） */
+const ALL_LINES: { x: AxisLineKey[]; y: AxisLineKey[] } = {
+  x: ['start', 'center', 'end'],
+  y: ['start', 'center', 'end'],
+};
+
+/** 仅右 / 下边缘（尺寸调整吸附：组区域角柄） */
+const EDGE_LINES: { x: AxisLineKey[]; y: AxisLineKey[] } = { x: ['end'], y: ['end'] };
+
+/** 矩形在单轴上的三条特征线位置 */
+function axisLines(rect: SnapRectShape, axis: 'x' | 'y'): Record<AxisLineKey, number> {
+  return axis === 'x'
+    ? { start: rect.x, center: rect.x + rect.w / 2, end: rect.x + rect.w }
+    : { start: rect.y, center: rect.y + rect.h / 2, end: rect.y + rect.h };
+}
+
 /**
- * 吸附对齐：候选位置与其他框的六条特征线（左/中/右、上/中/下）比较，
- * 阈值内吸附到最近线并返回应显示的参考线。阈值按缩放折算（屏幕 8px，限幅 4–12 舞台 px）。
+ * 吸附位移量：moving 的参与特征线（lines）与其他矩形的全部特征线比较，
+ * 阈值内取最近线的位移；某轴无候选时该轴缺省。阈值按缩放折算（屏幕 8px，限幅 4–12 舞台 px）。
  */
+function snapDelta(
+  moving: SnapRectShape,
+  others: ReadonlyArray<SnapRectShape>,
+  scale: number,
+  lines: { x: AxisLineKey[]; y: AxisLineKey[] },
+): { dx?: number; dy?: number } {
+  const T = Math.min(Math.max(8 / scale, 4), 12);
+  const result: { dx?: number; dy?: number } = {};
+  for (const axis of ['x', 'y'] as const) {
+    const all = axisLines(moving, axis);
+    const mine = lines[axis].map((key) => all[key]);
+    let best: number | null = null;
+    for (const o of others) {
+      for (const line of Object.values(axisLines(o, axis))) {
+        for (const m of mine) {
+          const delta = line - m;
+          if (Math.abs(delta) <= T && (best === null || Math.abs(delta) < Math.abs(best))) {
+            best = delta;
+          }
+        }
+      }
+    }
+    if (best !== null) result[axis === 'x' ? 'dx' : 'dy'] = best;
+  }
+  return result;
+}
+
+/**
+ * 对齐参考线：finalRect（吸附后的最终矩形）的参与特征线与其他矩形重合时生成；
+ * 一条线可对到多个矩形，按位置去重并合并跨度。
+ */
+function collectGuides(
+  finalRect: SnapRectShape,
+  others: ReadonlyArray<SnapRectShape>,
+  lines: { x: AxisLineKey[]; y: AxisLineKey[] },
+): AlignGuide[] {
+  const guides: AlignGuide[] = [];
+  const seen = new Set<string>();
+  for (const axis of ['x', 'y'] as const) {
+    const all = axisLines(finalRect, axis);
+    const mine = lines[axis].map((key) => all[key]);
+    for (const o of others) {
+      for (const line of Object.values(axisLines(o, axis))) {
+        if (!mine.some((m) => Math.abs(m - line) < 0.5)) continue;
+        const key = `${axis}${line}`;
+        // 参考线跨度取两者在另一轴上的并集
+        const start = axis === 'x' ? Math.min(finalRect.y, o.y) : Math.min(finalRect.x, o.x);
+        const end =
+          axis === 'x'
+            ? Math.max(finalRect.y + finalRect.h, o.y + o.h)
+            : Math.max(finalRect.x + finalRect.w, o.x + o.w);
+        const prev = seen.has(key) ? guides.find((g) => g.axis === axis && g.pos === line) : undefined;
+        if (prev) {
+          prev.start = Math.min(prev.start, start);
+          prev.end = Math.max(prev.end, end);
+        } else {
+          seen.add(key);
+          guides.push({ axis, pos: line, start, end });
+        }
+      }
+    }
+  }
+  return guides;
+}
+
+/** 框拖拽吸附：候选位置与其他框的六条特征线比较，返回吸附后坐标与应显示的参考线 */
 function snapPosition(id: string, rawX: number, rawY: number, scale: number) {
   const me = layoutBoxes.value.find((b) => b.id === id);
   if (!me) return { x: rawX, y: rawY, guides: [] as AlignGuide[] };
-  const T = Math.min(Math.max(8 / scale, 4), 12);
   const others = layoutBoxes.value.filter((b) => b.id !== id);
-
-  let x = rawX;
-  let y = rawY;
-  const guides: AlignGuide[] = [];
-
-  // x 轴：找最近吸附线
-  let bestX: { delta: number } | null = null;
-  for (const o of others) {
-    for (const line of [o.x, o.x + o.w / 2, o.x + o.w]) {
-      for (const mine of [rawX, rawX + me.w / 2, rawX + me.w]) {
-        const delta = line - mine;
-        if (Math.abs(delta) <= T && (!bestX || Math.abs(delta) < Math.abs(bestX.delta))) {
-          bestX = { delta };
-        }
-      }
-    }
-  }
-  if (bestX) x = rawX + bestX.delta;
-
-  // y 轴同理
-  let bestY: { delta: number } | null = null;
-  for (const o of others) {
-    for (const line of [o.y, o.y + o.h / 2, o.y + o.h]) {
-      for (const mine of [rawY, rawY + me.h / 2, rawY + me.h]) {
-        const delta = line - mine;
-        if (Math.abs(delta) <= T && (!bestY || Math.abs(delta) < Math.abs(bestY.delta))) {
-          bestY = { delta };
-        }
-      }
-    }
-  }
-  if (bestY) y = rawY + bestY.delta;
-
-  // 吸附后收集所有对齐线（一条线可对到多个框），按 pos 去重并合并跨度
-  const seen = new Set<string>();
-  for (const o of others) {
-    for (const line of [o.x, o.x + o.w / 2, o.x + o.w]) {
-      if (![x, x + me.w / 2, x + me.w].some((m) => Math.abs(m - line) < 0.5)) continue;
-      const key = `x${line}`;
-      const start = Math.min(y, o.y);
-      const end = Math.max(y + me.h, o.y + o.h);
-      const prev = seen.has(key) ? guides.find((g) => g.axis === 'x' && g.pos === line) : undefined;
-      if (prev) {
-        prev.start = Math.min(prev.start, start);
-        prev.end = Math.max(prev.end, end);
-      } else {
-        seen.add(key);
-        guides.push({ axis: 'x', pos: line, start, end });
-      }
-    }
-    for (const line of [o.y, o.y + o.h / 2, o.y + o.h]) {
-      if (![y, y + me.h / 2, y + me.h].some((m) => Math.abs(m - line) < 0.5)) continue;
-      const key = `y${line}`;
-      const start = Math.min(x, o.x);
-      const end = Math.max(x + me.w, o.x + o.w);
-      const prev = seen.has(key) ? guides.find((g) => g.axis === 'y' && g.pos === line) : undefined;
-      if (prev) {
-        prev.start = Math.min(prev.start, start);
-        prev.end = Math.max(prev.end, end);
-      } else {
-        seen.add(key);
-        guides.push({ axis: 'y', pos: line, start, end });
-      }
-    }
-  }
-
-  return { x: Math.round(x), y: Math.round(y), guides };
+  const snap = snapDelta({ x: rawX, y: rawY, w: me.w, h: me.h }, others, scale, ALL_LINES);
+  const x = Math.round(rawX + (snap.dx ?? 0));
+  const y = Math.round(rawY + (snap.dy ?? 0));
+  const guides =
+    snap.dx !== undefined || snap.dy !== undefined
+      ? collectGuides({ x, y, w: me.w, h: me.h }, others, ALL_LINES)
+      : [];
+  return { x, y, guides };
 }
 
 let suppressClick = false;
@@ -719,6 +849,264 @@ function removeSelectedEdge() {
   selectedEdgeId.value = null;
 }
 
+/* ============ 画布编辑：分组区域（整组移动 / 区域尺寸调整） ============ */
+
+/**
+ * 组拖拽状态：拖动组名标签移动整组——成员坐标 += delta（逐框位置覆盖实时预览），
+ * 显式几何组的区域同步平移；松手后逐成员暂存坐标、holder 暂存平移后的 group 条目。
+ */
+const groupDrag = ref<{
+  name: string;
+  startClientX: number;
+  startClientY: number;
+  lastClientX: number;
+  lastClientY: number;
+  scale: number;
+  basePositions: Map<string, { x: number; y: number }>;
+  baseRegion: { x: number; y: number; w: number; h: number };
+  dx: number;
+  dy: number;
+  moved: boolean;
+  raf: number;
+} | null>(null);
+
+/** 组尺寸拖拽状态：拖右下角手柄调整区域长宽（右/下边缘可吸附；下限 = 成员包围盒余量，成员不外溢）；松手后区域转为显式几何暂存到 holder */
+const groupResize = ref<{
+  name: string;
+  startClientX: number;
+  startClientY: number;
+  lastClientX: number;
+  lastClientY: number;
+  scale: number;
+  baseRegion: { x: number; y: number; w: number; h: number };
+  /** 成员框 id（吸附目标中排除——成员在区域内，对其吸附无意义） */
+  memberIds: Set<string>;
+  minW: number;
+  minH: number;
+  curW: number;
+  curH: number;
+  moved: boolean;
+  raf: number;
+} | null>(null);
+
+function onGroupLabelDown(e: PointerEvent, group: DocGroup) {
+  if (!graphEditMode.value) return;
+  if (e.button !== 0) return;
+  e.preventDefault();
+  const region = groupRegions.value.find((g) => g.name === group.name);
+  if (!region) return;
+  const basePositions = new Map<string, { x: number; y: number }>();
+  for (const id of group.members) {
+    const box = layoutBoxes.value.find((b) => b.id === id);
+    if (box) basePositions.set(id, { x: box.x, y: box.y });
+  }
+  groupDrag.value = {
+    name: group.name,
+    startClientX: e.clientX,
+    startClientY: e.clientY,
+    lastClientX: e.clientX,
+    lastClientY: e.clientY,
+    scale: toStageCoords(e.clientX, e.clientY).scale,
+    basePositions,
+    baseRegion: { x: region.x, y: region.y, w: region.w, h: region.h },
+    dx: 0,
+    dy: 0,
+    moved: false,
+    raf: 0,
+  };
+  window.addEventListener('pointermove', onGroupDragMove);
+  window.addEventListener('pointerup', onGroupDragEnd);
+  window.addEventListener('pointercancel', onGroupDragEnd);
+  hovered.value = null;
+}
+
+function onGroupDragMove(e: PointerEvent) {
+  const d = groupDrag.value;
+  if (!d) return;
+  d.lastClientX = e.clientX;
+  d.lastClientY = e.clientY;
+  if (!d.raf) d.raf = requestAnimationFrame(applyGroupDrag);
+}
+
+/**
+ * 逐成员预览：区域六条特征线与组外框、其他组区域吸附对齐并显示参考线；
+ * 位移取整后再加吸附量（吸附值与写回值一致，热更新回推后位置覆盖可按值修剪）。
+ */
+function applyGroupDrag() {
+  const d = groupDrag.value;
+  if (!d) return;
+  d.raf = 0;
+  const rawDx = Math.round((d.lastClientX - d.startClientX) / d.scale);
+  const rawDy = Math.round((d.lastClientY - d.startClientY) / d.scale);
+  if (!d.moved && Math.hypot(rawDx, rawDy) < 3) return;
+  const others: SnapRectShape[] = [
+    ...layoutBoxes.value.filter((b) => !d.basePositions.has(b.id)),
+    ...groupRegions.value.filter((g) => g.name !== d.name),
+  ];
+  const snap = snapDelta(
+    { x: d.baseRegion.x + rawDx, y: d.baseRegion.y + rawDy, w: d.baseRegion.w, h: d.baseRegion.h },
+    others,
+    d.scale,
+    ALL_LINES,
+  );
+  const dx = rawDx + (snap.dx ?? 0);
+  const dy = rawDy + (snap.dy ?? 0);
+  groupDrag.value = { ...d, dx, dy, moved: true };
+  for (const [id, base] of d.basePositions) {
+    setPositionOverride(id, { x: base.x + dx, y: base.y + dy });
+  }
+  activeGuides.value =
+    snap.dx !== undefined || snap.dy !== undefined
+      ? collectGuides(
+          { x: d.baseRegion.x + dx, y: d.baseRegion.y + dy, w: d.baseRegion.w, h: d.baseRegion.h },
+          others,
+          ALL_LINES,
+        )
+      : [];
+}
+
+function onGroupDragEnd() {
+  window.removeEventListener('pointermove', onGroupDragMove);
+  window.removeEventListener('pointerup', onGroupDragEnd);
+  window.removeEventListener('pointercancel', onGroupDragEnd);
+  const d = groupDrag.value;
+  groupDrag.value = null;
+  activeGuides.value = [];
+  if (!d) return;
+  if (d.raf) cancelAnimationFrame(d.raf);
+  if (!d.moved) return;
+  const group = graph.value.groups.find((g) => g.name === d.name);
+  if (!group) return;
+  // 成员坐标 += delta，逐成员暂存（holder 若也是成员，先写坐标再叠加 group 条目）
+  for (const id of group.members) {
+    const box = graph.value.boxes.find((b) => b.id === id);
+    const base = d.basePositions.get(id);
+    if (!box || !base) continue;
+    const content = stagedContent(box.docPath);
+    if (content === undefined) continue;
+    stageDraft(box.docPath, writeFramePosition(content, { x: base.x + d.dx, y: base.y + d.dy }));
+  }
+  // 显式几何的组：holder 的 group 条目同步平移（区域不脱离成员）
+  if (group.explicit) {
+    const content = stagedContent(group.holder);
+    if (content !== undefined) {
+      stageDraft(
+        group.holder,
+        writeFrameGroup(
+          content,
+          buildGroupEntry({
+            name: group.name,
+            x: d.baseRegion.x + d.dx,
+            y: d.baseRegion.y + d.dy,
+            w: d.baseRegion.w,
+            h: d.baseRegion.h,
+          }),
+        ),
+      );
+    }
+  }
+}
+
+function onGroupResizeDown(e: PointerEvent, group: DocGroup) {
+  if (!graphEditMode.value) return;
+  if (e.button !== 0) return;
+  e.preventDefault();
+  const region = groupRegions.value.find((g) => g.name === group.name);
+  if (!region) return;
+  const memberBoxes = group.members
+    .map((id) => layoutBoxes.value.find((b) => b.id === id))
+    .filter((b): b is DocBox => Boolean(b));
+  const maxX = Math.max(...memberBoxes.map((b) => b.x + b.w));
+  const maxY = Math.max(...memberBoxes.map((b) => b.y + b.h));
+  groupResize.value = {
+    name: group.name,
+    startClientX: e.clientX,
+    startClientY: e.clientY,
+    lastClientX: e.clientX,
+    lastClientY: e.clientY,
+    scale: toStageCoords(e.clientX, e.clientY).scale,
+    baseRegion: { x: region.x, y: region.y, w: region.w, h: region.h },
+    memberIds: new Set(group.members),
+    minW: Math.max(48, maxX - region.x + GROUP_PAD),
+    minH: Math.max(48, maxY - region.y + GROUP_PAD),
+    curW: region.w,
+    curH: region.h,
+    moved: false,
+    raf: 0,
+  };
+  window.addEventListener('pointermove', onGroupResizeMove);
+  window.addEventListener('pointerup', onGroupResizeEnd);
+  window.addEventListener('pointercancel', onGroupResizeEnd);
+  hovered.value = null;
+}
+
+function onGroupResizeMove(e: PointerEvent) {
+  const d = groupResize.value;
+  if (!d) return;
+  d.lastClientX = e.clientX;
+  d.lastClientY = e.clientY;
+  if (!d.raf) d.raf = requestAnimationFrame(applyGroupResize);
+}
+
+/** 右/下边缘与组外框、其他组区域吸附对齐并显示参考线（下限钳制在吸附之后，保证成员不外溢） */
+function applyGroupResize() {
+  const d = groupResize.value;
+  if (!d) return;
+  d.raf = 0;
+  const dx = (d.lastClientX - d.startClientX) / d.scale;
+  const dy = (d.lastClientY - d.startClientY) / d.scale;
+  if (!d.moved && Math.hypot(dx, dy) < 3) return;
+  const rawW = Math.round(d.baseRegion.w + dx);
+  const rawH = Math.round(d.baseRegion.h + dy);
+  const others: SnapRectShape[] = [
+    ...layoutBoxes.value.filter((b) => !d.memberIds.has(b.id)),
+    ...groupRegions.value.filter((g) => g.name !== d.name),
+  ];
+  const snap = snapDelta(
+    { x: d.baseRegion.x, y: d.baseRegion.y, w: rawW, h: rawH },
+    others,
+    d.scale,
+    EDGE_LINES,
+  );
+  const curW = Math.max(d.minW, Math.round(rawW + (snap.dx ?? 0)));
+  const curH = Math.max(d.minH, Math.round(rawH + (snap.dy ?? 0)));
+  groupResize.value = { ...d, curW, curH, moved: true };
+  activeGuides.value =
+    snap.dx !== undefined || snap.dy !== undefined
+      ? collectGuides({ x: d.baseRegion.x, y: d.baseRegion.y, w: curW, h: curH }, others, EDGE_LINES)
+      : [];
+}
+
+function onGroupResizeEnd() {
+  window.removeEventListener('pointermove', onGroupResizeMove);
+  window.removeEventListener('pointerup', onGroupResizeEnd);
+  window.removeEventListener('pointercancel', onGroupResizeEnd);
+  const d = groupResize.value;
+  groupResize.value = null;
+  activeGuides.value = [];
+  if (!d) return;
+  if (d.raf) cancelAnimationFrame(d.raf);
+  if (!d.moved) return;
+  const group = graph.value.groups.find((g) => g.name === d.name);
+  if (!group) return;
+  // 松手后区域转为显式几何（原点保持当前值），暂存到 holder 的 group 条目
+  const content = stagedContent(group.holder);
+  if (content === undefined) return;
+  stageDraft(
+    group.holder,
+    writeFrameGroup(
+      content,
+      buildGroupEntry({
+        name: group.name,
+        x: d.baseRegion.x,
+        y: d.baseRegion.y,
+        w: d.curW,
+        h: d.curH,
+      }),
+    ),
+  );
+}
+
 function onGlobalKeydown(e: KeyboardEvent) {
   if (currentPath.value || !graphEditMode.value || !selectedEdgeId.value) return;
   if (e.key === 'Delete' || e.key === 'Backspace') {
@@ -918,6 +1306,31 @@ if (typeof window !== 'undefined' && window.location.hash.length > 1) {
         <NeumorphismThemeToggle size="small" />
       </div>
     </header>
+    <!-- 树状导航侧栏：文档分级/包含关系索引（自组织：目录层级 + order，parent 显式覆盖） -->
+    <aside class="pd-tree-sidebar" :class="{ 'pd-tree-sidebar--hidden': currentPath !== '' }">
+      <div class="pd-tree-sidebar__head">
+        <span>文档索引</span>
+        <button
+          type="button"
+          class="pd-tree-sidebar__collapse"
+          :aria-label="treeSidebarOpen ? '收起索引' : '展开索引'"
+          @click="treeSidebarOpen = !treeSidebarOpen"
+        >{{ treeSidebarOpen ? '⟨' : '⟩' }}</button>
+      </div>
+      <nav v-if="treeSidebarOpen" class="pd-tree-sidebar__nav" aria-label="文档索引树">
+        <ul class="pd-tree">
+          <li v-for="node in docTree.children" :key="node.path || node.id">
+            <TreeItem
+              :node="node"
+              :expanded="treeExpanded"
+              :current-path="currentPath ?? ''"
+              @toggle="toggleTree"
+              @open="goTreeNode"
+            />
+          </li>
+        </ul>
+      </nav>
+    </aside>
 
     <div class="pd-graph-main">
       <!-- 图画布视图：文档群的全部框 -->
@@ -936,12 +1349,38 @@ if (typeof window !== 'undefined' && window.location.hash.length > 1) {
           ref="stageEl"
           class="pd-graph-stage"
           :class="{
-            'pd-graph-stage--dragging': dragBox?.moved || linkDraft || sideDrag,
+            'pd-graph-stage--dragging': dragBox?.moved || linkDraft || sideDrag || groupDrag?.moved || groupResize?.moved,
             'pd-graph-stage--editing': graphEditMode,
           }"
           :style="{ width: `${stage.w}px`, height: `${stage.h}px` }"
           @click="selectedEdgeId = null"
         >
+          <!-- 分组区域：同组框的圆角矩形围合（位于连线与框之下；区域本体不响应指针） -->
+          <div
+            v-for="group in groupRegions"
+            :key="'group-' + group.name"
+            class="pd-doc-group"
+            :class="{ 'pd-dim': isGroupDimmed(group) }"
+            :style="{ left: `${group.x}px`, top: `${group.y}px`, width: `${group.w}px`, height: `${group.h}px` }"
+          >
+            <!-- 组名标签：骑跨顶边（图例式）；图编辑模式下拖动它移动整组 -->
+            <span
+              class="pd-doc-group__label"
+              :title="graphEditMode ? `拖动移动整组「${group.name}」` : group.name"
+              data-nm-no-pan
+              @pointerdown="onGroupLabelDown($event, group)"
+            >{{ group.name }}</span>
+            <!-- 区域尺寸手柄：右下角，拖动调整区域长宽（仅图编辑模式） -->
+            <button
+              v-if="graphEditMode"
+              type="button"
+              class="pd-doc-group__resize"
+              :aria-label="`调整组「${group.name}」的区域尺寸`"
+              title="拖动调整区域尺寸"
+              data-nm-no-pan
+              @pointerdown.stop="onGroupResizeDown($event, group)"
+            ></button>
+          </div>
           <svg
             v-if="relationEdges.length || linkDraftPath"
             class="pd-relation-layer"

@@ -128,38 +128,57 @@ function serializeLinkEntry(entry: string): string {
 }
 
 /**
- * 将 link 条目列表写回框架参数区，保留其他参数和正文。
- *
- * 已有 link 行被替换；没有则插入参数区末尾；传入空数组时移除 link 行；
- * 文件原本没有参数区且条目非空时，在文件开头创建参数区。
+ * 单值/列表参数行的无损写回：替换已有 `key` 行，没有则插入参数区末尾，
+ * 传入 null 时移除该行；文件原本没有参数区且行非空时，在文件开头创建参数区。
  */
-export function writeFrameLinks(content: string, links: string[]): string {
+function writeFrameParamLine(content: string, key: string, paramLine: string | null): string {
   const eol = content.includes('\r\n') ? '\r\n' : '\n';
   const frame = parseFrameBlock(content);
-  const linkLine = links.length > 0 ? `link: [${links.map(serializeLinkEntry).join(', ')}]` : null;
 
   if (!frame.hasFrame) {
-    if (linkLine === null) return content;
-    return `---${eol}${linkLine}${eol}---${eol}${content}`;
+    if (paramLine === null) return content;
+    return `---${eol}${paramLine}${eol}---${eol}${content}`;
   }
 
   const lines = content.split(/\r?\n/);
   const closeIdx = lines.findIndex((line, index) => index > 0 && line.trim() === '---');
   if (closeIdx === -1) return content;
 
+  const keyPattern = new RegExp(`^${key}\\s*:`);
   const existingIdx = lines
     .slice(1, closeIdx)
-    .findIndex((line) => /^link\s*:/.test(line));
+    .findIndex((line) => keyPattern.test(line));
 
-  if (linkLine === null) {
+  if (paramLine === null) {
     if (existingIdx >= 0) lines.splice(existingIdx + 1, 1);
   } else if (existingIdx >= 0) {
-    lines[existingIdx + 1] = linkLine;
+    lines[existingIdx + 1] = paramLine;
   } else {
-    lines.splice(closeIdx, 0, linkLine);
+    lines.splice(closeIdx, 0, paramLine);
   }
 
   return lines.join(eol);
+}
+
+/**
+ * 将 link 条目列表写回框架参数区，保留其他参数和正文。
+ *
+ * 已有 link 行被替换；没有则插入参数区末尾；传入空数组时移除 link 行；
+ * 文件原本没有参数区且条目非空时，在文件开头创建参数区。
+ */
+export function writeFrameLinks(content: string, links: string[]): string {
+  const linkLine = links.length > 0 ? `link: [${links.map(serializeLinkEntry).join(', ')}]` : null;
+  return writeFrameParamLine(content, 'link', linkLine);
+}
+
+/**
+ * 将 group 条目写回框架参数区（单值参数），保留其他参数和正文。
+ *
+ * 已有 group 行被替换；没有则插入参数区末尾；传入 null 时移除 group 行；
+ * 文件原本没有参数区时，在文件开头创建参数区。
+ */
+export function writeFrameGroup(content: string, group: string | null): string {
+  return writeFrameParamLine(content, 'group', group !== null ? `group: ${serializeLinkEntry(group)}` : null);
 }
 
 /**

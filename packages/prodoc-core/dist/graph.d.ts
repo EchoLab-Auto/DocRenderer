@@ -5,6 +5,7 @@
  * 框的属性（id、标题、位置、尺寸等）来自文件最前方的框架参数区；
  * 缺少位置参数的框按 link 连线结构分层自动排布（根框在顶层，逐层向下）。
  * 正文 H2 标题提取为文档内分块（≥2 个时），在框内渲染为可跳转子块。
+ * group 参数把同组框围入一个圆角矩形分组区域（几何可显式声明）。
  * 同一 id 重复声明时后者覆盖前者并记录警告。
  */
 /** 文档内分块（从正文 H2 提取） */
@@ -48,10 +49,34 @@ export interface DocRelation {
     fromSide?: LinkSide;
     toSide?: LinkSide;
 }
+/** 组区域的显式几何（`group: "名称 @ x, y, w, h"`） */
+export interface GroupGeometry {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+}
+/** 文档分组：相同 group 名的框被围入同一个圆角矩形区域 */
+export interface DocGroup {
+    /** 组名（group 参数值，即区域标签文字） */
+    name: string;
+    /** 成员框 id（按文件路径字典序） */
+    members: string[];
+    /** 区域位置与尺寸（px）：显式几何为声明值，否则为成员包围盒 + 内边距 */
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    /** 是否显式声明了几何；显式时区域不随成员移动自动重算 */
+    explicit: boolean;
+    /** 几何持有者的文档路径（声明了几何的首个成员；无显式几何时为首个成员）——画布调整的写回目标 */
+    holder: string;
+}
 /** 一份文档群的图 */
 export interface DocGraph {
     boxes: DocBox[];
     relations: DocRelation[];
+    groups: DocGroup[];
     warnings: string[];
 }
 /** 框的默认尺寸与分层布局参数 */
@@ -59,6 +84,9 @@ export declare const BOX_DEFAULT_W = 220;
 export declare const BOX_DEFAULT_H = 96;
 /** 悬停展开的分块面板最多展示的条目数（超出折叠为 +N 项） */
 export declare const MAX_BLOCK_SLOTS = 6;
+/** 分组区域内边距：左右/下为 GROUP_PAD，顶部为 GROUP_LABEL_H（留组名标签位） */
+export declare const GROUP_PAD = 24;
+export declare const GROUP_LABEL_H = 34;
 /**
  * 解析 link 条目：`目标 | 标签 | 源边>目标边`。
  * 标签与连接边均可省略；连接边按 `t/r/b/l`（上/右/下/左）模式识别，
@@ -77,6 +105,23 @@ export declare function buildLinkEntry(parts: {
     fromSide?: LinkSide;
     toSide?: LinkSide;
 }): string;
+/**
+ * 解析 group 条目：`名称` 或 `名称 @ x, y, w, h`。
+ * 几何段不完整/不匹配时整个值视为组名（容错，不中断）。
+ */
+export declare function parseGroupEntry(raw: string): {
+    name: string;
+    geo?: GroupGeometry;
+};
+/** 组装 group 条目（parseGroupEntry 的逆操作；几何四元组缺一即只写组名） */
+export declare function buildGroupEntry(parts: {
+    name: string;
+} & Partial<GroupGeometry>): string;
+/**
+ * 分组区域几何：显式声明优先（原样采用）；
+ * 否则取成员包围盒 + 内边距（左右/下 GROUP_PAD，顶部 GROUP_LABEL_H 留标签位）。
+ */
+export declare function computeGroupRegion(members: ReadonlyArray<Pick<DocBox, 'x' | 'y' | 'w' | 'h'>>, explicit?: GroupGeometry): GroupGeometry;
 /** 与 ui-frame slugify 一致：小写、去除非字母数字字符、空白转连字符 */
 export declare function slugify(text: string): string;
 /**
