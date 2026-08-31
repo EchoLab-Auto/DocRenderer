@@ -189,19 +189,6 @@ export function writeFrameLinks(content: string, links: string[]): string {
 }
 
 /**
- * 将 parent 参数写回框架参数区（设置或移除包含关系）。
- * parent 为 null/空时移除该行；文件无参数区且 parent 非空时创建参数区。
- */
-export function writeFrameParent(content: string, parent: string | null): string {
-  const value = parent && parent.trim() !== '' ? parent.trim() : null;
-  return writeFrameParamLine(
-    content,
-    'parent',
-    value !== null ? `parent: ${serializeLinkEntry(value)}` : null,
-  );
-}
-
-/**
  * 将 group 条目写回框架参数区（单值参数），保留其他参数和正文。
  *
  * 已有 group 行被替换；没有则插入参数区末尾；传入 null 时移除 group 行；

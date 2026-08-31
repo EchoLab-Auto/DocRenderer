@@ -76,13 +76,9 @@ function s(e, t) {
 	return o(e, "link", t.length > 0 ? `link: [${t.map(a).join(", ")}]` : null);
 }
 function c(e, t) {
-	let n = t && t.trim() !== "" ? t.trim() : null;
-	return o(e, "parent", n === null ? null : `parent: ${a(n)}`);
-}
-function l(e, t) {
 	return o(e, "group", t === null ? null : `group: ${a(t)}`);
 }
-function u(e, t) {
+function l(e, t) {
 	let r = Object.entries(t).filter((e) => (e[0] === "x" || e[0] === "y") && typeof e[1] == "number" && Number.isFinite(e[1]));
 	if (r.length === 0) return e;
 	let i = e.includes("\r\n") ? "\r\n" : "\n";
@@ -98,7 +94,7 @@ function u(e, t) {
 }
 //#endregion
 //#region src/graph.ts
-var d = 220, f = 96, p = 6, m = 24, h = 34, g = 72, _ = 48, v = /* @__PURE__ */ new Set([
+var u = 220, d = 96, f = 6, p = 24, m = 34, h = 72, g = 48, _ = /* @__PURE__ */ new Set([
 	"id",
 	"title",
 	"x",
@@ -106,43 +102,41 @@ var d = 220, f = 96, p = 6, m = 24, h = 34, g = 72, _ = 48, v = /* @__PURE__ */ 
 	"w",
 	"h",
 	"link",
-	"group",
-	"parent",
-	"order"
+	"group"
 ]);
-function y(e) {
+function v(e) {
 	return typeof e == "number" && Number.isFinite(e) ? e : void 0;
 }
-var b = {
+var y = {
 	t: "top",
 	r: "right",
 	b: "bottom",
 	l: "left"
-}, x = {
+}, b = {
 	top: "t",
 	right: "r",
 	bottom: "b",
 	left: "l"
-}, S = /^([trbl_])>([trbl_])$/;
-function C(e) {
+}, x = /^([trbl_])>([trbl_])$/;
+function S(e) {
 	let t = e.split("|").map((e) => e.trim()), n = { ref: t[0] };
 	for (let e of t.slice(1)) {
-		let t = e.match(S);
-		t ? (t[1] !== "_" && (n.fromSide = b[t[1]]), t[2] !== "_" && (n.toSide = b[t[2]])) : e !== "" && (n.label = e);
+		let t = e.match(x);
+		t ? (t[1] !== "_" && (n.fromSide = y[t[1]]), t[2] !== "_" && (n.toSide = y[t[2]])) : e !== "" && (n.label = e);
 	}
 	return n;
 }
-function w(e) {
+function C(e) {
 	let t = e.ref;
 	if (e.label && (t += ` | ${e.label}`), e.fromSide || e.toSide) {
-		let n = e.fromSide ? x[e.fromSide] : "_", r = e.toSide ? x[e.toSide] : "_";
+		let n = e.fromSide ? b[e.fromSide] : "_", r = e.toSide ? b[e.toSide] : "_";
 		t += ` | ${n}>${r}`;
 	}
 	return t;
 }
-var T = /^(.*)\s*@\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/;
-function E(e) {
-	let t = e.match(T);
+var w = /^(.*)\s*@\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/;
+function T(e) {
+	let t = e.match(w);
 	return !t || !t[1].trim() ? { name: e.trim() } : {
 		name: t[1].trim(),
 		geo: {
@@ -153,7 +147,7 @@ function E(e) {
 		}
 	};
 }
-function D(e) {
+function E(e) {
 	let { name: t, x: n, y: r, w: i, h: a } = e;
 	return [
 		n,
@@ -162,7 +156,7 @@ function D(e) {
 		a
 	].every((e) => typeof e == "number" && Number.isFinite(e)) ? `${t} @ ${n}, ${r}, ${i}, ${a}` : t;
 }
-function O(e, t) {
+function D(e, t) {
 	if (t) return { ...t };
 	if (e.length === 0) return {
 		x: 0,
@@ -179,17 +173,17 @@ function O(e, t) {
 		h: a - r + 34 + 24
 	};
 }
-function k(e) {
+function O(e) {
 	let t = e.match(/^#[ \t]+(.+)$/m);
 	return t ? t[1].trim() : void 0;
 }
-function A(e) {
+function k(e) {
 	return e.toLowerCase().replace(/[^\p{L}\p{N}\s-]/gu, "").replace(/[\s-]+/g, "-").replace(/^-+|-+$/g, "");
 }
-function j(e) {
+function A(e) {
 	return e.replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/[`*_~]/g, "").replace(/<[^>]+>/g, "").trim();
 }
-function M(e) {
+function j(e) {
 	let t = [], n = null;
 	for (let r of e.split("\n")) {
 		let e = r.match(/^\s*(`{3,}|~{3,})/);
@@ -200,16 +194,16 @@ function M(e) {
 		if (n !== null) continue;
 		let i = r.match(/^##[ \t]+(.+?)\s*#*\s*$/);
 		if (i) {
-			let e = j(i[1]);
+			let e = A(i[1]);
 			e && t.push({
-				anchor: A(e),
+				anchor: k(e),
 				title: e
 			});
 		}
 	}
 	return t.length >= 2 ? t : [];
 }
-function N(e, t) {
+function M(e, t) {
 	let n = /* @__PURE__ */ new Map();
 	for (let e of t) {
 		let t = n.get(e.to);
@@ -231,7 +225,7 @@ function N(e, t) {
 	for (let t of e) a(t.id);
 	return r;
 }
-function P(e, t, n, r) {
+function N(e, t, n, r) {
 	let i = e.filter((e) => {
 		let t = r.get(e.id);
 		return t.rawX === void 0 || t.rawY === void 0;
@@ -252,7 +246,7 @@ function P(e, t, n, r) {
 		let t = l.get(e.depth);
 		t ? t.push(e) : l.set(e.depth, [e]);
 	}
-	let u = [...l.keys()].sort((e, t) => e - t), d = _;
+	let u = [...l.keys()].sort((e, t) => e - t), d = g;
 	for (let e of u) {
 		let t = l.get(e), n = t.map((e, n) => {
 			let r = (c.get(e.box.id) ?? []).map((e) => s.get(e)).filter((e) => e !== void 0);
@@ -262,50 +256,50 @@ function P(e, t, n, r) {
 			};
 		});
 		n.sort((e, t) => e.bary - t.bary);
-		let i = n.map((e) => e.auto), u = d, f = 0, p = _, m = 0;
+		let i = n.map((e) => e.auto), u = d, f = 0, p = g, m = 0;
 		for (let { box: e } of i) {
-			m === a && (u += f + g, f = 0, p = _, m = 0);
+			m === a && (u += f + h, f = 0, p = g, m = 0);
 			let t = r.get(e.id);
 			t.rawX === void 0 && (e.x = p), t.rawY === void 0 && (e.y = u), s.set(e.id, o(e)), p += e.w + 64, f = Math.max(f, e.h), m++;
 		}
-		d = u + f + g;
+		d = u + f + h;
 	}
 }
-function F(e, t) {
+function P(e, t) {
 	let n = e.map((e) => ({
 		...e,
 		x: 0,
 		y: 0
 	}));
-	return P(n, t, N(n, t), new Map(n.map((e) => [e.id, {}]))), new Map(n.map((e) => [e.id, {
+	return N(n, t, M(n, t), new Map(n.map((e) => [e.id, {}]))), new Map(n.map((e) => [e.id, {
 		x: e.x,
 		y: e.y
 	}]));
 }
-function I(e) {
+function F(e) {
 	let t = Object.keys(e).sort(), i = [], a = /* @__PURE__ */ new Map(), o = /* @__PURE__ */ new Map(), s = /* @__PURE__ */ new Map();
 	for (let r of t) {
-		let { params: t, body: c } = n(e[r]), l = typeof t.id == "string" && t.id.trim() !== "" ? t.id.trim() : r.replace(/\.md$/, ""), u = typeof t.title == "string" && t.title.trim() !== "" && t.title.trim() || k(c) || l, d = M(c), f = y(t.w) ?? 220, p = y(t.h) ?? 96, m = {};
-		for (let [e, n] of Object.entries(t)) v.has(e) || (m[e] = n);
+		let { params: t, body: c } = n(e[r]), l = typeof t.id == "string" && t.id.trim() !== "" ? t.id.trim() : r.replace(/\.md$/, ""), u = typeof t.title == "string" && t.title.trim() !== "" && t.title.trim() || O(c) || l, d = j(c), f = v(t.w) ?? 220, p = v(t.h) ?? 96, m = {};
+		for (let [e, n] of Object.entries(t)) _.has(e) || (m[e] = n);
 		let h = {
 			id: l,
 			title: u,
 			docPath: r,
 			depth: 0,
 			blocks: d,
-			x: y(t.x) ?? 0,
-			y: y(t.y) ?? 0,
+			x: v(t.x) ?? 0,
+			y: v(t.y) ?? 0,
 			w: f,
 			h: p,
 			attrs: m
 		};
 		if (o.set(l, {
-			rawX: y(t.x),
-			rawY: y(t.y)
+			rawX: v(t.x),
+			rawY: v(t.y)
 		}), t.group !== void 0) {
 			let e = (Array.isArray(t.group) ? t.group : [t.group]).map((e) => typeof e == "string" ? e : typeof e == "number" ? String(e) : "").filter((e) => e.trim() !== "");
-			if (e.length > 1 && i.push(`文档 "${l}" 声明了多个 group，仅取第一个 "${E(e[0]).name || e[0]}"`), e.length > 0) {
-				let { name: t, geo: n } = E(e[0]);
+			if (e.length > 1 && i.push(`文档 "${l}" 声明了多个 group，仅取第一个 "${T(e[0]).name || e[0]}"`), e.length > 0) {
+				let { name: t, geo: n } = T(e[0]);
 				t && s.set(l, {
 					name: t,
 					geo: n
@@ -319,24 +313,24 @@ function I(e) {
 		let t = e.trim(), n = t.endsWith(".md") ? t : t + ".md";
 		return a.get(t) ?? l.get(t) ?? l.get(n);
 	}
-	function p(e, t, n, r, a = "link") {
-		let o = f(e), s = f(t);
-		if (!o || !s) {
-			let n = o ? t : e;
+	function p(e, t, n, r) {
+		let a = f(e), o = f(t);
+		if (!a || !o) {
+			let n = a ? t : e;
 			i.push("连线 " + r + " 引用了不存在的文档 \"" + n + "\"");
 			return;
 		}
-		if (o.id === s.id) {
-			i.push("文档 \"" + o.id + "\" 不能连线自身");
+		if (a.id === o.id) {
+			i.push("文档 \"" + a.id + "\" 不能连线自身");
 			return;
 		}
-		let c = o.id + "->" + s.id;
-		d.has(c) || (d.add(c), u.push({
-			id: c,
-			type: a,
-			from: o.id,
-			to: s.id,
-			label: a === "parent" ? "包含" : n.label,
+		let s = a.id + "->" + o.id;
+		d.has(s) || (d.add(s), u.push({
+			id: s,
+			type: "link",
+			from: a.id,
+			to: o.id,
+			label: n.label,
 			fromSide: n.fromSide,
 			toSide: n.toSide
 		}));
@@ -344,19 +338,17 @@ function I(e) {
 	for (let t of c) {
 		let { params: i } = n(e[t.docPath]);
 		for (let e of r(i.link)) {
-			let { ref: n, label: r, fromSide: i, toSide: a } = C(e);
+			let { ref: n, label: r, fromSide: i, toSide: a } = S(e);
 			n && p(t.id, n, {
 				label: r,
 				fromSide: i,
 				toSide: a
 			}, t.id + ".link");
 		}
-		let a = i.parent;
-		typeof a == "string" && a.trim() !== "" && p(t.id, a, {}, t.id + ".parent", "parent");
 	}
-	let m = N(c, u);
+	let m = M(c, u);
 	for (let e of c) e.depth = m.get(e.id) ?? 0;
-	P(c, u, m, o);
+	N(c, u, m, o);
 	let h = /* @__PURE__ */ new Map();
 	for (let e of c) {
 		let t = s.get(e.id);
@@ -370,7 +362,7 @@ function I(e) {
 		groups: [...h.entries()].map(([e, t]) => ({
 			name: e,
 			members: t.members.map((e) => e.id),
-			...O(t.members, t.geo),
+			...D(t.members, t.geo),
 			explicit: t.geo !== void 0,
 			holder: t.holder ?? t.members[0].docPath
 		})),
@@ -378,118 +370,6 @@ function I(e) {
 	};
 }
 //#endregion
-//#region src/tree.ts
-function L(e, t) {
-	let r = n(e), i = r.params.title;
-	if (typeof i == "string" && i.trim()) return i.trim();
-	let a = r.body.match(/^#\s+(.+)$/m);
-	return a ? a[1].trim() : (t.split("/").pop() ?? t).replace(/\.md$/, "");
-}
-function R(e) {
-	let t = [], r = [], i = /* @__PURE__ */ new Map();
-	for (let a of e) {
-		let e = n(a.content).params, o = typeof e.id == "string" && e.id.trim() ? e.id.trim() : a.path.replace(/\.md$/, ""), s = typeof e.order == "number" ? e.order : typeof e.order == "string" && Number(e.order) || 0, c = typeof e.parent == "string" && e.parent.trim() ? e.parent.trim() : void 0;
-		r.push({
-			path: a.path,
-			id: o,
-			title: L(a.content, a.path),
-			order: s,
-			parent: c
-		}), i.has(o) && t.push(`duplicate id "${o}" in tree (${i.get(o)} / ${a.path})`), i.set(o, a.path);
-	}
-	let a = (e) => {
-		if (!e.parent) return;
-		let n = i.get(e.parent), a = e.parent.endsWith(".md") ? e.parent : `${e.parent}.md`;
-		if (n) return n;
-		if (r.some((e) => e.path === a)) return a;
-		t.push(`parent "${e.parent}" of ${e.path} not found; falling back to directory level`);
-	}, o = /* @__PURE__ */ new Map(), s = (e) => {
-		if (o.has(e)) return o.get(e);
-		let t = {
-			id: e || "___root___",
-			title: e ? e.split("/").pop() : "根",
-			path: e,
-			isDir: !0,
-			order: 0,
-			children: []
-		};
-		return o.set(e, t), t;
-	}, c = {
-		id: "___root___",
-		title: "文档",
-		path: "",
-		isDir: !0,
-		order: 0,
-		children: []
-	};
-	o.set("", c);
-	for (let e of r) {
-		let t = {
-			id: e.id,
-			title: e.title,
-			path: e.path,
-			isDir: !1,
-			order: e.order,
-			parent: e.parent,
-			children: []
-		};
-		o.set(e.path, t);
-	}
-	for (let e of r) {
-		let t = o.get(e.path), n = a(e);
-		if (n) {
-			let e = n, r = o.get(e);
-			if (r) {
-				r.children.push(t);
-				continue;
-			}
-			s(e).children.push(t);
-			continue;
-		}
-		let r = e.path.lastIndexOf("/");
-		s(r === -1 ? "" : e.path.slice(0, r)).children.push(t);
-	}
-	for (let e of [...o.keys()]) {
-		if (e === "" || e === "___root___") continue;
-		let t = o.get(e);
-		if (!t.isDir) continue;
-		if (t.children.some((t) => t.path === `${e}/index.md`)) {
-			let n = e.lastIndexOf("/"), r = n === -1 ? "" : e.slice(0, n), i = o.get(r) ?? c, a = t.children.find((t) => t.path === `${e}/index.md`);
-			a && (o.delete(e), i.children = i.children.filter((e) => e !== t), a.isDir = !0, a.children = t.children.filter((e) => e !== a), i.children.push(a), o.set(e, a));
-			continue;
-		}
-		let n = e.lastIndexOf("/"), r = n === -1 ? "" : e.slice(0, n);
-		(o.get(r) ?? c).children.push(t);
-	}
-	let l = (e) => {
-		e.children.sort((e, t) => e.isDir === t.isDir ? e.order === t.order ? e.title.localeCompare(t.title) : e.order - t.order : e.isDir ? -1 : 1);
-		for (let t of e.children) l(t);
-	};
-	return l(c), {
-		root: c,
-		nodeMap: o,
-		warnings: t
-	};
-}
-function z(e) {
-	let t = [], n = (e) => {
-		t.push(e);
-		for (let t of e.children) n(t);
-	};
-	return n(e), t;
-}
-function B(e, t) {
-	let n = [], r = (e) => {
-		if (e === t) return !0;
-		for (let t of e.children) {
-			if (n.push(e), r(t)) return !0;
-			n.pop();
-		}
-		return !1;
-	};
-	return r(e), n;
-}
-//#endregion
-export { u as S, n as _, d as a, s as b, p as c, w as d, O as f, r as g, C as h, f as i, I as l, E as m, R as n, h as o, F as p, z as r, m as s, B as t, D as u, i as v, c as x, l as y };
+export { s as _, f as a, C as c, T as d, S as f, c as g, i as h, p as i, D as l, n as m, u as n, F as o, r as p, m as r, E as s, d as t, P as u, l as v };
 
-//# sourceMappingURL=tree-BlZcK4os.js.map
+//# sourceMappingURL=graph-DfgBSDc2.js.map

@@ -37,11 +37,10 @@ export interface DocBox {
 }
 /** 框的边：连线可指定连接在哪条边的中点 */
 export type LinkSide = 'top' | 'right' | 'bottom' | 'left';
-/** 文档间的有向关系；方向为声明方文档 → 目标文档。
- * `link` = 导航连线（实线箭头）；`parent` = 包含关系（parent 参数，虚线）。 */
+/** 文档间的有向连线；方向为声明方文档 → 目标文档。 */
 export interface DocRelation {
     id: string;
-    type: 'link' | 'parent';
+    type: 'link';
     from: string;
     to: string;
     /** 连线标签（link 条目 `目标 | 标签` 中 | 后的文字；省略时不显示文字） */

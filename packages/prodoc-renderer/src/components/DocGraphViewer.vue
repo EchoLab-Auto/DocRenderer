@@ -7,9 +7,8 @@
  * 正文渲染基于剥离框架参数区后的内容。地址栏 hash 同步当前文档路径。
  */
 
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import { NeumorphismCanvas, NeumorphismThemeToggle } from '@echolab-auto/ui-frame';
-import TreeItem from './DocTreeItem.vue';
 import { MarkdownEditor, MarkdownRenderer, writeFlowNodePosition } from '@echolab-auto/ui-frame/doc';
 import {
   buildDocGraph,
@@ -22,16 +21,12 @@ import {
   readFrameLinks,
   writeFrameLinks,
   writeFrameGroup,
-  writeFrameParent,
   writeFramePosition,
   MAX_BLOCK_SLOTS,
   GROUP_PAD,
-  buildDocTree,
-  flattenTree,
   type DocGraph,
   type DocBox,
   type DocGroup,
-  type DocTreeNode,
   type LinkSide,
 } from '@prodoc/core';
 
@@ -80,69 +75,6 @@ watch(
 /** 当前打开的文档路径；null 表示处于图画布视图 */
 const currentPath = ref<string | null>(null);
 
-/** 文档树（分级与包含关系）：目录层级/order 自组织；用于左侧树状索引 */
-const docTree = computed<DocTreeNode>(() => {
-  const files = Object.entries(effectiveFiles.value).map(([path, content]) => ({
-    path,
-    content,
-  }));
-  return buildDocTree(files).root;
-});
-/** 扁平列表：path → 节点（含目录虚节点），供高亮/搜索 */
-const flatTree = computed<DocTreeNode[]>(() => flattenTree(docTree.value));
-/** 当前文档的祖先链（树面包屑与展开） */
-const currentAncestors = computed<DocTreeNode[]>(() => {
-  if (!currentPath.value) return [];
-  const node = flatTree.value.find((n) => n.path === currentPath.value && !n.isDir);
-  if (!node) return [];
-  const chain: DocTreeNode[] = [];
-  const walk = (item: DocTreeNode, trail: DocTreeNode[]): boolean => {
-    if (item === node) {
-      chain.push(...trail, item);
-      return true;
-    }
-    for (const c of item.children) {
-      if (walk(c, [...trail, item])) return true;
-    }
-    return false;
-  };
-  walk(docTree.value, []);
-  return chain;
-});
-/** 树状索引侧栏是否展开（默认展开） */
-const treeSidebarOpen = ref(true);
-/** 树节点展开状态（path → 是否展开）；当前文档祖先默认展开 */
-const treeExpanded = ref<Record<string, boolean>>({});
-// ⚠️ 不能用 immediate watch：currentPath 声明在本代码块之后，
-// immediate 在 setup 同步执行时会 TDZ 崩溃（白屏根因）。
-// 改为随 currentPath 变化展开祖先（文档打开时触发）。
-watch(
-  () => currentPath.value,
-  () => {
-    for (const a of currentAncestors.value) {
-      if (a.isDir) treeExpanded.value[a.path] = true;
-    }
-  },
-);
-// 初次挂载：展开一级目录，让索引立即可见
-onMounted(() => {
-  for (const child of docTree.value.children) {
-    if (child.isDir) treeExpanded.value[child.path] = true;
-  }
-});
-function toggleTree(node: DocTreeNode) {
-  if (node.isDir || node.children.length) {
-    treeExpanded.value[node.path] = !treeExpanded.value[node.path];
-  }
-}
-function goTreeNode(node: DocTreeNode) {
-  if (!node.isDir) {
-    open(node.path);
-  } else {
-    toggleTree(node);
-  }
-}
-
 const canvasRef = ref<{ fit?: () => void } | null>(null);
 
 /** 画布舞台尺寸：容纳所有框与分组区域 + 边距 */
@@ -164,7 +96,6 @@ const stage = computed(() => {
 
 interface RelationEdge {
   id: string;
-  kind: 'link' | 'parent';
   fromId: string;
   toId: string;
   fromTitle: string;
@@ -238,7 +169,6 @@ const relationEdges = computed<RelationEdge[]>(() => {
     const from = boxes.get(relation.from);
     const to = boxes.get(relation.to);
     if (!from || !to) return [];
-    const kind = relation.type;
 
     // 连接边拖拽预览：被拖端点实时跟随预览边
     let fromSide = relation.fromSide;
@@ -251,7 +181,6 @@ const relationEdges = computed<RelationEdge[]>(() => {
     const { x1, y1, x2, y2, d } = edgeGeometry(from, to, fromSide, toSide);
     return [{
       id: relation.id,
-      kind,
       fromId: from.id,
       toId: to.id,
       fromTitle: from.title,
@@ -854,17 +783,7 @@ function resolveDocId(raw: string): string | undefined {
 function removeSelectedEdge() {
   const edge = selectedEdge.value;
   if (!edge) return;
-  // parent（包含）边：删除子文档（from）的 parent 参数声明即可移除关系。
-  if (edge.kind === 'parent') {
-    const child = graph.value.boxes.find((b) => b.id === edge.fromId);
-    if (!child) return;
-    const content = stagedContent(child.docPath);
-    if (content === undefined) return;
-    stageDraft(child.docPath, writeFrameParent(content, null));
-    selectedEdgeId.value = null;
-    return;
-  }
-  // link（导航）边：从源文档（from）的 link 参数中过滤掉指向该目标的条目。
+  // 从源文档（from）的 link 参数中过滤掉指向该目标的条目。
   const from = graph.value.boxes.find((b) => b.id === edge.fromId);
   if (!from) return;
   const content = stagedContent(from.docPath);
@@ -1333,31 +1252,6 @@ if (typeof window !== 'undefined' && window.location.hash.length > 1) {
         <NeumorphismThemeToggle size="small" />
       </div>
     </header>
-    <!-- 树状导航侧栏：文档分级/包含关系索引（自组织：目录层级 + order，parent 显式覆盖） -->
-    <aside class="pd-tree-sidebar" :class="{ 'pd-tree-sidebar--hidden': currentPath !== '' }">
-      <div class="pd-tree-sidebar__head">
-        <span>文档索引</span>
-        <button
-          type="button"
-          class="pd-tree-sidebar__collapse"
-          :aria-label="treeSidebarOpen ? '收起索引' : '展开索引'"
-          @click="treeSidebarOpen = !treeSidebarOpen"
-        >{{ treeSidebarOpen ? '⟨' : '⟩' }}</button>
-      </div>
-      <nav v-if="treeSidebarOpen" class="pd-tree-sidebar__nav" aria-label="文档索引树">
-        <ul class="pd-tree">
-          <li v-for="node in docTree.children" :key="node.path || node.id">
-            <TreeItem
-              :node="node"
-              :expanded="treeExpanded"
-              :current-path="currentPath ?? ''"
-              @toggle="toggleTree"
-              @open="goTreeNode"
-            />
-          </li>
-        </ul>
-      </nav>
-    </aside>
 
     <div class="pd-graph-main">
       <!-- 图画布视图：文档群的全部框 -->
@@ -1433,7 +1327,6 @@ if (typeof window !== 'undefined' && window.location.hash.length > 1) {
               :key="edge.id"
               class="pd-relation"
               :class="{
-                'pd-relation--parent': edge.kind === 'parent',
                 'pd-dim': isEdgeDimmed(edge),
                 'pd-hot': isEdgeHot(edge),
                 'pd-selected': edge.id === selectedEdgeId,
@@ -1485,8 +1378,8 @@ if (typeof window !== 'undefined' && window.location.hash.length > 1) {
             type="button"
             class="pd-edge-delete"
             :style="{ left: `${selectedEdge.labelX}px`, top: `${selectedEdge.labelY}px` }"
-            :aria-label="`删除${selectedEdge.kind === 'parent' ? '包含关系' : '连线'} ${selectedEdge.fromTitle} → ${selectedEdge.toTitle}`"
-            :title="`删除${selectedEdge.kind === 'parent' ? '包含关系' : '连线'}（Delete）`"
+            :aria-label="`删除连线 ${selectedEdge.fromTitle} → ${selectedEdge.toTitle}`"
+            :title="`删除连线（Delete）`"
             @click.stop="removeSelectedEdge"
           >✕</button>
           <div

@@ -43,11 +43,10 @@ export interface DocBox {
 /** 框的边：连线可指定连接在哪条边的中点 */
 export type LinkSide = 'top' | 'right' | 'bottom' | 'left';
 
-/** 文档间的有向关系；方向为声明方文档 → 目标文档。
- * `link` = 导航连线（实线箭头）；`parent` = 包含关系（parent 参数，虚线）。 */
+/** 文档间的有向连线；方向为声明方文档 → 目标文档。 */
 export interface DocRelation {
   id: string;
-  type: 'link' | 'parent';
+  type: 'link';
   from: string;
   to: string;
   /** 连线标签（link 条目 `目标 | 标签` 中 | 后的文字；省略时不显示文字） */
@@ -103,7 +102,7 @@ const LAYER_GAP_Y = 72;
 const LAYOUT_PADDING = 48;
 
 /** 框架保留字段（不进入 attrs） */
-const RESERVED_KEYS = new Set(['id', 'title', 'x', 'y', 'w', 'h', 'link', 'group', 'parent', 'order']);
+const RESERVED_KEYS = new Set(['id', 'title', 'x', 'y', 'w', 'h', 'link', 'group']);
 
 function asNumber(v: unknown): number | undefined {
   return typeof v === 'number' && Number.isFinite(v) ? v : undefined;
@@ -491,7 +490,6 @@ export function buildDocGraph(files: Record<string, string>): DocGraph {
     toRef: string,
     extra: { label?: string; fromSide?: LinkSide; toSide?: LinkSide },
     declaredBy: string,
-    type: 'link' | 'parent' = 'link',
   ) {
     const from = resolveRef(fromRef);
     const to = resolveRef(toRef);
@@ -506,15 +504,14 @@ export function buildDocGraph(files: Record<string, string>): DocGraph {
     }
 
     const key = from.id + '->' + to.id;
-    // parent 边与 link 边重合时只保留 link（导航优先，不画双线）。
     if (relationKeys.has(key)) return;
     relationKeys.add(key);
     relations.push({
       id: key,
-      type,
+      type: 'link',
       from: from.id,
       to: to.id,
-      label: type === 'parent' ? '包含' : extra.label,
+      label: extra.label,
       fromSide: extra.fromSide,
       toSide: extra.toSide,
     });
@@ -525,12 +522,6 @@ export function buildDocGraph(files: Record<string, string>): DocGraph {
     for (const entry of asRefs(params.link)) {
       const { ref, label, fromSide, toSide } = parseLinkEntry(entry);
       if (ref) addRelation(box.id, ref, { label, fromSide, toSide }, box.id + '.link');
-    }
-    // 包含关系（parent）：显式声明父文档（id 或相对路径）；
-    // 与 link 边重合时已由关系键去重（导航优先）。
-    const parentRef = params.parent;
-    if (typeof parentRef === 'string' && parentRef.trim() !== '') {
-      addRelation(box.id, parentRef, {}, box.id + '.parent', 'parent');
     }
   }
 

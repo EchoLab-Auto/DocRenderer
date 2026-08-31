@@ -1,6 +1,6 @@
 /** Node-safe ProDoc frame and graph APIs without UI side effects. */
 export { parseFrameBlock, writeFramePosition, readFrameLinks, writeFrameLinks, writeFrameGroup,
-  writeFrameParent, asRefs } from './frame.js';
+  asRefs } from './frame.js';
 export type { FrameBlock, FramePosition } from './frame.js';
 export {
   buildDocGraph,
@@ -17,5 +17,3 @@ export {
   buildGroupEntry,
 } from './graph.js';
 export type { DocBlock, DocBox, DocGraph, DocGroup, DocRelation, GroupGeometry, LinkSide } from './graph.js';
-export { buildDocTree, flattenTree, ancestorsOf } from './tree.js';
-export type { DocTreeNode, DocTreeBuildResult } from './tree.js';

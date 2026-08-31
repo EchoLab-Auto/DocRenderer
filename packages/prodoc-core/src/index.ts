@@ -10,7 +10,7 @@
 
 // ============ 框架参数区 + 文档图 ============
 export { parseFrameBlock, writeFramePosition, readFrameLinks, writeFrameLinks, writeFrameGroup,
-  writeFrameParent, asRefs } from './frame.js';
+  asRefs } from './frame.js';
 export type { FrameBlock, FramePosition } from './frame.js';
 export {
   buildDocGraph,
@@ -49,6 +49,3 @@ export {
   resolveCanvasGraph,
   buildHierarchyGraph,
 } from '@echolab-auto/ui-frame/doc'
-
-export { buildDocTree, flattenTree, ancestorsOf } from './tree.js';
-export type { DocTreeNode, DocTreeBuildResult } from './tree.js';
