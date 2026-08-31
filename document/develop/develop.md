@@ -3,6 +3,7 @@ id: develop
 title: "开发指南"
 x: 362
 y: 508
+group: 开发
 link: ["interaction-design | 交互设计"]
 ---
 

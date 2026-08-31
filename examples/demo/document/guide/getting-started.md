@@ -1,6 +1,9 @@
 ---
 title: "快速入门"
-order: 1
+group: 指南
+x: 332
+y: 216
+link: ["api/index | API 文档"]
 ---
 
 # 快速入门

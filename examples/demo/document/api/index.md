@@ -1,6 +1,7 @@
 ---
 title: "API 文档"
-order: 3
+x: 332
+y: 48
 ---
 
 # API 文档
@@ -15,15 +16,19 @@ order: 3
 | `writeFramePosition(content, pos)` | 把画布坐标写回参数区（`x` / `y`） |
 | `readFrameLinks(content)` | 读取参数区的 `link` 连线条目 |
 | `writeFrameLinks(content, links)` | 重写参数区的 `link` 连线条目 |
+| `writeFrameGroup(content, group)` | 写回参数区的 `group` 分组条目（`null` 移除） |
 
 ### 文档图（graph）
 
 | 函数 | 描述 |
 |------|------|
-| `buildDocGraph(files)` | 从「相对路径 → 文件内容」映射构建文档图（框 + 连线 + 警告） |
+| `buildDocGraph(files)` | 从「相对路径 → 文件内容」映射构建文档图（框 + 连线 + 分组 + 警告） |
 | `computeLayeredLayout(boxes, relations)` | 忽略文件坐标，按连线层级计算分层布局 |
 | `parseLinkEntry(entry)` | 解析单条 link 条目（引用 / 标签 / 连接边） |
 | `buildLinkEntry({ ref, label, fromSide, toSide })` | 组装 link 条目字符串 |
+| `parseGroupEntry(entry)` | 解析 group 条目（组名 / 显式区域几何 `@ x, y, w, h`） |
+| `buildGroupEntry({ name, x, y, w, h })` | 组装 group 条目字符串 |
+| `computeGroupRegion(members, explicit?)` | 计算分组区域几何（成员包围盒 + 内边距，或显式声明值） |
 
 ### 流程图（prodoc-flow，重新导出）
 

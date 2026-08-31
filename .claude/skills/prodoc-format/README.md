@@ -7,8 +7,9 @@ ProDoc is a Markdown-based document organization convention that defines how a s
 ## Capabilities
 
 - Document graph model — every `.md` file is a box on an interactive canvas, directory only affects paths
-- Frame block conventions (id / title / x / y / w / h / link + custom attrs)
+- Frame block conventions (id / title / x / y / w / h / link / group + custom attrs)
 - `link` relation syntax — `目标 | 标签 | 源边>目标边` entries with id/path resolution
+- Document grouping (`group`) — same-group boxes enclosed in a rounded-rect region with adjustable geometry
 - Layered auto-layout from link structure (depth layers, coordinate write-back)
 - In-document blocks (H2 → hover panel with anchor jump)
 - `prodoc-flow` flowchart syntax — interactive canvas rendering with clickable document links

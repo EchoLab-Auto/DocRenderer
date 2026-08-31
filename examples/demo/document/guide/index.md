@@ -1,6 +1,9 @@
 ---
 title: "使用指南"
-order: 2
+group: 指南
+x: 48
+y: 216
+link: ["guide/getting-started | 快速入门", "guide/flow-chart | 流程图"]
 ---
 
 # 使用指南
@@ -10,7 +13,7 @@ order: 2
 ## 安装
 
 ```bash
-npm install @prodoc/core @prodoc/renderer @prodoc/editor
+npm install @prodoc/core @prodoc/renderer
 ```
 
 ## 基本用法
@@ -18,12 +21,12 @@ npm install @prodoc/core @prodoc/renderer @prodoc/editor
 ```ts
 import { createApp, h } from 'vue'
 import uiFrame, { ThemeProvider } from '@echolab-auto/ui-frame'
-import { DocViewer } from '@prodoc/renderer'
+import { DocGraphViewer } from '@prodoc/renderer'
 
 const app = createApp({
   render() {
     return h(ThemeProvider, { defaultTheme: 'auto' }, {
-      default: () => h(DocViewer, { root: docTree }),
+      default: () => h(DocGraphViewer, { files: { 'index.md': '# 首页' } }),
     })
   },
 })
