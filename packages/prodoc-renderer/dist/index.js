@@ -1,12 +1,12 @@
-import { Fragment as e, computed as t, createBlock as n, createCommentVNode as r, createElementBlock as i, createElementVNode as a, createVNode as o, defineComponent as s, nextTick as c, normalizeClass as l, normalizeStyle as u, openBlock as d, ref as f, renderList as p, resolveComponent as m, toDisplayString as h, unref as g, watch as ee, withCtx as te, withKeys as _, withModifiers as v } from "vue";
-import { NeumorphismCanvas as ne, NeumorphismThemeToggle as re } from "@echolab-auto/ui-frame";
-import { DocFlowCanvas as y, DocViewer as b, MarkdownEditor as ie, MarkdownRenderer as x, MarkdownRenderer as ae, writeFlowNodePosition as oe } from "@echolab-auto/ui-frame/doc";
+import { Fragment as e, computed as t, createBlock as n, createCommentVNode as r, createElementBlock as i, createElementVNode as a, createVNode as o, defineComponent as s, nextTick as c, normalizeClass as l, normalizeStyle as u, onMounted as d, openBlock as f, ref as p, renderList as m, resolveComponent as ee, toDisplayString as h, unref as g, watch as te, withCtx as ne, withKeys as _, withModifiers as v } from "vue";
+import { NeumorphismCanvas as re, NeumorphismThemeToggle as ie } from "@echolab-auto/ui-frame";
+import { DocFlowCanvas as y, DocViewer as b, MarkdownEditor as ae, MarkdownRenderer as x, MarkdownRenderer as oe, writeFlowNodePosition as se } from "@echolab-auto/ui-frame/doc";
 import "@echolab-auto/ui-frame/dist/style.css";
 //#region src/components/DocTreeItem.vue?vue&type=script&setup=true&lang.ts
-var S = { class: "pd-tree-node" }, se = ["title"], C = {
+var S = { class: "pd-tree-node" }, ce = ["title"], C = {
 	class: "pd-tree-icon",
 	"aria-hidden": "true"
-}, ce = { class: "pd-tree-title" }, le = {
+}, w = { class: "pd-tree-title" }, le = {
 	key: 0,
 	class: "pd-tree-order"
 }, ue = {
@@ -27,8 +27,8 @@ var S = { class: "pd-tree-node" }, se = ["title"], C = {
 	setup(t, { emit: o }) {
 		let s = o;
 		return (o, c) => {
-			let u = m("DocTreeItem", !0);
-			return d(), i("li", S, [a("div", {
+			let u = ee("DocTreeItem", !0);
+			return f(), i("li", S, [a("div", {
 				class: l(["pd-tree-row", {
 					"pd-tree-row--dir": t.node.isDir,
 					"pd-tree-row--active": t.node.path === t.currentPath
@@ -43,9 +43,9 @@ var S = { class: "pd-tree-node" }, se = ["title"], C = {
 					"aria-hidden": "true"
 				}, h(t.node.children.length ? t.expanded[t.node.path] ? "▾" : "▸" : "·"), 3),
 				a("span", C, h(t.node.isDir ? "📁" : "📄"), 1),
-				a("span", ce, h(t.node.title), 1),
-				t.node.order ? (d(), i("span", le, "#" + h(t.node.order), 1)) : r("", !0)
-			], 42, se), t.node.children.length && t.expanded[t.node.path] ? (d(), i("ul", ue, [(d(!0), i(e, null, p(t.node.children, (e) => (d(), n(u, {
+				a("span", w, h(t.node.title), 1),
+				t.node.order ? (f(), i("span", le, "#" + h(t.node.order), 1)) : r("", !0)
+			], 42, ce), t.node.children.length && t.expanded[t.node.path] ? (f(), i("ul", ue, [(f(!0), i(e, null, m(t.node.children, (e) => (f(), n(u, {
 				key: e.path || e.id,
 				node: e,
 				expanded: t.expanded,
@@ -62,15 +62,15 @@ var S = { class: "pd-tree-node" }, se = ["title"], C = {
 }), [["__scopeId", "data-v-2ae1524a"]]);
 //#endregion
 //#region ../prodoc-core/dist/tree-BskcCljG.js
-function w(e) {
+function T(e) {
 	let t = [], n = "", r = null;
 	for (let i of e) r ? (n += i, i === r && (r = null)) : i === "\"" || i === "'" ? (r = i, n += i) : i === "," ? (t.push(n), n = "") : n += i;
 	return t.push(n), t;
 }
-function T(e) {
+function E(e) {
 	let t = e.trim();
 	if (t === "") return "";
-	if (t.startsWith("[") && t.endsWith("]")) return w(t.slice(1, -1)).map((e) => T(e)).filter((e) => e !== "");
+	if (t.startsWith("[") && t.endsWith("]")) return T(t.slice(1, -1)).map((e) => E(e)).filter((e) => e !== "");
 	if (t === "true") return !0;
 	if (t === "false") return !1;
 	if (/^-?\d+$/.test(t)) return parseInt(t, 10);
@@ -78,7 +78,7 @@ function T(e) {
 	let n = t.match(/^(["'])([\s\S]*)\1$/);
 	return n ? n[2] : t;
 }
-function E(e) {
+function D(e) {
 	let t = e.indexOf("\n");
 	if ((t === -1 ? e : e.slice(0, t)).trim() !== "---") return {
 		params: {},
@@ -99,7 +99,7 @@ function E(e) {
 	for (let e of n.slice(0, r)) {
 		if (e.trim() === "") continue;
 		let t = e.match(/^([A-Za-z_][A-Za-z0-9_-]*)\s*:\s*([\s\S]*)$/);
-		t && (i[t[1]] = T(t[2]));
+		t && (i[t[1]] = E(t[2]));
 	}
 	return {
 		params: i,
@@ -111,14 +111,14 @@ function fe(e) {
 	return (Array.isArray(e) ? e : typeof e == "string" ? e.split(",") : []).filter((e) => typeof e == "string").map((e) => e.trim()).filter(Boolean);
 }
 function pe(e) {
-	return fe(E(e).params.link);
+	return fe(D(e).params.link);
 }
 function me(e) {
 	return e === "" || e !== e.trim() || /[|,"]/.test(e) ? e.includes("\"") ? `'${e}'` : `"${e}"` : e;
 }
 function he(e, t, n) {
 	let r = e.includes("\r\n") ? "\r\n" : "\n";
-	if (!E(e).hasFrame) return n === null ? e : `---${r}${n}${r}---${r}${e}`;
+	if (!D(e).hasFrame) return n === null ? e : `---${r}${n}${r}---${r}${e}`;
 	let i = e.split(/\r?\n/), a = i.findIndex((e, t) => t > 0 && e.trim() === "---");
 	if (a === -1) return e;
 	let o = RegExp(`^${t}\\s*:`), s = i.slice(1, a).findIndex((e) => o.test(e));
@@ -134,7 +134,7 @@ function ve(e, t) {
 	let n = Object.entries(t).filter((e) => (e[0] === "x" || e[0] === "y") && typeof e[1] == "number" && Number.isFinite(e[1]));
 	if (n.length === 0) return e;
 	let r = e.includes("\r\n") ? "\r\n" : "\n";
-	if (!E(e).hasFrame) return `---${r}${n.map(([e, t]) => `${e}: ${t}`).join(r)}${r}---${r}${e}`;
+	if (!D(e).hasFrame) return `---${r}${n.map(([e, t]) => `${e}: ${t}`).join(r)}${r}---${r}${e}`;
 	let i = e.split(/\r?\n/), a = i.findIndex((e, t) => t > 0 && e.trim() === "---");
 	if (a === -1) return e;
 	let o = a;
@@ -144,7 +144,7 @@ function ve(e, t) {
 	}
 	return i.join(r);
 }
-var D = 72, O = 48, k = /* @__PURE__ */ new Set([
+var O = 72, k = 48, A = /* @__PURE__ */ new Set([
 	"id",
 	"title",
 	"x",
@@ -154,39 +154,39 @@ var D = 72, O = 48, k = /* @__PURE__ */ new Set([
 	"link",
 	"group"
 ]);
-function A(e) {
+function j(e) {
 	return typeof e == "number" && Number.isFinite(e) ? e : void 0;
 }
-var j = {
+var ye = {
 	t: "top",
 	r: "right",
 	b: "bottom",
 	l: "left"
-}, M = {
+}, be = {
 	top: "t",
 	right: "r",
 	bottom: "b",
 	left: "l"
-}, N = /^([trbl_])>([trbl_])$/;
-function ye(e) {
+}, M = /^([trbl_])>([trbl_])$/;
+function xe(e) {
 	let t = e.split("|").map((e) => e.trim()), n = { ref: t[0] };
 	for (let e of t.slice(1)) {
-		let t = e.match(N);
-		t ? (t[1] !== "_" && (n.fromSide = j[t[1]]), t[2] !== "_" && (n.toSide = j[t[2]])) : e !== "" && (n.label = e);
+		let t = e.match(M);
+		t ? (t[1] !== "_" && (n.fromSide = ye[t[1]]), t[2] !== "_" && (n.toSide = ye[t[2]])) : e !== "" && (n.label = e);
 	}
 	return n;
 }
-function be(e) {
+function Se(e) {
 	let t = e.ref;
 	if (e.label && (t += ` | ${e.label}`), e.fromSide || e.toSide) {
-		let n = e.fromSide ? M[e.fromSide] : "_", r = e.toSide ? M[e.toSide] : "_";
+		let n = e.fromSide ? be[e.fromSide] : "_", r = e.toSide ? be[e.toSide] : "_";
 		t += ` | ${n}>${r}`;
 	}
 	return t;
 }
-var P = /^(.*)\s*@\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/;
-function xe(e) {
-	let t = e.match(P);
+var N = /^(.*)\s*@\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/;
+function P(e) {
+	let t = e.match(N);
 	return !t || !t[1].trim() ? { name: e.trim() } : {
 		name: t[1].trim(),
 		geo: {
@@ -197,7 +197,7 @@ function xe(e) {
 		}
 	};
 }
-function Se(e) {
+function Ce(e) {
 	let { name: t, x: n, y: r, w: i, h: a } = e;
 	return [
 		n,
@@ -206,7 +206,7 @@ function Se(e) {
 		a
 	].every((e) => typeof e == "number" && Number.isFinite(e)) ? `${t} @ ${n}, ${r}, ${i}, ${a}` : t;
 }
-function Ce(e, t) {
+function we(e, t) {
 	if (t) return { ...t };
 	if (e.length === 0) return {
 		x: 0,
@@ -223,17 +223,17 @@ function Ce(e, t) {
 		h: a - r + 34 + 24
 	};
 }
-function we(e) {
+function Te(e) {
 	let t = e.match(/^#[ \t]+(.+)$/m);
 	return t ? t[1].trim() : void 0;
 }
-function Te(e) {
+function Ee(e) {
 	return e.toLowerCase().replace(/[^\p{L}\p{N}\s-]/gu, "").replace(/[\s-]+/g, "-").replace(/^-+|-+$/g, "");
 }
-function Ee(e) {
+function De(e) {
 	return e.replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/[`*_~]/g, "").replace(/<[^>]+>/g, "").trim();
 }
-function De(e) {
+function Oe(e) {
 	let t = [], n = null;
 	for (let r of e.split("\n")) {
 		let e = r.match(/^\s*(`{3,}|~{3,})/);
@@ -244,9 +244,9 @@ function De(e) {
 		if (n !== null) continue;
 		let i = r.match(/^##[ \t]+(.+?)\s*#*\s*$/);
 		if (i) {
-			let e = Ee(i[1]);
+			let e = De(i[1]);
 			e && t.push({
-				anchor: Te(e),
+				anchor: Ee(e),
 				title: e
 			});
 		}
@@ -296,7 +296,7 @@ function I(e, t, n, r) {
 		let t = l.get(e.depth);
 		t ? t.push(e) : l.set(e.depth, [e]);
 	}
-	let u = [...l.keys()].sort((e, t) => e - t), d = O;
+	let u = [...l.keys()].sort((e, t) => e - t), d = k;
 	for (let e of u) {
 		let t = l.get(e), n = t.map((e, n) => {
 			let r = (c.get(e.box.id) ?? []).map((e) => s.get(e)).filter((e) => e !== void 0);
@@ -306,16 +306,16 @@ function I(e, t, n, r) {
 			};
 		});
 		n.sort((e, t) => e.bary - t.bary);
-		let i = n.map((e) => e.auto), u = d, f = 0, p = O, m = 0;
+		let i = n.map((e) => e.auto), u = d, f = 0, p = k, m = 0;
 		for (let { box: e } of i) {
-			m === a && (u += f + D, f = 0, p = O, m = 0);
+			m === a && (u += f + O, f = 0, p = k, m = 0);
 			let t = r.get(e.id);
 			t.rawX === void 0 && (e.x = p), t.rawY === void 0 && (e.y = u), s.set(e.id, o(e)), p += e.w + 64, f = Math.max(f, e.h), m++;
 		}
-		d = u + f + D;
+		d = u + f + O;
 	}
 }
-function Oe(e, t) {
+function ke(e, t) {
 	let n = e.map((e) => ({
 		...e,
 		x: 0,
@@ -326,30 +326,30 @@ function Oe(e, t) {
 		y: e.y
 	}]));
 }
-function ke(e) {
+function Ae(e) {
 	let t = Object.keys(e).sort(), n = [], r = /* @__PURE__ */ new Map(), i = /* @__PURE__ */ new Map(), a = /* @__PURE__ */ new Map();
 	for (let o of t) {
-		let { params: t, body: s } = E(e[o]), c = typeof t.id == "string" && t.id.trim() !== "" ? t.id.trim() : o.replace(/\.md$/, ""), l = typeof t.title == "string" && t.title.trim() !== "" && t.title.trim() || we(s) || c, u = De(s), d = A(t.w) ?? 220, f = A(t.h) ?? 96, p = {};
-		for (let [e, n] of Object.entries(t)) k.has(e) || (p[e] = n);
+		let { params: t, body: s } = D(e[o]), c = typeof t.id == "string" && t.id.trim() !== "" ? t.id.trim() : o.replace(/\.md$/, ""), l = typeof t.title == "string" && t.title.trim() !== "" && t.title.trim() || Te(s) || c, u = Oe(s), d = j(t.w) ?? 220, f = j(t.h) ?? 96, p = {};
+		for (let [e, n] of Object.entries(t)) A.has(e) || (p[e] = n);
 		let m = {
 			id: c,
 			title: l,
 			docPath: o,
 			depth: 0,
 			blocks: u,
-			x: A(t.x) ?? 0,
-			y: A(t.y) ?? 0,
+			x: j(t.x) ?? 0,
+			y: j(t.y) ?? 0,
 			w: d,
 			h: f,
 			attrs: p
 		};
 		if (i.set(c, {
-			rawX: A(t.x),
-			rawY: A(t.y)
+			rawX: j(t.x),
+			rawY: j(t.y)
 		}), t.group !== void 0) {
 			let e = (Array.isArray(t.group) ? t.group : [t.group]).map((e) => typeof e == "string" ? e : typeof e == "number" ? String(e) : "").filter((e) => e.trim() !== "");
-			if (e.length > 1 && n.push(`文档 "${c}" 声明了多个 group，仅取第一个 "${xe(e[0]).name || e[0]}"`), e.length > 0) {
-				let { name: t, geo: n } = xe(e[0]);
+			if (e.length > 1 && n.push(`文档 "${c}" 声明了多个 group，仅取第一个 "${P(e[0]).name || e[0]}"`), e.length > 0) {
+				let { name: t, geo: n } = P(e[0]);
 				t && a.set(c, {
 					name: t,
 					geo: n
@@ -386,9 +386,9 @@ function ke(e) {
 		}));
 	}
 	for (let t of o) {
-		let { params: n } = E(e[t.docPath]);
+		let { params: n } = D(e[t.docPath]);
 		for (let e of fe(n.link)) {
-			let { ref: n, label: r, fromSide: i, toSide: a } = ye(e);
+			let { ref: n, label: r, fromSide: i, toSide: a } = xe(e);
 			n && d(t.id, n, {
 				label: r,
 				fromSide: i,
@@ -412,27 +412,27 @@ function ke(e) {
 		groups: [...p.entries()].map(([e, t]) => ({
 			name: e,
 			members: t.members.map((e) => e.id),
-			...Ce(t.members, t.geo),
+			...we(t.members, t.geo),
 			explicit: t.geo !== void 0,
 			holder: t.holder ?? t.members[0].docPath
 		})),
 		warnings: n
 	};
 }
-function Ae(e, t) {
-	let n = E(e), r = n.params.title;
+function je(e, t) {
+	let n = D(e), r = n.params.title;
 	if (typeof r == "string" && r.trim()) return r.trim();
 	let i = n.body.match(/^#\s+(.+)$/m);
 	return i ? i[1].trim() : (t.split("/").pop() ?? t).replace(/\.md$/, "");
 }
-function je(e) {
+function Me(e) {
 	let t = [], n = [], r = /* @__PURE__ */ new Map();
 	for (let i of e) {
-		let e = E(i.content).params, a = typeof e.id == "string" && e.id.trim() ? e.id.trim() : i.path.replace(/\.md$/, ""), o = typeof e.order == "number" ? e.order : typeof e.order == "string" && Number(e.order) || 0, s = typeof e.parent == "string" && e.parent.trim() ? e.parent.trim() : void 0;
+		let e = D(i.content).params, a = typeof e.id == "string" && e.id.trim() ? e.id.trim() : i.path.replace(/\.md$/, ""), o = typeof e.order == "number" ? e.order : typeof e.order == "string" && Number(e.order) || 0, s = typeof e.parent == "string" && e.parent.trim() ? e.parent.trim() : void 0;
 		n.push({
 			path: i.path,
 			id: a,
-			title: Ae(i.content, i.path),
+			title: je(i.content, i.path),
 			order: o,
 			parent: s
 		}), r.has(a) && t.push(`duplicate id "${a}" in tree (${r.get(a)} / ${i.path})`), r.set(a, i.path);
@@ -511,7 +511,7 @@ function je(e) {
 		warnings: t
 	};
 }
-function Me(e) {
+function Ne(e) {
 	let t = [], n = (e) => {
 		t.push(e);
 		for (let t of e.children) n(t);
@@ -520,73 +520,75 @@ function Me(e) {
 }
 //#endregion
 //#region src/components/DocGraphViewer.vue?vue&type=script&setup=true&lang.ts
-var Ne = { class: "pd-graph-viewer" }, Pe = { class: "pd-graph-header" }, Fe = {
+var Pe = { class: "pd-graph-viewer" }, Fe = { class: "pd-graph-header" }, Ie = {
 	key: 0,
 	class: "pd-graph-current"
-}, Ie = { class: "pd-graph-actions" }, Le = ["disabled"], Re = ["disabled"], ze = ["disabled"], Be = { class: "pd-tree-sidebar__head" }, Ve = ["aria-label"], He = {
+}, Le = { class: "pd-graph-actions" }, Re = ["disabled"], ze = ["disabled"], Be = ["disabled"], Ve = { class: "pd-tree-sidebar__head" }, He = ["aria-label"], Ue = {
 	key: 0,
 	class: "pd-tree-sidebar__nav",
 	"aria-label": "文档索引树"
-}, Ue = { class: "pd-tree" }, We = { class: "pd-graph-main" }, Ge = ["title", "onPointerdown"], Ke = ["aria-label", "onPointerdown"], qe = ["width", "height"], Je = ["d", "onClick"], Ye = ["d"], Xe = ["x", "y"], Ze = ["d"], Qe = [
+}, We = { class: "pd-tree" }, Ge = { class: "pd-graph-main" }, Ke = ["title", "onPointerdown"], qe = ["aria-label", "onPointerdown"], Je = ["width", "height"], Ye = ["d", "onClick"], Xe = ["d"], Ze = ["x", "y"], Qe = ["d"], $e = [
 	"x1",
 	"y1",
 	"x2",
 	"y2"
-], $e = {
+], et = {
 	key: 1,
 	class: "pd-edge-handles"
-}, et = ["cx", "cy"], tt = ["cx", "cy"], nt = ["aria-label"], rt = [
+}, tt = ["cx", "cy"], nt = ["cx", "cy"], rt = ["aria-label"], it = [
 	"aria-label",
 	"onPointerdown",
 	"onClick",
 	"onKeydown",
 	"onMouseenter"
-], it = { class: "pd-doc-box__head" }, at = { class: "pd-doc-box__title" }, ot = [
+], at = { class: "pd-doc-box__head" }, ot = { class: "pd-doc-box__title" }, st = [
 	"aria-label",
 	"onClick",
 	"onKeydown"
-], st = ["aria-label", "onPointerdown"], ct = {
+], ct = ["aria-label", "onPointerdown"], lt = {
 	class: "pd-doc-blocks-pop__card",
 	role: "menu"
-}, lt = [
+}, ut = [
 	"title",
 	"aria-label",
 	"onClick",
 	"onKeydown"
-], ut = ["aria-label", "onClick"], dt = 30, L = /* @__PURE__ */ s({
+], dt = ["aria-label", "onClick"], ft = 30, L = /* @__PURE__ */ s({
 	__name: "DocGraphViewer",
 	props: { files: {} },
 	emits: ["navigate", "save"],
-	setup(s, { emit: m }) {
-		let y = s, b = m, x = f(/* @__PURE__ */ new Map()), S = t(() => x.value.size > 0), se = t(() => x.value.size ? {
+	setup(s, { emit: ee }) {
+		let y = s, b = ee, x = p(/* @__PURE__ */ new Map()), S = t(() => x.value.size > 0), ce = t(() => x.value.size ? {
 			...y.files,
 			...Object.fromEntries(x.value)
-		} : y.files), C = t(() => ke(se.value)), ce = t(() => je(Object.entries(se.value).map(([e, t]) => ({
+		} : y.files), C = t(() => Ae(ce.value)), w = t(() => Me(Object.entries(ce.value).map(([e, t]) => ({
 			path: e,
 			content: t
-		}))).root), le = t(() => Me(ce.value)), ue = t(() => {
-			if (!D.value) return [];
-			let e = le.value.find((e) => e.path === D.value && !e.isDir);
+		}))).root), le = t(() => Ne(w.value)), ue = t(() => {
+			if (!O.value) return [];
+			let e = le.value.find((e) => e.path === O.value && !e.isDir);
 			if (!e) return [];
 			let t = [], n = (r, i) => {
 				if (r === e) return t.push(...i, r), !0;
 				for (let e of r.children) if (n(e, [...i, r])) return !0;
 				return !1;
 			};
-			return n(ce.value, []), t;
-		}), w = f(!0), T = f({});
-		ee(ue, (e) => {
-			for (let t of e) t.isDir && (T.value[t.path] = !0);
-		}, { immediate: !0 });
+			return n(w.value, []), t;
+		}), T = p(!0), E = p({});
+		te(() => O.value, () => {
+			for (let e of ue.value) e.isDir && (E.value[e.path] = !0);
+		}), d(() => {
+			for (let e of w.value.children) e.isDir && (E.value[e.path] = !0);
+		});
 		function fe(e) {
-			(e.isDir || e.children.length) && (T.value[e.path] = !T.value[e.path]);
+			(e.isDir || e.children.length) && (E.value[e.path] = !E.value[e.path]);
 		}
 		function me(e) {
 			e.isDir ? fe(e) : Z(e.path);
 		}
-		let he = t(() => Object.fromEntries(Object.entries(y.files).map(([e, t]) => [e, E(t).body])));
-		ee(() => C.value.warnings, (e) => e.forEach((e) => console.warn("[ProDoc]", e)), { immediate: !0 });
-		let D = f(null), O = f(null), k = t(() => {
+		let he = t(() => Object.fromEntries(Object.entries(y.files).map(([e, t]) => [e, D(t).body])));
+		te(() => C.value.warnings, (e) => e.forEach((e) => console.warn("[ProDoc]", e)), { immediate: !0 });
+		let O = p(null), k = p(null), A = t(() => {
 			let e = 0, t = 0;
 			for (let n of I.value) e = Math.max(e, n.x + n.w + 48), t = Math.max(t, n.y + n.h + 48);
 			for (let n of L.value) e = Math.max(e, n.x + n.w + 48), t = Math.max(t, n.y + n.h + 48);
@@ -595,7 +597,7 @@ var Ne = { class: "pd-graph-viewer" }, Pe = { class: "pd-graph-header" }, Fe = {
 				h: Math.max(t, 480)
 			};
 		});
-		function A(e, t) {
+		function j(e, t) {
 			switch (t) {
 				case "top": return {
 					x: e.x + e.w / 2,
@@ -623,7 +625,7 @@ var Ne = { class: "pd-graph-viewer" }, Pe = { class: "pd-graph-header" }, Fe = {
 				};
 			}
 		}
-		function j(e, t) {
+		function ye(e, t) {
 			let n = e.x + e.w / 2, r = e.y + e.h / 2, i = t.x + t.w / 2 - n, a = t.y + t.h / 2 - r;
 			return Math.abs(a) >= Math.abs(i) ? {
 				fs: a >= 0 ? "bottom" : "top",
@@ -633,8 +635,8 @@ var Ne = { class: "pd-graph-viewer" }, Pe = { class: "pd-graph-header" }, Fe = {
 				ts: i >= 0 ? "left" : "right"
 			};
 		}
-		function M(e, t, n, r) {
-			let i = j(e, t), a = A(e, n ?? i.fs), o = A(t, r ?? i.ts), s = Math.hypot(o.x - a.x, o.y - a.y), c = Math.max(24, Math.min(s * .45, 96)), l = `M ${a.x} ${a.y} C ${a.x + a.nx * c} ${a.y + a.ny * c}, ${o.x + o.nx * c} ${o.y + o.ny * c}, ${o.x} ${o.y}`;
+		function be(e, t, n, r) {
+			let i = ye(e, t), a = j(e, n ?? i.fs), o = j(t, r ?? i.ts), s = Math.hypot(o.x - a.x, o.y - a.y), c = Math.max(24, Math.min(s * .45, 96)), l = `M ${a.x} ${a.y} C ${a.x + a.nx * c} ${a.y + a.ny * c}, ${o.x + o.nx * c} ${o.y + o.ny * c}, ${o.x} ${o.y}`;
 			return {
 				x1: a.x,
 				y1: a.y,
@@ -643,14 +645,14 @@ var Ne = { class: "pd-graph-viewer" }, Pe = { class: "pd-graph-header" }, Fe = {
 				d: l
 			};
 		}
-		let N = t(() => {
+		let M = t(() => {
 			let e = new Map(I.value.map((e) => [e.id, e])), t = J.value;
 			return C.value.relations.flatMap((n) => {
 				let r = e.get(n.from), i = e.get(n.to);
 				if (!r || !i) return [];
 				let a = n.fromSide, o = n.toSide;
 				t && t.edgeId === n.id && (t.which === "from" ? a = t.side : o = t.side);
-				let { x1: s, y1: c, x2: l, y2: u, d } = M(r, i, a, o);
+				let { x1: s, y1: c, x2: l, y2: u, d } = be(r, i, a, o);
 				return [{
 					id: n.id,
 					fromId: r.id,
@@ -669,16 +671,16 @@ var Ne = { class: "pd-graph-viewer" }, Pe = { class: "pd-graph-header" }, Fe = {
 					labelY: (c + u) / 2 - 7
 				}];
 			});
-		}), P = f(null);
-		function xe(e) {
-			U.value || G.value || J.value || (P.value = e);
+		}), N = p(null);
+		function P(e) {
+			U.value || G.value || J.value || (N.value = e);
 		}
-		let we = t(() => {
-			if (!P.value) return /* @__PURE__ */ new Set();
-			let e = /* @__PURE__ */ new Set([P.value]);
-			for (let t of C.value.relations) t.from === P.value && e.add(t.to), t.to === P.value && e.add(t.from);
+		let Te = t(() => {
+			if (!N.value) return /* @__PURE__ */ new Set();
+			let e = /* @__PURE__ */ new Set([N.value]);
+			for (let t of C.value.relations) t.from === N.value && e.add(t.to), t.to === N.value && e.add(t.from);
 			return e;
-		}), Te = (e) => P.value !== null && !we.value.has(e), Ee = (e) => P.value !== null && (e.fromId === P.value || e.toId === P.value), De = (e) => P.value !== null && !Ee(e), F = f(null), I = t(() => C.value.boxes.map((e) => {
+		}), Ee = (e) => N.value !== null && !Te.value.has(e), De = (e) => N.value !== null && (e.fromId === N.value || e.toId === N.value), Oe = (e) => N.value !== null && !De(e), F = p(null), I = t(() => C.value.boxes.map((e) => {
 			let t = F.value?.get(e.id);
 			return t ? {
 				...e,
@@ -686,7 +688,7 @@ var Ne = { class: "pd-graph-viewer" }, Pe = { class: "pd-graph-header" }, Fe = {
 				y: t.y
 			} : e;
 		}));
-		function Ae(e, t) {
+		function je(e, t) {
 			let n = new Map(F.value ?? []);
 			n.set(e, t), F.value = n;
 		}
@@ -708,14 +710,14 @@ var Ne = { class: "pd-graph-viewer" }, Pe = { class: "pd-graph-header" }, Fe = {
 				let r = n.members.map((e) => I.value.find((t) => t.id === e)).filter((e) => !!e);
 				return {
 					...n,
-					...Ce(r)
+					...we(r)
 				};
 			});
-		}), ft = (e) => P.value !== null && !e.members.some((e) => we.value.has(e));
-		function pt() {
-			F.value = F.value ? null : Oe(C.value.boxes, C.value.relations);
+		}), pt = (e) => N.value !== null && !e.members.some((e) => Te.value.has(e));
+		function mt() {
+			F.value = F.value ? null : ke(C.value.boxes, C.value.relations);
 		}
-		let mt = (e) => e.blocks.slice(0, 6), ht = (e) => Math.max(0, e.blocks.length - 6), gt = (e) => (mt(e).length + +(ht(e) > 0)) * dt + 12, _t = (e, t) => e.y + e.h + 6 + gt(e) > t, R = f(!1);
+		let ht = (e) => e.blocks.slice(0, 6), gt = (e) => Math.max(0, e.blocks.length - 6), _t = (e) => (ht(e).length + +(gt(e) > 0)) * ft + 12, vt = (e, t) => e.y + e.h + 6 + _t(e) > t, R = p(!1);
 		function z(e) {
 			return x.value.get(e) ?? y.files[e];
 		}
@@ -723,14 +725,14 @@ var Ne = { class: "pd-graph-viewer" }, Pe = { class: "pd-graph-header" }, Fe = {
 			let n = new Map(x.value);
 			t === y.files[e] ? n.delete(e) : n.set(e, t), x.value = n;
 		}
-		let V = f(!1);
-		function vt() {
+		let V = p(!1);
+		function yt() {
 			if (!(!S.value || V.value)) {
 				V.value = !0;
 				for (let [e, t] of x.value) b("save", e, t, y.files[e]);
 			}
 		}
-		function yt() {
+		function bt() {
 			if (!S.value) return;
 			let e = new Set([...x.value.keys()].map((e) => C.value.boxes.find((t) => t.docPath === e)?.id).filter((e) => !!e));
 			if (x.value = /* @__PURE__ */ new Map(), F.value) {
@@ -739,28 +741,28 @@ var Ne = { class: "pd-graph-viewer" }, Pe = { class: "pd-graph-header" }, Fe = {
 			}
 			K.value = null, R.value = !1;
 		}
-		function bt() {
+		function xt() {
 			if (R.value) {
 				if (S.value) return;
 				K.value = null, R.value = !1;
 			} else R.value = !0;
 		}
-		let xt = f(null);
+		let St = p(null);
 		function H(e, t) {
-			let n = xt.value;
+			let n = St.value;
 			if (!n) return {
 				x: 0,
 				y: 0,
 				scale: 1
 			};
-			let r = n.getBoundingClientRect(), i = r.width / k.value.w || 1;
+			let r = n.getBoundingClientRect(), i = r.width / A.value.w || 1;
 			return {
 				x: (e - r.left) / i,
 				y: (t - r.top) / i,
 				scale: i
 			};
 		}
-		let U = f(null), W = f([]), St = {
+		let U = p(null), W = p([]), Ct = {
 			x: [
 				"start",
 				"center",
@@ -771,11 +773,11 @@ var Ne = { class: "pd-graph-viewer" }, Pe = { class: "pd-graph-header" }, Fe = {
 				"center",
 				"end"
 			]
-		}, Ct = {
+		}, wt = {
 			x: ["end"],
 			y: ["end"]
 		};
-		function wt(e, t) {
+		function Tt(e, t) {
 			return t === "x" ? {
 				start: e.x,
 				center: e.x + e.w / 2,
@@ -786,11 +788,11 @@ var Ne = { class: "pd-graph-viewer" }, Pe = { class: "pd-graph-header" }, Fe = {
 				end: e.y + e.h
 			};
 		}
-		function Tt(e, t, n, r) {
+		function Et(e, t, n, r) {
 			let i = Math.min(Math.max(8 / n, 4), 12), a = {};
 			for (let n of ["x", "y"]) {
-				let o = wt(e, n), s = r[n].map((e) => o[e]), c = null;
-				for (let e of t) for (let t of Object.values(wt(e, n))) for (let e of s) {
+				let o = Tt(e, n), s = r[n].map((e) => o[e]), c = null;
+				for (let e of t) for (let t of Object.values(Tt(e, n))) for (let e of s) {
 					let n = t - e;
 					Math.abs(n) <= i && (c === null || Math.abs(n) < Math.abs(c)) && (c = n);
 				}
@@ -798,11 +800,11 @@ var Ne = { class: "pd-graph-viewer" }, Pe = { class: "pd-graph-header" }, Fe = {
 			}
 			return a;
 		}
-		function Et(e, t, n) {
+		function Dt(e, t, n) {
 			let r = [], i = /* @__PURE__ */ new Set();
 			for (let a of ["x", "y"]) {
-				let o = wt(e, a), s = n[a].map((e) => o[e]);
-				for (let n of t) for (let t of Object.values(wt(n, a))) {
+				let o = Tt(e, a), s = n[a].map((e) => o[e]);
+				for (let n of t) for (let t of Object.values(Tt(n, a))) {
 					if (!s.some((e) => Math.abs(e - t) < .5)) continue;
 					let o = `${a}${t}`, c = a === "x" ? Math.min(e.y, n.y) : Math.min(e.x, n.x), l = a === "x" ? Math.max(e.y + e.h, n.y + n.h) : Math.max(e.x + e.w, n.x + n.w), u = i.has(o) ? r.find((e) => e.axis === a && e.pos === t) : void 0;
 					u ? (u.start = Math.min(u.start, c), u.end = Math.max(u.end, l)) : (i.add(o), r.push({
@@ -815,32 +817,32 @@ var Ne = { class: "pd-graph-viewer" }, Pe = { class: "pd-graph-header" }, Fe = {
 			}
 			return r;
 		}
-		function Dt(e, t, n, r) {
+		function Ot(e, t, n, r) {
 			let i = I.value.find((t) => t.id === e);
 			if (!i) return {
 				x: t,
 				y: n,
 				guides: []
 			};
-			let a = I.value.filter((t) => t.id !== e), o = Tt({
+			let a = I.value.filter((t) => t.id !== e), o = Et({
 				x: t,
 				y: n,
 				w: i.w,
 				h: i.h
-			}, a, r, St), s = Math.round(t + (o.dx ?? 0)), c = Math.round(n + (o.dy ?? 0));
+			}, a, r, Ct), s = Math.round(t + (o.dx ?? 0)), c = Math.round(n + (o.dy ?? 0));
 			return {
 				x: s,
 				y: c,
-				guides: o.dx !== void 0 || o.dy !== void 0 ? Et({
+				guides: o.dx !== void 0 || o.dy !== void 0 ? Dt({
 					x: s,
 					y: c,
 					w: i.w,
 					h: i.h
-				}, a, St) : []
+				}, a, Ct) : []
 			};
 		}
-		let Ot = !1;
-		function kt(e, t) {
+		let kt = !1;
+		function At(e, t) {
 			R.value && e.button === 0 && (e.target.closest("button") || (U.value = {
 				id: t.id,
 				path: t.docPath,
@@ -853,46 +855,46 @@ var Ne = { class: "pd-graph-viewer" }, Pe = { class: "pd-graph-header" }, Fe = {
 				baseY: t.y,
 				moved: !1,
 				raf: 0
-			}, window.addEventListener("pointermove", At), window.addEventListener("pointerup", Nt), window.addEventListener("pointercancel", Nt), P.value = null));
+			}, window.addEventListener("pointermove", jt), window.addEventListener("pointerup", Pt), window.addEventListener("pointercancel", Pt), N.value = null));
 		}
-		function At(e) {
+		function jt(e) {
 			let t = U.value;
-			t && (t.lastClientX = e.clientX, t.lastClientY = e.clientY, t.raf ||= requestAnimationFrame(jt));
+			t && (t.lastClientX = e.clientX, t.lastClientY = e.clientY, t.raf ||= requestAnimationFrame(Mt));
 		}
-		function jt() {
+		function Mt() {
 			let e = U.value;
 			if (!e) return;
 			e.raf = 0;
 			let t = (e.lastClientX - e.startClientX) / e.scale, n = (e.lastClientY - e.startClientY) / e.scale;
 			if (!e.moved && Math.hypot(t, n) < 3) return;
 			e.moved = !0;
-			let r = Dt(e.id, e.baseX + t, e.baseY + n, e.scale);
-			Ae(e.id, {
+			let r = Ot(e.id, e.baseX + t, e.baseY + n, e.scale);
+			je(e.id, {
 				x: r.x,
 				y: r.y
 			}), W.value = r.guides;
 		}
-		function Mt() {
+		function Nt() {
 			let e = U.value;
 			if (U.value = null, W.value = [], !e || (e.raf && cancelAnimationFrame(e.raf), !e.moved)) return;
-			Ot = !0;
+			kt = !0;
 			let t = F.value?.get(e.id);
 			if (!t) return;
 			let n = z(e.path);
 			n !== void 0 && B(e.path, ve(n, t));
 		}
-		function Nt() {
-			window.removeEventListener("pointermove", At), window.removeEventListener("pointerup", Nt), window.removeEventListener("pointercancel", Nt), Mt();
+		function Pt() {
+			window.removeEventListener("pointermove", jt), window.removeEventListener("pointerup", Pt), window.removeEventListener("pointercancel", Pt), Nt();
 		}
-		function Pt(e) {
-			if (Ot) {
-				Ot = !1;
+		function Ft(e) {
+			if (kt) {
+				kt = !1;
 				return;
 			}
 			R.value || Z(e);
 		}
-		let G = f(null);
-		function Ft(e, t) {
+		let G = p(null);
+		function It(e, t) {
 			if (!R.value || e.button !== 0) return;
 			e.preventDefault();
 			let n = H(e.clientX, e.clientY);
@@ -903,13 +905,13 @@ var Ne = { class: "pd-graph-viewer" }, Pe = { class: "pd-graph-header" }, Fe = {
 				lastClientX: e.clientX,
 				lastClientY: e.clientY,
 				raf: 0
-			}, window.addEventListener("pointermove", It), window.addEventListener("pointerup", Bt), window.addEventListener("pointercancel", zt), P.value = null;
+			}, window.addEventListener("pointermove", Lt), window.addEventListener("pointerup", Vt), window.addEventListener("pointercancel", Bt), N.value = null;
 		}
-		function It(e) {
+		function Lt(e) {
 			let t = G.value;
-			t && (t.lastClientX = e.clientX, t.lastClientY = e.clientY, t.raf ||= requestAnimationFrame(Lt));
+			t && (t.lastClientX = e.clientX, t.lastClientY = e.clientY, t.raf ||= requestAnimationFrame(Rt));
 		}
-		function Lt() {
+		function Rt() {
 			let e = G.value;
 			if (!e) return;
 			e.raf = 0;
@@ -920,50 +922,50 @@ var Ne = { class: "pd-graph-viewer" }, Pe = { class: "pd-graph-header" }, Fe = {
 				y: t.y
 			};
 		}
-		function Rt() {
-			window.removeEventListener("pointermove", It), window.removeEventListener("pointerup", Bt), window.removeEventListener("pointercancel", zt);
-		}
 		function zt() {
-			Rt();
+			window.removeEventListener("pointermove", Lt), window.removeEventListener("pointerup", Vt), window.removeEventListener("pointercancel", Bt);
+		}
+		function Bt() {
+			zt();
 			let e = G.value;
 			e?.raf && cancelAnimationFrame(e.raf), G.value = null;
 		}
-		function Bt(e) {
-			Rt();
+		function Vt(e) {
+			zt();
 			let t = G.value;
 			if (t?.raf && cancelAnimationFrame(t.raf), G.value = null, !t) return;
 			let n = H(e.clientX, e.clientY), r = I.value.find((e) => n.x >= e.x && n.x <= e.x + e.w && n.y >= e.y && n.y <= e.y + e.h);
-			!r || r.id === t.fromId || C.value.relations.some((e) => e.from === t.fromId && e.to === r.id) || Vt(t.fromId, r.id);
+			!r || r.id === t.fromId || C.value.relations.some((e) => e.from === t.fromId && e.to === r.id) || Ht(t.fromId, r.id);
 		}
-		function Vt(e, t) {
+		function Ht(e, t) {
 			let n = C.value.boxes.find((t) => t.id === e);
 			if (!n) return;
 			let r = z(n.docPath);
 			r !== void 0 && B(n.docPath, ge(r, [...pe(r), t]));
 		}
-		let Ht = t(() => {
+		let Ut = t(() => {
 			let e = G.value;
 			if (!e) return null;
 			let t = I.value.find((t) => t.id === e.fromId);
-			return t ? M(t, {
+			return t ? be(t, {
 				x: e.x,
 				y: e.y,
 				w: 0,
 				h: 0
 			}).d : null;
-		}), K = f(null), q = t(() => N.value.find((e) => e.id === K.value) ?? null);
-		function Ut(e) {
+		}), K = p(null), q = t(() => M.value.find((e) => e.id === K.value) ?? null);
+		function Wt(e) {
 			R.value && (K.value = e.id);
 		}
-		let J = f(null);
-		function Wt(e, t, n) {
+		let J = p(null);
+		function Gt(e, t, n) {
 			let r = t - (e.x + e.w / 2), i = n - (e.y + e.h / 2);
 			return Math.abs(r) / (e.w / 2) >= Math.abs(i) / (e.h / 2) ? r >= 0 ? "right" : "left" : i >= 0 ? "bottom" : "top";
 		}
-		function Gt(e, t, n) {
+		function Kt(e, t, n) {
 			if (e.button !== 0) return;
 			e.preventDefault(), e.stopPropagation();
-			let r = j(I.value.find((e) => e.id === t.fromId), I.value.find((e) => e.id === t.toId));
+			let r = ye(I.value.find((e) => e.id === t.fromId), I.value.find((e) => e.id === t.toId));
 			J.value = {
 				edgeId: t.id,
 				which: n,
@@ -971,51 +973,51 @@ var Ne = { class: "pd-graph-viewer" }, Pe = { class: "pd-graph-header" }, Fe = {
 				lastClientX: e.clientX,
 				lastClientY: e.clientY,
 				raf: 0
-			}, window.addEventListener("pointermove", Kt), window.addEventListener("pointerup", Xt), window.addEventListener("pointercancel", Yt), P.value = null;
+			}, window.addEventListener("pointermove", qt), window.addEventListener("pointerup", Zt), window.addEventListener("pointercancel", Xt), N.value = null;
 		}
-		function Kt(e) {
+		function qt(e) {
 			let t = J.value;
-			t && (t.lastClientX = e.clientX, t.lastClientY = e.clientY, t.raf ||= requestAnimationFrame(qt));
+			t && (t.lastClientX = e.clientX, t.lastClientY = e.clientY, t.raf ||= requestAnimationFrame(Jt));
 		}
-		function qt() {
+		function Jt() {
 			let e = J.value;
 			if (!e) return;
 			e.raf = 0;
-			let t = N.value.find((t) => t.id === e.edgeId);
+			let t = M.value.find((t) => t.id === e.edgeId);
 			if (!t) return;
 			let n = I.value.find((n) => n.id === (e.which === "from" ? t.fromId : t.toId));
 			if (!n) return;
-			let r = H(e.lastClientX, e.lastClientY), i = Wt(n, r.x, r.y);
+			let r = H(e.lastClientX, e.lastClientY), i = Gt(n, r.x, r.y);
 			i !== e.side && (J.value = {
 				...e,
 				side: i
 			});
 		}
-		function Jt() {
-			window.removeEventListener("pointermove", Kt), window.removeEventListener("pointerup", Xt), window.removeEventListener("pointercancel", Yt);
-		}
 		function Yt() {
-			Jt();
+			window.removeEventListener("pointermove", qt), window.removeEventListener("pointerup", Zt), window.removeEventListener("pointercancel", Xt);
+		}
+		function Xt() {
+			Yt();
 			let e = J.value;
 			e?.raf && cancelAnimationFrame(e.raf), J.value = null;
 		}
-		function Xt() {
-			Jt();
+		function Zt() {
+			Yt();
 			let e = J.value;
 			if (e?.raf && cancelAnimationFrame(e.raf), J.value = null, !e) return;
-			let t = N.value.find((t) => t.id === e.edgeId);
+			let t = M.value.find((t) => t.id === e.edgeId);
 			if (!t) return;
 			let n = e.which === "from" ? e.side : t.fromSide, r = e.which === "to" ? e.side : t.toSide;
-			n === t.fromSide && r === t.toSide || Zt(t, n, r);
+			n === t.fromSide && r === t.toSide || Qt(t, n, r);
 		}
-		function Zt(e, t, n) {
+		function Qt(e, t, n) {
 			let r = C.value.boxes.find((t) => t.id === e.fromId);
 			if (!r) return;
 			let i = z(r.docPath);
 			if (i === void 0) return;
 			let a = pe(i).map((r) => {
-				let i = ye(r);
-				return Qt(i.ref) === e.toId ? be({
+				let i = xe(r);
+				return $t(i.ref) === e.toId ? Se({
 					ref: i.ref,
 					label: i.label,
 					fromSide: t,
@@ -1024,22 +1026,22 @@ var Ne = { class: "pd-graph-viewer" }, Pe = { class: "pd-graph-header" }, Fe = {
 			});
 			B(r.docPath, ge(i, a));
 		}
-		function Qt(e) {
+		function $t(e) {
 			let t = e.trim(), n = t.endsWith(".md") ? t : t + ".md", r = C.value.boxes;
 			return (r.find((e) => e.id === t) ?? r.find((e) => e.docPath === t) ?? r.find((e) => e.docPath === n))?.id;
 		}
-		function $t() {
+		function en() {
 			let e = q.value;
 			if (!e) return;
 			let t = C.value.boxes.find((t) => t.id === e.fromId);
 			if (!t) return;
 			let n = z(t.docPath);
 			if (n === void 0) return;
-			let r = pe(n).filter((t) => Qt(ye(t).ref) !== e.toId);
+			let r = pe(n).filter((t) => $t(xe(t).ref) !== e.toId);
 			B(t.docPath, ge(n, r)), K.value = null;
 		}
-		let Y = f(null), X = f(null);
-		function en(e, t) {
+		let Y = p(null), X = p(null);
+		function tn(e, t) {
 			if (!R.value || e.button !== 0) return;
 			e.preventDefault();
 			let n = L.value.find((e) => e.name === t.name);
@@ -1070,43 +1072,43 @@ var Ne = { class: "pd-graph-viewer" }, Pe = { class: "pd-graph-header" }, Fe = {
 				dy: 0,
 				moved: !1,
 				raf: 0
-			}, window.addEventListener("pointermove", tn), window.addEventListener("pointerup", rn), window.addEventListener("pointercancel", rn), P.value = null;
+			}, window.addEventListener("pointermove", nn), window.addEventListener("pointerup", an), window.addEventListener("pointercancel", an), N.value = null;
 		}
-		function tn(e) {
+		function nn(e) {
 			let t = Y.value;
-			t && (t.lastClientX = e.clientX, t.lastClientY = e.clientY, t.raf ||= requestAnimationFrame(nn));
+			t && (t.lastClientX = e.clientX, t.lastClientY = e.clientY, t.raf ||= requestAnimationFrame(rn));
 		}
-		function nn() {
+		function rn() {
 			let e = Y.value;
 			if (!e) return;
 			e.raf = 0;
 			let t = Math.round((e.lastClientX - e.startClientX) / e.scale), n = Math.round((e.lastClientY - e.startClientY) / e.scale);
 			if (!e.moved && Math.hypot(t, n) < 3) return;
-			let r = [...I.value.filter((t) => !e.basePositions.has(t.id)), ...L.value.filter((t) => t.name !== e.name)], i = Tt({
+			let r = [...I.value.filter((t) => !e.basePositions.has(t.id)), ...L.value.filter((t) => t.name !== e.name)], i = Et({
 				x: e.baseRegion.x + t,
 				y: e.baseRegion.y + n,
 				w: e.baseRegion.w,
 				h: e.baseRegion.h
-			}, r, e.scale, St), a = t + (i.dx ?? 0), o = n + (i.dy ?? 0);
+			}, r, e.scale, Ct), a = t + (i.dx ?? 0), o = n + (i.dy ?? 0);
 			Y.value = {
 				...e,
 				dx: a,
 				dy: o,
 				moved: !0
 			};
-			for (let [t, n] of e.basePositions) Ae(t, {
+			for (let [t, n] of e.basePositions) je(t, {
 				x: n.x + a,
 				y: n.y + o
 			});
-			W.value = i.dx !== void 0 || i.dy !== void 0 ? Et({
+			W.value = i.dx !== void 0 || i.dy !== void 0 ? Dt({
 				x: e.baseRegion.x + a,
 				y: e.baseRegion.y + o,
 				w: e.baseRegion.w,
 				h: e.baseRegion.h
-			}, r, St) : [];
+			}, r, Ct) : [];
 		}
-		function rn() {
-			window.removeEventListener("pointermove", tn), window.removeEventListener("pointerup", rn), window.removeEventListener("pointercancel", rn);
+		function an() {
+			window.removeEventListener("pointermove", nn), window.removeEventListener("pointerup", an), window.removeEventListener("pointercancel", an);
 			let e = Y.value;
 			if (Y.value = null, W.value = [], !e || (e.raf && cancelAnimationFrame(e.raf), !e.moved)) return;
 			let t = C.value.groups.find((t) => t.name === e.name);
@@ -1122,7 +1124,7 @@ var Ne = { class: "pd-graph-viewer" }, Pe = { class: "pd-graph-header" }, Fe = {
 				}
 				if (t.explicit) {
 					let n = z(t.holder);
-					n !== void 0 && B(t.holder, _e(n, Se({
+					n !== void 0 && B(t.holder, _e(n, Ce({
 						name: t.name,
 						x: e.baseRegion.x + e.dx,
 						y: e.baseRegion.y + e.dy,
@@ -1132,7 +1134,7 @@ var Ne = { class: "pd-graph-viewer" }, Pe = { class: "pd-graph-header" }, Fe = {
 				}
 			}
 		}
-		function an(e, t) {
+		function on(e, t) {
 			if (!R.value || e.button !== 0) return;
 			e.preventDefault();
 			let n = L.value.find((e) => e.name === t.name);
@@ -1158,44 +1160,44 @@ var Ne = { class: "pd-graph-viewer" }, Pe = { class: "pd-graph-header" }, Fe = {
 				curH: n.h,
 				moved: !1,
 				raf: 0
-			}, window.addEventListener("pointermove", on), window.addEventListener("pointerup", cn), window.addEventListener("pointercancel", cn), P.value = null;
+			}, window.addEventListener("pointermove", sn), window.addEventListener("pointerup", ln), window.addEventListener("pointercancel", ln), N.value = null;
 		}
-		function on(e) {
+		function sn(e) {
 			let t = X.value;
-			t && (t.lastClientX = e.clientX, t.lastClientY = e.clientY, t.raf ||= requestAnimationFrame(sn));
+			t && (t.lastClientX = e.clientX, t.lastClientY = e.clientY, t.raf ||= requestAnimationFrame(cn));
 		}
-		function sn() {
+		function cn() {
 			let e = X.value;
 			if (!e) return;
 			e.raf = 0;
 			let t = (e.lastClientX - e.startClientX) / e.scale, n = (e.lastClientY - e.startClientY) / e.scale;
 			if (!e.moved && Math.hypot(t, n) < 3) return;
-			let r = Math.round(e.baseRegion.w + t), i = Math.round(e.baseRegion.h + n), a = [...I.value.filter((t) => !e.memberIds.has(t.id)), ...L.value.filter((t) => t.name !== e.name)], o = Tt({
+			let r = Math.round(e.baseRegion.w + t), i = Math.round(e.baseRegion.h + n), a = [...I.value.filter((t) => !e.memberIds.has(t.id)), ...L.value.filter((t) => t.name !== e.name)], o = Et({
 				x: e.baseRegion.x,
 				y: e.baseRegion.y,
 				w: r,
 				h: i
-			}, a, e.scale, Ct), s = Math.max(e.minW, Math.round(r + (o.dx ?? 0))), c = Math.max(e.minH, Math.round(i + (o.dy ?? 0)));
+			}, a, e.scale, wt), s = Math.max(e.minW, Math.round(r + (o.dx ?? 0))), c = Math.max(e.minH, Math.round(i + (o.dy ?? 0)));
 			X.value = {
 				...e,
 				curW: s,
 				curH: c,
 				moved: !0
-			}, W.value = o.dx !== void 0 || o.dy !== void 0 ? Et({
+			}, W.value = o.dx !== void 0 || o.dy !== void 0 ? Dt({
 				x: e.baseRegion.x,
 				y: e.baseRegion.y,
 				w: s,
 				h: c
-			}, a, Ct) : [];
+			}, a, wt) : [];
 		}
-		function cn() {
-			window.removeEventListener("pointermove", on), window.removeEventListener("pointerup", cn), window.removeEventListener("pointercancel", cn);
+		function ln() {
+			window.removeEventListener("pointermove", sn), window.removeEventListener("pointerup", ln), window.removeEventListener("pointercancel", ln);
 			let e = X.value;
 			if (X.value = null, W.value = [], !e || (e.raf && cancelAnimationFrame(e.raf), !e.moved)) return;
 			let t = C.value.groups.find((t) => t.name === e.name);
 			if (!t) return;
 			let n = z(t.holder);
-			n !== void 0 && B(t.holder, _e(n, Se({
+			n !== void 0 && B(t.holder, _e(n, Ce({
 				name: t.name,
 				x: e.baseRegion.x,
 				y: e.baseRegion.y,
@@ -1203,38 +1205,38 @@ var Ne = { class: "pd-graph-viewer" }, Pe = { class: "pd-graph-header" }, Fe = {
 				h: e.curH
 			})));
 		}
-		function ln(e) {
-			D.value || !R.value || !K.value || (e.key === "Delete" || e.key === "Backspace") && (e.preventDefault(), $t());
+		function un(e) {
+			O.value || !R.value || !K.value || (e.key === "Delete" || e.key === "Backspace") && (e.preventDefault(), en());
 		}
-		typeof window < "u" && window.addEventListener("keydown", ln);
-		let un = t(() => D.value ? C.value.boxes.find((e) => e.docPath === D.value)?.title ?? D.value : "");
-		function dn() {
-			let e = D.value ? `#${encodeURIComponent(D.value)}` : "#";
+		typeof window < "u" && window.addEventListener("keydown", un);
+		let dn = t(() => O.value ? C.value.boxes.find((e) => e.docPath === O.value)?.title ?? O.value : "");
+		function fn() {
+			let e = O.value ? `#${encodeURIComponent(O.value)}` : "#";
 			history.replaceState(null, "", e);
 		}
 		function Z(e) {
-			y.files[e] && (Q.value = !1, D.value = e, b("navigate", e), dn());
+			y.files[e] && (Q.value = !1, O.value = e, b("navigate", e), fn());
 		}
-		function fn(e) {
+		function pn(e) {
 			document.querySelector(`.pd-doc-view [data-heading-id$="-${e}"]`)?.scrollIntoView({
 				behavior: "smooth",
 				block: "start"
 			});
 		}
-		function pn(e, t) {
-			if (D.value === e) {
-				fn(t);
+		function mn(e, t) {
+			if (O.value === e) {
+				pn(t);
 				return;
 			}
 			Z(e), c(() => {
-				setTimeout(() => fn(t), 80), setTimeout(() => fn(t), 320);
+				setTimeout(() => pn(t), 80), setTimeout(() => pn(t), 320);
 			});
 		}
-		function mn() {
-			D.value = null, dn(), c(() => requestAnimationFrame(() => O.value?.fit?.()));
+		function hn() {
+			O.value = null, fn(), c(() => requestAnimationFrame(() => k.value?.fit?.()));
 		}
-		ee(() => y.files, (e) => {
-			if (V.value = !1, D.value && !e[D.value] && mn(), x.value.size) {
+		te(() => y.files, (e) => {
+			if (V.value = !1, O.value && !e[O.value] && hn(), x.value.size) {
 				let t = new Map(x.value);
 				for (let [n, r] of t) (e[n] === r || e[n] === void 0) && t.delete(n);
 				x.value = t;
@@ -1247,26 +1249,26 @@ var Ne = { class: "pd-graph-viewer" }, Pe = { class: "pd-graph-header" }, Fe = {
 			}
 			F.value = n.size > 0 ? n : null;
 		});
-		let Q = f(!1), $ = f(""), hn = t(() => D.value !== null && $.value !== (y.files[D.value] ?? ""));
-		function gn() {
-			D.value && ($.value = y.files[D.value] ?? "", Q.value = !0);
+		let Q = p(!1), $ = p(""), gn = t(() => O.value !== null && $.value !== (y.files[O.value] ?? ""));
+		function _n() {
+			O.value && ($.value = y.files[O.value] ?? "", Q.value = !0);
 		}
-		function _n(e) {
-			Z(e), gn();
-		}
-		function vn() {
-			Q.value = !1;
+		function vn(e) {
+			Z(e), _n();
 		}
 		function yn() {
-			!D.value || !hn.value || b("save", D.value, $.value, y.files[D.value]);
+			Q.value = !1;
 		}
-		function bn(e) {
-			(e.ctrlKey || e.metaKey) && e.key === "s" && (e.preventDefault(), yn());
+		function bn() {
+			!O.value || !gn.value || b("save", O.value, $.value, y.files[O.value]);
 		}
-		function xn(e, t) {
-			R.value || (e.key === "Enter" || e.key === " ") && (e.preventDefault(), Z(t));
+		function xn(e) {
+			(e.ctrlKey || e.metaKey) && e.key === "s" && (e.preventDefault(), bn());
 		}
 		function Sn(e, t) {
+			R.value || (e.key === "Enter" || e.key === " ") && (e.preventDefault(), Z(t));
+		}
+		function Cn(e, t) {
 			if (/^(https?:|mailto:|#)/.test(t)) return null;
 			let n = t.split("#")[0].trim();
 			if (!n.endsWith(".md")) return null;
@@ -1274,75 +1276,75 @@ var Ne = { class: "pd-graph-viewer" }, Pe = { class: "pd-graph-header" }, Fe = {
 			for (let e of r) e === "" || e === "." || (e === ".." ? i.pop() : i.push(e));
 			return i.join("/");
 		}
-		function Cn(e) {
-			if (!D.value) return;
-			let t = Sn(D.value, e);
+		function wn(e) {
+			if (!O.value) return;
+			let t = Cn(O.value, e);
 			t && Z(t);
 		}
-		function wn(e) {
-			if (!D.value) return;
-			let t = y.files[D.value];
+		function Tn(e) {
+			if (!O.value) return;
+			let t = y.files[O.value];
 			if (t === void 0) return;
-			let n = oe(t, e.source, e.id, e.x, e.y);
-			n !== t && b("save", D.value, n, t);
+			let n = se(t, e.source, e.id, e.x, e.y);
+			n !== t && b("save", O.value, n, t);
 		}
 		if (typeof window < "u" && window.location.hash.length > 1) {
 			let e = decodeURIComponent(window.location.hash.slice(1));
-			y.files[e] && (D.value = e);
+			y.files[e] && (O.value = e);
 		}
-		return (t, s) => (d(), i("div", Ne, [
-			a("header", Pe, [
+		return (t, s) => (f(), i("div", Pe, [
+			a("header", Fe, [
 				s[7] ||= a("span", { class: "pd-graph-brand" }, "📚 ProDoc", -1),
-				D.value ? (d(), i("span", Fe, h(un.value), 1)) : r("", !0),
-				a("div", Ie, [
-					D.value ? r("", !0) : (d(), i(e, { key: 0 }, [R.value ? (d(), i(e, { key: 1 }, [a("button", {
+				O.value ? (f(), i("span", Ie, h(dn.value), 1)) : r("", !0),
+				a("div", Le, [
+					O.value ? r("", !0) : (f(), i(e, { key: 0 }, [R.value ? (f(), i(e, { key: 1 }, [a("button", {
 						class: "pd-back-btn",
 						disabled: !S.value || V.value,
-						onClick: vt
-					}, "💾 保存", 8, Le), S.value ? (d(), i("button", {
+						onClick: yt
+					}, "💾 保存", 8, Re), S.value ? (f(), i("button", {
 						key: 0,
 						class: "pd-back-btn",
 						disabled: V.value,
-						onClick: yt
-					}, "↩ 放弃更改", 8, Re)) : (d(), i("button", {
+						onClick: bt
+					}, "↩ 放弃更改", 8, ze)) : (f(), i("button", {
 						key: 1,
 						class: "pd-back-btn pd-back-btn--active",
-						onClick: bt
-					}, "✓ 完成"))], 64)) : (d(), i("button", {
+						onClick: xt
+					}, "✓ 完成"))], 64)) : (f(), i("button", {
 						key: 0,
 						class: "pd-back-btn",
-						onClick: bt
+						onClick: xt
 					}, "🛠 编辑图")), a("button", {
 						class: "pd-back-btn",
-						onClick: pt
+						onClick: mt
 					}, h(F.value ? "↩ 恢复坐标" : "🧭 分层重排"), 1)], 64)),
-					D.value ? (d(), i(e, { key: 1 }, [Q.value ? (d(), i(e, { key: 1 }, [a("button", {
+					O.value ? (f(), i(e, { key: 1 }, [Q.value ? (f(), i(e, { key: 1 }, [a("button", {
 						class: "pd-back-btn",
-						disabled: !hn.value,
+						disabled: !gn.value,
+						onClick: bn
+					}, "💾 保存", 8, Be), a("button", {
+						class: "pd-back-btn",
 						onClick: yn
-					}, "💾 保存", 8, ze), a("button", {
-						class: "pd-back-btn",
-						onClick: vn
-					}, "👁 预览")], 64)) : (d(), i("button", {
+					}, "👁 预览")], 64)) : (f(), i("button", {
 						key: 0,
 						class: "pd-back-btn",
-						onClick: gn
+						onClick: _n
 					}, "✏️ 编辑")), a("button", {
 						class: "pd-back-btn",
-						onClick: mn
+						onClick: hn
 					}, "🗺 返回图")], 64)) : r("", !0),
-					o(g(re), { size: "small" })
+					o(g(ie), { size: "small" })
 				])
 			]),
-			a("aside", { class: l(["pd-tree-sidebar", { "pd-tree-sidebar--hidden": D.value !== "" }]) }, [a("div", Be, [s[8] ||= a("span", null, "文档索引", -1), a("button", {
+			a("aside", { class: l(["pd-tree-sidebar", { "pd-tree-sidebar--hidden": O.value !== "" }]) }, [a("div", Ve, [s[8] ||= a("span", null, "文档索引", -1), a("button", {
 				type: "button",
 				class: "pd-tree-sidebar__collapse",
-				"aria-label": w.value ? "收起索引" : "展开索引",
-				onClick: s[0] ||= (e) => w.value = !w.value
-			}, h(w.value ? "⟨" : "⟩"), 9, Ve)]), w.value ? (d(), i("nav", He, [a("ul", Ue, [(d(!0), i(e, null, p(ce.value.children, (e) => (d(), i("li", { key: e.path || e.id }, [o(de, {
+				"aria-label": T.value ? "收起索引" : "展开索引",
+				onClick: s[0] ||= (e) => T.value = !T.value
+			}, h(T.value ? "⟨" : "⟩"), 9, He)]), T.value ? (f(), i("nav", Ue, [a("ul", We, [(f(!0), i(e, null, m(w.value.children, (e) => (f(), i("li", { key: e.path || e.id }, [o(de, {
 				node: e,
-				expanded: T.value,
-				"current-path": D.value ?? "",
+				expanded: E.value,
+				"current-path": O.value ?? "",
 				onToggle: fe,
 				onOpen: me
 			}, null, 8, [
@@ -1350,26 +1352,26 @@ var Ne = { class: "pd-graph-viewer" }, Pe = { class: "pd-graph-header" }, Fe = {
 				"expanded",
 				"current-path"
 			])]))), 128))])])) : r("", !0)], 2),
-			a("div", We, [D.value ? (d(), i("div", {
+			a("div", Ge, [O.value ? (f(), i("div", {
 				key: 1,
 				class: l(["pd-doc-view", { "pd-doc-view--editing": Q.value }])
-			}, [Q.value ? (d(), n(g(ie), {
-				key: D.value,
+			}, [Q.value ? (f(), n(g(ae), {
+				key: O.value,
 				value: $.value,
 				class: "pd-doc-editor",
 				onChange: s[6] ||= (e) => $.value = e,
-				onKeydown: bn
-			}, null, 8, ["value"])) : (d(), n(g(ae), {
-				key: D.value,
-				content: he.value[D.value],
+				onKeydown: xn
+			}, null, 8, ["value"])) : (f(), n(g(oe), {
+				key: O.value,
+				content: he.value[O.value],
 				"show-toc": !0,
 				"flow-editable": !0,
-				onDocLink: Cn,
-				onFlowNodeMove: wn
-			}, null, 8, ["content"]))], 2)) : (d(), n(g(ne), {
+				onDocLink: wn,
+				onFlowNodeMove: Tn
+			}, null, 8, ["content"]))], 2)) : (f(), n(g(re), {
 				key: 0,
 				ref_key: "canvasRef",
-				ref: O,
+				ref: k,
 				width: "100%",
 				height: "100%",
 				"show-grid": "",
@@ -1378,22 +1380,22 @@ var Ne = { class: "pd-graph-viewer" }, Pe = { class: "pd-graph-header" }, Fe = {
 				"min-zoom": .25,
 				"max-zoom": 3
 			}, {
-				default: te(() => [a("div", {
+				default: ne(() => [a("div", {
 					ref_key: "stageEl",
-					ref: xt,
+					ref: St,
 					class: l(["pd-graph-stage", {
 						"pd-graph-stage--dragging": U.value?.moved || G.value || J.value || Y.value?.moved || X.value?.moved,
 						"pd-graph-stage--editing": R.value
 					}]),
 					style: u({
-						width: `${k.value.w}px`,
-						height: `${k.value.h}px`
+						width: `${A.value.w}px`,
+						height: `${A.value.h}px`
 					}),
 					onClick: s[5] ||= (e) => K.value = null
 				}, [
-					(d(!0), i(e, null, p(L.value, (e) => (d(), i("div", {
+					(f(!0), i(e, null, m(L.value, (e) => (f(), i("div", {
 						key: "group-" + e.name,
-						class: l(["pd-doc-group", { "pd-dim": ft(e) }]),
+						class: l(["pd-doc-group", { "pd-dim": pt(e) }]),
 						style: u({
 							left: `${e.x}px`,
 							top: `${e.y}px`,
@@ -1404,21 +1406,21 @@ var Ne = { class: "pd-graph-viewer" }, Pe = { class: "pd-graph-header" }, Fe = {
 						class: "pd-doc-group__label",
 						title: R.value ? `拖动移动整组「${e.name}」` : e.name,
 						"data-nm-no-pan": "",
-						onPointerdown: (t) => en(t, e)
-					}, h(e.name), 41, Ge), R.value ? (d(), i("button", {
+						onPointerdown: (t) => tn(t, e)
+					}, h(e.name), 41, Ke), R.value ? (f(), i("button", {
 						key: 0,
 						type: "button",
 						class: "pd-doc-group__resize",
 						"aria-label": `调整组「${e.name}」的区域尺寸`,
 						title: "拖动调整区域尺寸",
 						"data-nm-no-pan": "",
-						onPointerdown: v((t) => an(t, e), ["stop"])
-					}, null, 40, Ke)) : r("", !0)], 6))), 128)),
-					N.value.length || Ht.value ? (d(), i("svg", {
+						onPointerdown: v((t) => on(t, e), ["stop"])
+					}, null, 40, qe)) : r("", !0)], 6))), 128)),
+					M.value.length || Ut.value ? (f(), i("svg", {
 						key: 0,
 						class: "pd-relation-layer",
-						width: k.value.w,
-						height: k.value.h,
+						width: A.value.w,
+						height: A.value.h,
 						"aria-label": "文档连线"
 					}, [
 						s[11] ||= a("defs", null, [a("marker", {
@@ -1433,11 +1435,11 @@ var Ne = { class: "pd-graph-viewer" }, Pe = { class: "pd-graph-header" }, Fe = {
 							d: "M 0 0 L 8 4 L 0 8 z",
 							class: "pd-relation-arrow"
 						})])], -1),
-						(d(!0), i(e, null, p(N.value, (e) => (d(), i("g", {
+						(f(!0), i(e, null, m(M.value, (e) => (f(), i("g", {
 							key: e.id,
 							class: l(["pd-relation", {
-								"pd-dim": De(e),
-								"pd-hot": Ee(e),
+								"pd-dim": Oe(e),
+								"pd-hot": De(e),
 								"pd-selected": e.id === K.value
 							}])
 						}, [
@@ -1446,50 +1448,50 @@ var Ne = { class: "pd-graph-viewer" }, Pe = { class: "pd-graph-header" }, Fe = {
 								class: "pd-relation-hit",
 								d: e.d,
 								fill: "none",
-								onClick: v((t) => Ut(e), ["stop"])
-							}, null, 8, Je),
+								onClick: v((t) => Wt(e), ["stop"])
+							}, null, 8, Ye),
 							a("path", {
 								d: e.d,
 								fill: "none",
 								"marker-end": "url(#pd-relation-arrow)",
 								"pointer-events": "none"
-							}, null, 8, Ye),
-							e.label ? (d(), i("text", {
+							}, null, 8, Xe),
+							e.label ? (f(), i("text", {
 								key: 0,
 								x: e.labelX,
 								y: e.labelY,
 								"pointer-events": "none"
-							}, h(e.label), 9, Xe)) : r("", !0)
+							}, h(e.label), 9, Ze)) : r("", !0)
 						], 2))), 128)),
-						Ht.value ? (d(), i("path", {
+						Ut.value ? (f(), i("path", {
 							key: 0,
 							class: "pd-relation-draft",
-							d: Ht.value,
+							d: Ut.value,
 							fill: "none"
-						}, null, 8, Ze)) : r("", !0),
-						(d(!0), i(e, null, p(W.value, (e, t) => (d(), i("line", {
+						}, null, 8, Qe)) : r("", !0),
+						(f(!0), i(e, null, m(W.value, (e, t) => (f(), i("line", {
 							key: "guide" + t,
 							class: "pd-guide",
 							x1: e.axis === "x" ? e.pos : e.start,
 							y1: e.axis === "x" ? e.start : e.pos,
 							x2: e.axis === "x" ? e.pos : e.end,
 							y2: e.axis === "x" ? e.end : e.pos
-						}, null, 8, Qe))), 128)),
-						R.value && q.value ? (d(), i("g", $e, [a("circle", {
+						}, null, 8, $e))), 128)),
+						R.value && q.value ? (f(), i("g", et, [a("circle", {
 							class: "pd-edge-handle",
 							cx: q.value.x1,
 							cy: q.value.y1,
 							r: "6",
-							onPointerdown: s[1] ||= v((e) => Gt(e, q.value, "from"), ["stop"])
-						}, [...s[9] ||= [a("title", null, "拖动调整源框连接边", -1)]], 40, et), a("circle", {
+							onPointerdown: s[1] ||= v((e) => Kt(e, q.value, "from"), ["stop"])
+						}, [...s[9] ||= [a("title", null, "拖动调整源框连接边", -1)]], 40, tt), a("circle", {
 							class: "pd-edge-handle",
 							cx: q.value.x2,
 							cy: q.value.y2,
 							r: "6",
-							onPointerdown: s[2] ||= v((e) => Gt(e, q.value, "to"), ["stop"])
-						}, [...s[10] ||= [a("title", null, "拖动调整目标框连接边", -1)]], 40, tt)])) : r("", !0)
-					], 8, qe)) : r("", !0),
-					R.value && q.value ? (d(), i("button", {
+							onPointerdown: s[2] ||= v((e) => Kt(e, q.value, "to"), ["stop"])
+						}, [...s[10] ||= [a("title", null, "拖动调整目标框连接边", -1)]], 40, nt)])) : r("", !0)
+					], 8, Je)) : r("", !0),
+					R.value && q.value ? (f(), i("button", {
 						key: 1,
 						type: "button",
 						class: "pd-edge-delete",
@@ -1499,11 +1501,11 @@ var Ne = { class: "pd-graph-viewer" }, Pe = { class: "pd-graph-header" }, Fe = {
 						}),
 						"aria-label": `删除连线 ${q.value.fromTitle} → ${q.value.toTitle}`,
 						title: "删除连线（Delete）",
-						onClick: v($t, ["stop"])
-					}, "✕", 12, nt)) : r("", !0),
-					(d(!0), i(e, null, p(I.value, (t) => (d(), i("div", {
+						onClick: v(en, ["stop"])
+					}, "✕", 12, rt)) : r("", !0),
+					(f(!0), i(e, null, m(I.value, (t) => (f(), i("div", {
 						key: t.id,
-						class: l(["pd-doc-box", [`pd-doc-box--d${Math.min(t.depth, 3)}`, { "pd-dim": Te(t.id) }]]),
+						class: l(["pd-doc-box", [`pd-doc-box--d${Math.min(t.depth, 3)}`, { "pd-dim": Ee(t.id) }]]),
 						style: u({
 							left: `${t.x}px`,
 							top: `${t.y}px`,
@@ -1514,53 +1516,53 @@ var Ne = { class: "pd-graph-viewer" }, Pe = { class: "pd-graph-header" }, Fe = {
 						tabindex: "0",
 						"aria-label": `${t.title}（跳转到文档）`,
 						"data-nm-no-pan": "",
-						onPointerdown: (e) => kt(e, t),
-						onClick: (e) => Pt(t.docPath),
-						onKeydown: (e) => xn(e, t.docPath),
-						onMouseenter: (e) => xe(t.id),
-						onMouseleave: s[4] ||= (e) => xe(null)
+						onPointerdown: (e) => At(e, t),
+						onClick: (e) => Ft(t.docPath),
+						onKeydown: (e) => Sn(e, t.docPath),
+						onMouseenter: (e) => P(t.id),
+						onMouseleave: s[4] ||= (e) => P(null)
 					}, [
-						a("div", it, [a("span", at, h(t.title), 1), s[12] ||= a("span", {
+						a("div", at, [a("span", ot, h(t.title), 1), s[12] ||= a("span", {
 							class: "pd-doc-box__icon",
 							"aria-hidden": "true"
 						}, "↗", -1)]),
-						R.value ? r("", !0) : (d(), i("button", {
+						R.value ? r("", !0) : (f(), i("button", {
 							key: 0,
 							type: "button",
 							class: "pd-doc-box__edit",
 							"aria-label": `编辑 ${t.title}`,
 							title: "编辑文档",
-							onClick: v((e) => _n(t.docPath), ["stop"]),
-							onKeydown: [_(v((e) => _n(t.docPath), ["stop"]), ["enter"]), _(v((e) => _n(t.docPath), ["stop"]), ["space"])]
-						}, "✏️", 40, ot)),
-						R.value ? (d(), i("button", {
+							onClick: v((e) => vn(t.docPath), ["stop"]),
+							onKeydown: [_(v((e) => vn(t.docPath), ["stop"]), ["enter"]), _(v((e) => vn(t.docPath), ["stop"]), ["space"])]
+						}, "✏️", 40, st)),
+						R.value ? (f(), i("button", {
 							key: 1,
 							type: "button",
 							class: "pd-doc-box__link-handle",
 							"aria-label": `从 ${t.title} 创建连线（拖到目标框）`,
 							title: "拖到其他框创建连线",
-							onPointerdown: v((e) => Ft(e, t), ["stop"]),
+							onPointerdown: v((e) => It(e, t), ["stop"]),
 							onClick: s[3] ||= v(() => {}, ["stop"])
-						}, null, 40, st)) : r("", !0),
-						t.blocks.length && !R.value ? (d(), i("div", {
+						}, null, 40, ct)) : r("", !0),
+						t.blocks.length && !R.value ? (f(), i("div", {
 							key: 2,
-							class: l(["pd-doc-blocks-pop", { "pd-doc-blocks-pop--above": _t(t, k.value.h) }])
-						}, [a("div", ct, [(d(!0), i(e, null, p(mt(t), (e) => (d(), i("button", {
+							class: l(["pd-doc-blocks-pop", { "pd-doc-blocks-pop--above": vt(t, A.value.h) }])
+						}, [a("div", lt, [(f(!0), i(e, null, m(ht(t), (e) => (f(), i("button", {
 							key: e.anchor,
 							type: "button",
 							class: "pd-doc-blocks-pop__item",
 							title: e.title,
 							"aria-label": `跳转到「${e.title}」分块`,
-							onClick: v((n) => pn(t.docPath, e.anchor), ["stop"]),
-							onKeydown: [_(v((n) => pn(t.docPath, e.anchor), ["stop"]), ["enter"]), _(v((n) => pn(t.docPath, e.anchor), ["stop"]), ["space"])]
-						}, "▸ " + h(e.title), 41, lt))), 128)), ht(t) > 0 ? (d(), i("button", {
+							onClick: v((n) => mn(t.docPath, e.anchor), ["stop"]),
+							onKeydown: [_(v((n) => mn(t.docPath, e.anchor), ["stop"]), ["enter"]), _(v((n) => mn(t.docPath, e.anchor), ["stop"]), ["space"])]
+						}, "▸ " + h(e.title), 41, ut))), 128)), gt(t) > 0 ? (f(), i("button", {
 							key: 0,
 							type: "button",
 							class: "pd-doc-blocks-pop__item pd-doc-blocks-pop__item--more",
 							"aria-label": `查看全部 ${t.blocks.length} 个分块`,
 							onClick: v((e) => Z(t.docPath), ["stop"])
-						}, "+" + h(ht(t)) + " 更多分块…", 9, ut)) : r("", !0)])], 2)) : r("", !0)
-					], 46, rt))), 128))
+						}, "+" + h(gt(t)) + " 更多分块…", 9, dt)) : r("", !0)])], 2)) : r("", !0)
+					], 46, it))), 128))
 				], 6)]),
 				_: 1
 			}, 512))])

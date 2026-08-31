@@ -7,7 +7,7 @@
  * 正文渲染基于剥离框架参数区后的内容。地址栏 hash 同步当前文档路径。
  */
 
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { NeumorphismCanvas, NeumorphismThemeToggle } from '@echolab-auto/ui-frame';
 import TreeItem from './DocTreeItem.vue';
 import { MarkdownEditor, MarkdownRenderer, writeFlowNodePosition } from '@echolab-auto/ui-frame/doc';
@@ -95,15 +95,23 @@ const currentAncestors = computed<DocTreeNode[]>(() => {
 const treeSidebarOpen = ref(true);
 /** 树节点展开状态（path → 是否展开）；当前文档祖先默认展开 */
 const treeExpanded = ref<Record<string, boolean>>({});
+// ⚠️ 不能用 immediate watch：currentPath 声明在本代码块之后，
+// immediate 在 setup 同步执行时会 TDZ 崩溃（白屏根因）。
+// 改为随 currentPath 变化展开祖先（文档打开时触发）。
 watch(
-  currentAncestors,
-  (ancestors) => {
-    for (const a of ancestors) {
+  () => currentPath.value,
+  () => {
+    for (const a of currentAncestors.value) {
       if (a.isDir) treeExpanded.value[a.path] = true;
     }
   },
-  { immediate: true },
 );
+// 初次挂载：展开一级目录，让索引立即可见
+onMounted(() => {
+  for (const child of docTree.value.children) {
+    if (child.isDir) treeExpanded.value[child.path] = true;
+  }
+});
 function toggleTree(node: DocTreeNode) {
   if (node.isDir || node.children.length) {
     treeExpanded.value[node.path] = !treeExpanded.value[node.path];
