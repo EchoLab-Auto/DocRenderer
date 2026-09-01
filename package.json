@@ -43,6 +43,7 @@
     "@prodoc/core": "file:packages/prodoc-core",
     "@prodoc/renderer": "file:packages/prodoc-renderer",
     "@vitejs/plugin-vue": "^6.0.7",
+    "dompurify": "^3.4.14",
     "marked": "^18.0.5",
     "mermaid": "^11.0.0",
     "vue": "^3.5.35"

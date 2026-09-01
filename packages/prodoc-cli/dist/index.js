@@ -5,15 +5,16 @@ import n from "fs";
 import { createServer as r } from "vite";
 import i from "@vitejs/plugin-vue";
 import { createRequire as a } from "module";
-import { buildDocGraph as o, parseFrameBlock as s, writeFramePosition as c } from "@prodoc/core/pure";
+import { fileURLToPath as o } from "url";
+import { buildDocGraph as s, parseFrameBlock as c, writeFramePosition as l } from "@prodoc/core/pure";
 //#region src/server.ts
-var l = a(import.meta.url);
-function u(t) {
+var u = a(import.meta.url);
+function d(t) {
 	try {
-		let n = l.resolve(`${t}/package.json`);
+		let n = u.resolve(`${t}/package.json`);
 		return e.dirname(n);
 	} catch {
-		let r = l.resolve(t), i = e.dirname(r);
+		let r = u.resolve(t), i = e.dirname(r);
 		for (; i !== e.dirname(i);) {
 			if (n.existsSync(e.join(i, "package.json"))) return i;
 			i = e.dirname(i);
@@ -21,8 +22,8 @@ function u(t) {
 		throw Error(`Cannot find package directory for ${t}`);
 	}
 }
-var d = 3344, f = 10 * 1024 * 1024, p = "<!DOCTYPE html>\n<html lang=\"zh-CN\">\n  <head>\n    <meta charset=\"UTF-8\" />\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n    <title>ProDoc</title>\n    <style>\n      html, body {\n        margin: 0;\n        padding: 0;\n        height: 100%;\n        overflow: hidden;\n        background: var(--nm-bg-color, #e0e0e0);\n      }\n    </style>\n  </head>\n  <body>\n    <div id=\"app\"></div>\n    <script type=\"module\" src=\"/@prodoc/entry\"><\/script>\n  </body>\n</html>";
-async function m(n) {
+var f = 3344, p = 10 * 1024 * 1024, m = "<!DOCTYPE html>\n<html lang=\"zh-CN\">\n  <head>\n    <meta charset=\"UTF-8\" />\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n    <title>ProDoc</title>\n    <style>\n      html, body {\n        margin: 0;\n        padding: 0;\n        height: 100%;\n        overflow: hidden;\n        background: var(--nm-bg-color, #e0e0e0);\n      }\n    </style>\n  </head>\n  <body>\n    <div id=\"app\"></div>\n    <script type=\"module\" src=\"/@prodoc/entry\"><\/script>\n  </body>\n</html>";
+async function h(n) {
 	let r = {};
 	async function i(n, a = "") {
 		let o = await t.readdir(n, { withFileTypes: !0 });
@@ -33,12 +34,12 @@ async function m(n) {
 	}
 	return await i(n), r;
 }
-async function h(n, r) {
-	let i = o(r), a = [];
+async function g(n, r) {
+	let i = s(r), a = [];
 	for (let o of i.boxes) {
-		let i = r[o.docPath], { params: l } = s(i), u = typeof l.x == "number" && Number.isFinite(l.x), d = typeof l.y == "number" && Number.isFinite(l.y);
+		let i = r[o.docPath], { params: s } = c(i), u = typeof s.x == "number" && Number.isFinite(s.x), d = typeof s.y == "number" && Number.isFinite(s.y);
 		if (u && d) continue;
-		let f = c(i, {
+		let f = l(i, {
 			...!u && { x: o.x },
 			...!d && { y: o.y }
 		});
@@ -46,32 +47,32 @@ async function h(n, r) {
 	}
 	return a;
 }
-function g(t) {
-	let r = e.join(u(t), "dist", "style.css").replace(/\\/g, "/");
+function _(t) {
+	let r = e.join(d(t), "dist", "style.css").replace(/\\/g, "/");
 	if (!n.existsSync(r)) throw Error(`CSS file not found for ${t}: ${r}. Please ensure @echolab-auto/ui-frame is installed.`);
 	return r;
 }
-function _() {
-	let t = e.join(u("@echolab-auto/ui-frame"), "dist", "index.css").replace(/\\/g, "/");
+function v() {
+	let t = e.join(d("@echolab-auto/ui-frame"), "dist", "index.css").replace(/\\/g, "/");
 	return n.existsSync(t) ? t : null;
 }
-function v(t) {
-	let r = u(t), i = e.join(r, "src", "index.ts"), a = e.join(r, "dist", "index.js");
+function y(t) {
+	let r = d(t), i = e.join(r, "src", "index.ts"), a = e.join(r, "dist", "index.js");
 	return process.env.PRODOC_DEV === "1" && n.existsSync(i) ? i.replace(/\\/g, "/") : a.replace(/\\/g, "/");
 }
-function y() {
+function b() {
 	return "async (filePath, content, base) => {\n            try {\n              const res = await fetch('/__prodoc_api/save', {\n                method: 'POST',\n                headers: { 'Content-Type': 'application/json' },\n                body: JSON.stringify({ path: filePath, content, base }),\n              });\n              const data = await res.json();\n              if (data.success) {\n                console.log('[ProDoc] saved:', filePath);\n                // 乐观同步本地基准：磁盘内容现在就是 content，\n                // 后续编辑/保存以它为基准，不再依赖热更新推送的时序\n                state.files[filePath] = content;\n                return true;\n              }\n              if (res.status === 409) {\n                alert('[ProDoc] 保存被拒绝：' + filePath + ' 在磁盘上已被其他程序修改。\\n你的修改仍保留在画布暂存中；请刷新页面同步最新内容后重试（或点「↩ 放弃更改」丢弃）。');\n                return false;\n              }\n              alert('[ProDoc] 保存失败：' + filePath + ' — ' + (data.error || '未知错误'));\n              return false;\n            } catch (e) {\n              alert('[ProDoc] 保存请求出错：' + filePath + ' — ' + e);\n              return false;\n            }\n          }";
 }
-function b(t) {
-	let n = `{ files: state.files, saveHandler: ${y()} }`;
+function x(t) {
+	let n = `{ files: state.files, saveHandler: ${b()} }`;
 	return `
 import { createApp, h, reactive } from 'vue';
 import uiFrame, { ThemeProvider } from '@echolab-auto/ui-frame';
 import { DocGraphViewer } from '@prodoc/renderer';
 ${[
-		`import '${g("@echolab-auto/ui-frame")}';`,
-		..._() ? [`import '${_()}';`] : [],
-		`import '${e.join(u("@prodoc/renderer"), "dist", "index.css").replace(/\\/g, "/")}'`
+		`import '${_("@echolab-auto/ui-frame")}';`,
+		...v() ? [`import '${v()}';`] : [],
+		`import '${e.join(d("@prodoc/renderer"), "dist", "index.css").replace(/\\/g, "/")}'`
 	].join("\n")};
 
 const state = reactive({ files: ${JSON.stringify(t)} });
@@ -105,29 +106,81 @@ if (import.meta.hot) {
 }
 `;
 }
-async function x(n, a = {}) {
-	let o = a.port ?? d;
+async function S(n, a = {}) {
+	let s = a.port ?? f;
 	console.log(`📂 Loading documents from: ${e.resolve(n)}`);
-	let s = await m(n), c = Object.keys(s).length;
-	if (c === 0) throw Error(`No .md files found in: ${n}`);
-	console.log(`✅ Loaded ${c} document(s)`);
-	let l = await h(n, s);
-	l.length > 0 && console.log(`📍 Wrote auto-layout coordinates to ${l.length} document(s)`);
-	let u = await r({
+	let c = await h(n), l = Object.keys(c).length;
+	if (l === 0) throw Error(`No .md files found in: ${n}`);
+	console.log(`✅ Loaded ${l} document(s)`);
+	let _ = await g(n, c);
+	_.length > 0 && console.log(`📍 Wrote auto-layout coordinates to ${_.length} document(s)`);
+	let v = d("@prodoc/cli"), b = (e) => {
+		try {
+			return o(import.meta.resolve(e)).replace(/\\/g, "/");
+		} catch {
+			return u.resolve(e).replace(/\\/g, "/");
+		}
+	}, S = await r({
 		root: process.cwd(),
 		configFile: !1,
+		cacheDir: e.join(v, "node_modules", ".vite"),
 		server: {
-			port: o,
+			port: s,
 			open: a.open ?? !0,
-			host: !0
+			host: !0,
+			fs: { allow: [
+				process.cwd(),
+				v,
+				d("@prodoc/renderer"),
+				d("@echolab-auto/ui-frame")
+			] },
+			watch: { ignored: [
+				"**/node_modules/**",
+				"**/.git/**",
+				"**/target/**",
+				"**/dist/**",
+				"**/build/**",
+				"**/.cache/**"
+			] }
 		},
-		resolve: { alias: [{
-			find: "@prodoc/core",
-			replacement: v("@prodoc/core")
-		}, {
-			find: "@prodoc/renderer",
-			replacement: v("@prodoc/renderer")
-		}] },
+		resolve: { alias: [
+			{
+				find: /^@prodoc\/core$/,
+				replacement: y("@prodoc/core")
+			},
+			{
+				find: /^@prodoc\/renderer$/,
+				replacement: y("@prodoc/renderer")
+			},
+			{
+				find: /^vue$/,
+				replacement: e.join(d("vue"), "dist", "vue.runtime.esm-bundler.js").replace(/\\/g, "/")
+			},
+			{
+				find: /^marked$/,
+				replacement: b("marked")
+			},
+			{
+				find: /^mermaid$/,
+				replacement: b("mermaid")
+			},
+			{
+				find: /^dompurify$/,
+				replacement: b("dompurify")
+			},
+			{
+				find: /^@echolab-auto\/ui-frame\/doc$/,
+				replacement: b("@echolab-auto/ui-frame/doc")
+			},
+			{
+				find: /^@echolab-auto\/ui-frame$/,
+				replacement: b("@echolab-auto/ui-frame")
+			},
+			{
+				find: "@echolab-auto/ui-frame",
+				replacement: d("@echolab-auto/ui-frame")
+			}
+		] },
 		optimizeDeps: { include: [
 			"marked",
 			"mermaid",
@@ -140,7 +193,7 @@ async function x(n, a = {}) {
 				configureServer(e) {
 					e.middlewares.use((e, t, n) => {
 						if (e.url === "/" || e.url === "/index.html") {
-							t.setHeader("content-type", "text/html; charset=utf-8"), t.end(p);
+							t.setHeader("content-type", "text/html; charset=utf-8"), t.end(m);
 							return;
 						}
 						n();
@@ -154,7 +207,7 @@ async function x(n, a = {}) {
 					if (e === "/@prodoc/entry") return "\0prodoc-entry";
 				},
 				load(e) {
-					if (e === "\0prodoc-entry") return b(s);
+					if (e === "\0prodoc-entry") return x(c);
 				}
 			},
 			{
@@ -163,8 +216,8 @@ async function x(n, a = {}) {
 					let r = e.resolve(n);
 					t.watcher.add(r);
 					let i = null, a = async () => {
-						let e = await m(r), n = await h(r, e);
-						s = e, t.ws.send("prodoc:docs-update", s), console.log(`🔄 Documents reloaded (${Object.keys(s).length} file(s)` + (n.length > 0 ? `, wrote coordinates to ${n.length}` : "") + ")");
+						let e = await h(r), n = await g(r, e);
+						c = e, t.ws.send("prodoc:docs-update", c), console.log(`🔄 Documents reloaded (${Object.keys(c).length} file(s)` + (n.length > 0 ? `, wrote coordinates to ${n.length}` : "") + ")");
 					}, o = (e) => {
 						!e.startsWith(r) || !e.endsWith(".md") || (i && clearTimeout(i), i = setTimeout(() => {
 							a().catch((e) => console.error("[ProDoc] reload failed:", e));
@@ -181,7 +234,7 @@ async function x(n, a = {}) {
 							try {
 								let a = "", o = 0;
 								r.on("data", (e) => {
-									if (o += e.length, o > f) {
+									if (o += e.length, o > p) {
 										i.statusCode = 413, i.setHeader("content-type", "application/json"), i.end(JSON.stringify({
 											success: !1,
 											error: "Payload Too Large"
@@ -236,42 +289,42 @@ async function x(n, a = {}) {
 			}
 		]
 	});
-	await u.listen();
-	let g = u.resolvedUrls ?? {
+	await S.listen();
+	let C = S.resolvedUrls ?? {
 		local: [],
 		network: []
-	}, _ = g.local[0] ?? `http://localhost:${o}`;
-	return console.log("\n🚀 Echo-ProDoc server is running!\n"), console.log(`   Docs:    ${e.resolve(n)}`), console.log(`   Local:   ${_}`), g.network.length > 0 && console.log(`   Network: ${g.network[0]}`), console.log(""), u;
+	}, w = C.local[0] ?? `http://localhost:${s}`;
+	return console.log("\n🚀 Echo-ProDoc server is running!\n"), console.log(`   Docs:    ${e.resolve(n)}`), console.log(`   Local:   ${w}`), C.network.length > 0 && console.log(`   Network: ${C.network[0]}`), console.log(""), S;
 }
 //#endregion
 //#region src/index.ts
-var S = "echo-prodoc", C = (() => {
+var C = "echo-prodoc", w = (() => {
 	try {
-		let e = new URL("data:application/json;base64,ewogICJuYW1lIjogIkBlY2hvbGFiLWF1dG8vZWNoby1wcm9kb2MiLAogICJ2ZXJzaW9uIjogIjAuMS4xIiwKICAiZGVzY3JpcHRpb24iOiAiUHJvRG9jIC0g5paH5qGj5riy5p+T5LiO57yW6L6R5qGG5p62IiwKICAid29ya3NwYWNlcyI6IFsKICAgICJwYWNrYWdlcy8qIgogIF0sCiAgImJpbiI6IHsKICAgICJlY2hvLXByb2RvYyI6ICIuL2Jpbi9lY2hvLXByb2RvYy5qcyIKICB9LAogICJmaWxlcyI6IFsKICAgICJiaW4vIiwKICAgICJwYWNrYWdlcy8qL2Rpc3QvKioiLAogICAgInBhY2thZ2VzLyovcGFja2FnZS5qc29uIiwKICAgICJzY3JpcHRzLyIsCiAgICAidmVuZG9yL2ZzZXZlbnRzLXN0dWIvKioiCiAgXSwKICAic2NyaXB0cyI6IHsKICAgICJidWlsZCI6ICJucG0gcnVuIGJ1aWxkIC0td29ya3NwYWNlcyIsCiAgICAiYnVpbGQ6dWktZnJhbWUiOiAibm9kZSBzY3JpcHRzL2luc3RhbGwtdWktZnJhbWUuanMiLAogICAgInR5cGUtY2hlY2siOiAibnBtIHJ1biB0eXBlLWNoZWNrIC0td29ya3NwYWNlcyIsCiAgICAiY2xlYW4iOiAibnBtIHJ1biBjbGVhbiAtLXdvcmtzcGFjZXMiLAogICAgInZpZXciOiAibm9kZSAuL3BhY2thZ2VzL3Byb2RvYy1jbGkvZGlzdC9pbmRleC5qcyB2aWV3IiwKICAgICJkZXY6dmlldyI6ICJQUk9ET0NfREVWPTEgdHN4IHBhY2thZ2VzL3Byb2RvYy1jbGkvc3JjL2luZGV4LnRzIHZpZXciLAogICAgInByZXBhY2siOiAibm9kZSBzY3JpcHRzL3B1Ymxpc2gtcGFja2FnZS5qcyBhcHBseSIsCiAgICAicG9zdHBhY2siOiAibm9kZSBzY3JpcHRzL3B1Ymxpc2gtcGFja2FnZS5qcyByZXN0b3JlIiwKICAgICJwcmVwdWJsaXNoT25seSI6ICJucG0gcnVuIGJ1aWxkIiwKICAgICJ1c2UtbG9jYWwtdWktZnJhbWUiOiAibm9kZSBzY3JpcHRzL3N3aXRjaC11aS1mcmFtZS5qcyBsb2NhbCIsCiAgICAidXNlLW5wbS11aS1mcmFtZSI6ICJub2RlIHNjcmlwdHMvc3dpdGNoLXVpLWZyYW1lLmpzIG5wbSIKICB9LAogICJkZXZEZXBlbmRlbmNpZXMiOiB7CiAgICAiQHR5cGVzL25vZGUiOiAiXjIyLjAuMCIsCiAgICAidHN4IjogIl40LjE5LjAiLAogICAgInR5cGVzY3JpcHQiOiAiXjUuNy4wIiwKICAgICJ2aXRlIjogIl44LjAuMTYiLAogICAgInZ1ZS10c2MiOiAiXjIuMi4xMiIKICB9LAogICJlbmdpbmVzIjogewogICAgIm5vZGUiOiAiPj0xOC4wLjAiCiAgfSwKICAiZGVwZW5kZW5jaWVzIjogewogICAgIkBlY2hvbGFiLWF1dG8vdWktZnJhbWUiOiAiXjEuMy4wIiwKICAgICJAcHJvZG9jL2NvcmUiOiAiZmlsZTpwYWNrYWdlcy9wcm9kb2MtY29yZSIsCiAgICAiQHByb2RvYy9yZW5kZXJlciI6ICJmaWxlOnBhY2thZ2VzL3Byb2RvYy1yZW5kZXJlciIsCiAgICAiQHZpdGVqcy9wbHVnaW4tdnVlIjogIl42LjAuNyIsCiAgICAibWFya2VkIjogIl4xOC4wLjUiLAogICAgIm1lcm1haWQiOiAiXjExLjAuMCIsCiAgICAidnVlIjogIl4zLjUuMzUiCiAgfSwKICAib3ZlcnJpZGVzIjogewogICAgImZzZXZlbnRzIjogImZpbGU6dmVuZG9yL2ZzZXZlbnRzLXN0dWIiCiAgfQp9Cg==", "" + import.meta.url);
+		let e = new URL("data:application/json;base64,ewogICJuYW1lIjogIkBlY2hvbGFiLWF1dG8vZWNoby1wcm9kb2MiLAogICJ2ZXJzaW9uIjogIjAuMS4yIiwKICAiZGVzY3JpcHRpb24iOiAiUHJvRG9jIC0g5paH5qGj5riy5p+T5LiO57yW6L6R5qGG5p62IiwKICAid29ya3NwYWNlcyI6IFsKICAgICJwYWNrYWdlcy8qIgogIF0sCiAgImJpbiI6IHsKICAgICJlY2hvLXByb2RvYyI6ICIuL2Jpbi9lY2hvLXByb2RvYy5qcyIKICB9LAogICJmaWxlcyI6IFsKICAgICJiaW4vIiwKICAgICJwYWNrYWdlcy8qL2Rpc3QvKioiLAogICAgInBhY2thZ2VzLyovcGFja2FnZS5qc29uIiwKICAgICJzY3JpcHRzLyIsCiAgICAidmVuZG9yL2ZzZXZlbnRzLXN0dWIvKioiCiAgXSwKICAic2NyaXB0cyI6IHsKICAgICJidWlsZCI6ICJucG0gcnVuIGJ1aWxkIC0td29ya3NwYWNlcyIsCiAgICAiYnVpbGQ6dWktZnJhbWUiOiAibm9kZSBzY3JpcHRzL2luc3RhbGwtdWktZnJhbWUuanMiLAogICAgInR5cGUtY2hlY2siOiAibnBtIHJ1biB0eXBlLWNoZWNrIC0td29ya3NwYWNlcyIsCiAgICAiY2xlYW4iOiAibnBtIHJ1biBjbGVhbiAtLXdvcmtzcGFjZXMiLAogICAgInZpZXciOiAibm9kZSAuL3BhY2thZ2VzL3Byb2RvYy1jbGkvZGlzdC9pbmRleC5qcyB2aWV3IiwKICAgICJkZXY6dmlldyI6ICJQUk9ET0NfREVWPTEgdHN4IHBhY2thZ2VzL3Byb2RvYy1jbGkvc3JjL2luZGV4LnRzIHZpZXciLAogICAgInByZXBhY2siOiAibm9kZSBzY3JpcHRzL3B1Ymxpc2gtcGFja2FnZS5qcyBhcHBseSIsCiAgICAicG9zdHBhY2siOiAibm9kZSBzY3JpcHRzL3B1Ymxpc2gtcGFja2FnZS5qcyByZXN0b3JlIiwKICAgICJwcmVwdWJsaXNoT25seSI6ICJucG0gcnVuIGJ1aWxkIiwKICAgICJ1c2UtbG9jYWwtdWktZnJhbWUiOiAibm9kZSBzY3JpcHRzL3N3aXRjaC11aS1mcmFtZS5qcyBsb2NhbCIsCiAgICAidXNlLW5wbS11aS1mcmFtZSI6ICJub2RlIHNjcmlwdHMvc3dpdGNoLXVpLWZyYW1lLmpzIG5wbSIKICB9LAogICJkZXZEZXBlbmRlbmNpZXMiOiB7CiAgICAiQHR5cGVzL25vZGUiOiAiXjIyLjAuMCIsCiAgICAidHN4IjogIl40LjE5LjAiLAogICAgInR5cGVzY3JpcHQiOiAiXjUuNy4wIiwKICAgICJ2aXRlIjogIl44LjAuMTYiLAogICAgInZ1ZS10c2MiOiAiXjIuMi4xMiIKICB9LAogICJlbmdpbmVzIjogewogICAgIm5vZGUiOiAiPj0xOC4wLjAiCiAgfSwKICAiZGVwZW5kZW5jaWVzIjogewogICAgIkBlY2hvbGFiLWF1dG8vdWktZnJhbWUiOiAiXjEuMy4wIiwKICAgICJAcHJvZG9jL2NvcmUiOiAiZmlsZTpwYWNrYWdlcy9wcm9kb2MtY29yZSIsCiAgICAiQHByb2RvYy9yZW5kZXJlciI6ICJmaWxlOnBhY2thZ2VzL3Byb2RvYy1yZW5kZXJlciIsCiAgICAiQHZpdGVqcy9wbHVnaW4tdnVlIjogIl42LjAuNyIsCiAgICAiZG9tcHVyaWZ5IjogIl4zLjQuMTQiLAogICAgIm1hcmtlZCI6ICJeMTguMC41IiwKICAgICJtZXJtYWlkIjogIl4xMS4wLjAiLAogICAgInZ1ZSI6ICJeMy41LjM1IgogIH0sCiAgIm92ZXJyaWRlcyI6IHsKICAgICJmc2V2ZW50cyI6ICJmaWxlOnZlbmRvci9mc2V2ZW50cy1zdHViIgogIH0KfQo=", "" + import.meta.url);
 		return JSON.parse(n.readFileSync(e, "utf-8")).version ?? "0.1.1";
 	} catch {
 		return "0.1.1";
 	}
 })();
-function w() {
+function T() {
 	console.log(`
-${S} v${C}
+${C} v${w}
 
 Usage:
-  ${S} view <document-path>   Start a rendering server for the document directory
-  ${S} --help                 Show this help message
-  ${S} --version              Show version
+  ${C} view <document-path>   Start a rendering server for the document directory
+  ${C} --help                 Show this help message
+  ${C} --version              Show version
 
 Options:
   --port, -p <number>    Server port (default: 3344)
   --no-open              Do not open browser automatically
 
 Examples:
-  ${S} view ./docs
-  ${S} view ./docs --port 8080
+  ${C} view ./docs
+  ${C} view ./docs --port 8080
 `);
 }
-function T(e) {
+function E(e) {
 	let t = e.slice(2), n = {
 		open: !0,
 		help: !1,
@@ -283,7 +336,7 @@ function T(e) {
 	}
 	return n;
 }
-async function E(n) {
+async function D(n) {
 	let r = e.resolve(n);
 	try {
 		if (!(await t.stat(r)).isDirectory()) throw Error(`Path is not a directory: ${r}`);
@@ -292,11 +345,11 @@ async function E(n) {
 	}
 	return r;
 }
-async function D() {
-	let e = T(process.argv);
-	e.help && (w(), process.exit(0)), e.version && (console.log(`${S} v${C}`), process.exit(0)), e.command || (console.error("Error: No command specified. Use \"view\"."), console.error(`\nRun "${S} --help" for usage information.`), process.exit(1)), e.docPath || (console.error("Error: No document path specified."), console.error(`\nRun "${S} --help" for usage information.`), process.exit(1));
+async function O() {
+	let e = E(process.argv);
+	e.help && (T(), process.exit(0)), e.version && (console.log(`${C} v${w}`), process.exit(0)), e.command || (console.error("Error: No command specified. Use \"view\"."), console.error(`\nRun "${C} --help" for usage information.`), process.exit(1)), e.docPath || (console.error("Error: No document path specified."), console.error(`\nRun "${C} --help" for usage information.`), process.exit(1));
 	try {
-		let t = await x(await E(e.docPath), {
+		let t = await S(await D(e.docPath), {
 			port: e.port,
 			open: e.open
 		}), n = () => {
@@ -309,7 +362,7 @@ async function D() {
 		console.error(`\n❌ Error: ${e.message}\n`), process.exit(1);
 	}
 }
-D();
+O();
 //#endregion
 
 //# sourceMappingURL=index.js.map

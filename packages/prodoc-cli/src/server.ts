@@ -10,6 +10,7 @@ import vue from '@vitejs/plugin-vue';
 import fs from 'fs/promises';
 import path from 'path';
 import { createRequire } from 'module';
+import { fileURLToPath } from 'url';
 import fsSync from 'fs';
 import { buildDocGraph, parseFrameBlock, writeFramePosition } from '@prodoc/core/pure';
 
@@ -248,18 +249,66 @@ export async function startProDocServer(
   }
 
   // 2. 创建 Vite 服务器
+  // root 为调用者的 cwd（文档目录所在地），但全部框架依赖（vue/marked/mermaid/
+  // ui-frame）都必须以 CLI 包自身为基准解析——否则在不含 node_modules 的目录
+  // （如任意项目根）运行时依赖无法解析；文件监听也需忽略 cwd 下的重型目录，
+  // 避免在大型项目中耗尽 inotify 上限
+  const cliPkgDir = resolvePkgDir('@prodoc/cli');
+  /** 以 CLI 包为基准解析依赖入口（与 cwd 无关；优先 import 条件——
+      ui-frame 的 ./doc 等子路径仅声明 import 导出，require 解析会失败） */
+  const resolveDep = (pkgName: string): string => {
+    try {
+      return fileURLToPath(import.meta.resolve(pkgName)).replace(/\\/g, '/');
+    } catch {
+      return require.resolve(pkgName).replace(/\\/g, '/');
+    }
+  };
+
   const server = await createServer({
     root: process.cwd(),
     configFile: false,
+    // 依赖优化缓存写入 CLI 包内（cwd 可能是只读或无关项目目录）
+    cacheDir: path.join(cliPkgDir, 'node_modules', '.vite'),
     server: {
       port,
       open: options.open ?? true,
       host: true,
+      // 客户端要加载的 CSS/依赖入口在 CLI/ui-frame/renderer 包目录内（可能在 cwd 之外）
+      fs: {
+        allow: [
+          process.cwd(),
+          cliPkgDir,
+          resolvePkgDir('@prodoc/renderer'),
+          resolvePkgDir('@echolab-auto/ui-frame'),
+        ],
+      },
+      watch: {
+        // vite 默认监听整个 root（cwd）；忽略常见重型/产物目录，
+        // 文档目录本身由 prodoc-docs-watch 插件显式监听（不受此忽略影响）
+        ignored: [
+          '**/node_modules/**',
+          '**/.git/**',
+          '**/target/**',
+          '**/dist/**',
+          '**/build/**',
+          '**/.cache/**',
+        ],
+      },
     },
     resolve: {
       alias: [
-        { find: '@prodoc/core', replacement: resolveProDocEntry('@prodoc/core') },
-        { find: '@prodoc/renderer', replacement: resolveProDocEntry('@prodoc/renderer') },
+        { find: /^@prodoc\/core$/, replacement: resolveProDocEntry('@prodoc/core') },
+        { find: /^@prodoc\/renderer$/, replacement: resolveProDocEntry('@prodoc/renderer') },
+        // vue 必须显式指向浏览器 ESM 入口：import.meta.resolve 会命中
+        // node 条件导出（index.mjs，SSR 构建），缺失部分浏览器运行时导出
+        { find: /^vue$/, replacement: path.join(resolvePkgDir('vue'), 'dist', 'vue.runtime.esm-bundler.js').replace(/\\/g, '/') },
+        { find: /^marked$/, replacement: resolveDep('marked') },
+        { find: /^mermaid$/, replacement: resolveDep('mermaid') },
+        { find: /^dompurify$/, replacement: resolveDep('dompurify') },
+        { find: /^@echolab-auto\/ui-frame\/doc$/, replacement: resolveDep('@echolab-auto/ui-frame/doc') },
+        { find: /^@echolab-auto\/ui-frame$/, replacement: resolveDep('@echolab-auto/ui-frame') },
+        // ui-frame 的子路径导入（如 dist/style.css）按包目录前缀解析
+        { find: '@echolab-auto/ui-frame', replacement: resolvePkgDir('@echolab-auto/ui-frame') },
       ],
     },
     optimizeDeps: {
