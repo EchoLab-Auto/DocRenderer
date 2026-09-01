@@ -7,7 +7,7 @@
  * 正文渲染基于剥离框架参数区后的内容。地址栏 hash 同步当前文档路径。
  */
 
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { NeumorphismCanvas, NeumorphismThemeToggle } from '@echolab-auto/ui-frame';
 import { MarkdownEditor, MarkdownRenderer, writeFlowNodePosition } from '@echolab-auto/ui-frame/doc';
 import {
@@ -615,9 +615,12 @@ function onBoxClick(path: string) {
   open(path);
 }
 
-/** 连线草稿：从框的连接点拖出，松手落在目标框上即创建；raf 节流同框拖拽 */
+/** 连线草稿：从框四边中点的连接点拖出，松手落在目标框上即创建；raf 节流同框拖拽 */
 const linkDraft = ref<{
   fromId: string;
+  fromSide: LinkSide;
+  /** 光标当前悬停的框（不一定是合法目标，合法性在渲染时判定） */
+  targetId: string | null;
   x: number;
   y: number;
   lastClientX: number;
@@ -625,21 +628,42 @@ const linkDraft = ref<{
   raf: number;
 } | null>(null);
 
-/** 拖出连线草稿（连接点或连线工具下整框共用） */
-function startLinkDraft(e: PointerEvent, box: DocBox) {
+/** 新建连线的入场动画标记（描边绘制动画播完后清除） */
+const justLinkedId = ref<string | null>(null);
+let justLinkedTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** 按方位取点相对框心最近的边（计入框的宽高比，避免宽框误判上下边） */
+function nearestSide(box: Pick<DocBox, 'x' | 'y' | 'w' | 'h'>, pt: { x: number; y: number }): LinkSide {
+  const dx = pt.x - (box.x + box.w / 2);
+  const dy = pt.y - (box.y + box.h / 2);
+  const horizontal = Math.abs(dx) * box.h > Math.abs(dy) * box.w;
+  return horizontal ? (dx >= 0 ? 'right' : 'left') : dy >= 0 ? 'bottom' : 'top';
+}
+
+/** 拖出连线草稿（连接点或连线工具下整框共用；side 缺省时按按下点方位取最近的边） */
+function startLinkDraft(e: PointerEvent, box: DocBox, side?: LinkSide) {
   if (!graphEditMode.value) return;
   if (e.button !== 0) return;
   e.preventDefault();
   const pt = toStageCoords(e.clientX, e.clientY);
-  linkDraft.value = { fromId: box.id, x: pt.x, y: pt.y, lastClientX: e.clientX, lastClientY: e.clientY, raf: 0 };
+  linkDraft.value = {
+    fromId: box.id,
+    fromSide: side ?? nearestSide(box, pt),
+    targetId: null,
+    x: pt.x,
+    y: pt.y,
+    lastClientX: e.clientX,
+    lastClientY: e.clientY,
+    raf: 0,
+  };
   window.addEventListener('pointermove', onLinkMove);
   window.addEventListener('pointerup', onLinkEnd);
   window.addEventListener('pointercancel', onLinkCancel);
   hovered.value = null;
 }
 
-function onLinkStart(e: PointerEvent, box: DocBox) {
-  startLinkDraft(e, box);
+function onLinkStart(e: PointerEvent, box: DocBox, side?: LinkSide) {
+  startLinkDraft(e, box, side);
 }
 
 function onLinkMove(e: PointerEvent) {
@@ -655,7 +679,10 @@ function applyLinkMove() {
   if (!d) return;
   d.raf = 0;
   const pt = toStageCoords(d.lastClientX, d.lastClientY);
-  linkDraft.value = { ...d, x: pt.x, y: pt.y };
+  const hit = layoutBoxes.value.find(
+    (b) => pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.y + b.h,
+  );
+  linkDraft.value = { ...d, x: pt.x, y: pt.y, targetId: hit?.id ?? null };
 }
 
 function removeLinkListeners() {
@@ -683,24 +710,53 @@ function onLinkEnd(e: PointerEvent) {
   );
   if (!target || target.id === d.fromId) return;
   if (graph.value.relations.some((r) => r.from === d.fromId && r.to === target.id)) return;
-  addLink(d.fromId, target.id);
+  // 目标边取落点所在方位的最近边，用户拖到哪条边就连哪条边
+  addLink(d.fromId, target.id, d.fromSide, nearestSide(target, pt));
 }
 
-function addLink(fromId: string, toId: string) {
+function addLink(fromId: string, toId: string, fromSide?: LinkSide, toSide?: LinkSide) {
   const from = graph.value.boxes.find((b) => b.id === fromId);
   if (!from) return;
   const content = stagedContent(from.docPath);
   if (content === undefined) return;
-  stageDraft(from.docPath, writeFrameLinks(content, [...readFrameLinks(content), toId]));
+  const entry = buildLinkEntry({ ref: toId, fromSide, toSide });
+  stageDraft(from.docPath, writeFrameLinks(content, [...readFrameLinks(content), entry]));
+  // 新连线播一次描边绘制入场动画
+  justLinkedId.value = `${fromId}->${toId}`;
+  if (justLinkedTimer) clearTimeout(justLinkedTimer);
+  justLinkedTimer = setTimeout(() => {
+    justLinkedId.value = null;
+    justLinkedTimer = null;
+  }, 700);
 }
 
-/** 草稿连线的预览路径：复用 edgeGeometry，目标视为光标处的零尺寸点 */
+/** 草稿连线的预览路径：复用 edgeGeometry，从选定边出发；悬停到目标框时预览吸附其最近边 */
 const linkDraftPath = computed(() => {
   const d = linkDraft.value;
   if (!d) return null;
   const from = layoutBoxes.value.find((b) => b.id === d.fromId);
   if (!from) return null;
-  return edgeGeometry(from, { x: d.x, y: d.y, w: 0, h: 0 }).d;
+  const target = d.targetId
+    ? layoutBoxes.value.find((b) => b.id === d.targetId)
+    : undefined;
+  if (target && target.id !== d.fromId) {
+    const toSide = nearestSide(target, { x: d.x, y: d.y });
+    return edgeGeometry(from, target, d.fromSide, toSide).d;
+  }
+  return edgeGeometry(from, { x: d.x, y: d.y, w: 0, h: 0 }, d.fromSide).d;
+});
+
+/** 连线草稿期间框的目标态：valid（可落点）/ invalid（自身或已存在同向连线） */
+function linkTargetState(box: DocBox): 'valid' | 'invalid' | null {
+  const d = linkDraft.value;
+  if (!d || d.targetId !== box.id) return null;
+  if (box.id === d.fromId) return 'invalid';
+  if (graph.value.relations.some((r) => r.from === d.fromId && r.to === box.id)) return 'invalid';
+  return 'valid';
+}
+
+onBeforeUnmount(() => {
+  if (justLinkedTimer) clearTimeout(justLinkedTimer);
 });
 
 /* ============ 节点工具：点空白创建新文档框（新文件暂存草稿） ============ */
@@ -1477,6 +1533,7 @@ if (typeof window !== 'undefined' && window.location.hash.length > 1) {
                 'pd-dim': isEdgeDimmed(edge),
                 'pd-hot': isEdgeHot(edge),
                 'pd-selected': edge.id === selectedEdgeId,
+                'pd-relation--new': edge.id === justLinkedId,
               }"
             >
               <title>{{ edge.fromTitle }} → {{ edge.toTitle }}{{ edge.label ? `（${edge.label}）` : '' }}</title>
@@ -1549,7 +1606,14 @@ if (typeof window !== 'undefined' && window.location.hash.length > 1) {
             v-for="box in layoutBoxes"
             :key="box.id"
             class="pd-doc-box"
-            :class="[`pd-doc-box--d${Math.min(box.depth, 3)}`, { 'pd-dim': isBoxDimmed(box.id) }]"
+            :class="[
+              `pd-doc-box--d${Math.min(box.depth, 3)}`,
+              {
+                'pd-dim': isBoxDimmed(box.id),
+                'pd-doc-box--link-target': linkTargetState(box) === 'valid',
+                'pd-doc-box--link-invalid': linkTargetState(box) === 'invalid',
+              },
+            ]"
             :style="{ left: `${box.x}px`, top: `${box.y}px`, width: `${box.w}px`, height: `${box.h}px` }"
             role="link"
             tabindex="0"
@@ -1576,16 +1640,21 @@ if (typeof window !== 'undefined' && window.location.hash.length > 1) {
               @keydown.enter.stop="openEdit(box.docPath)"
               @keydown.space.stop="openEdit(box.docPath)"
             >✏️</button>
-            <!-- 连接点：拖到其他框创建连线（仅图编辑模式） -->
-            <button
-              v-if="graphEditMode"
-              type="button"
-              class="pd-doc-box__link-handle"
-              :aria-label="`从 ${box.title} 创建连线（拖到目标框）`"
-              title="拖到其他框创建连线"
-              @pointerdown.stop="onLinkStart($event, box)"
-              @click.stop
-            ></button>
+            <!-- 连接点：四条边的中点各一个，从哪条边拖出就固定该边为源边；
+                 落点在目标框的哪一侧就连接目标的哪条边（仅图编辑模式） -->
+            <template v-if="graphEditMode">
+              <button
+                v-for="side in (['top', 'right', 'bottom', 'left'] as LinkSide[])"
+                :key="side"
+                type="button"
+                class="pd-doc-box__link-handle"
+                :class="`pd-doc-box__link-handle--${side}`"
+                :aria-label="`从 ${box.title} 的${{ top: '上', right: '右', bottom: '下', left: '左' }[side]}边创建连线（拖到目标框）`"
+                title="拖到其他框创建连线"
+                @pointerdown.stop="onLinkStart($event, box, side)"
+                @click.stop
+              ></button>
+            </template>
             <!-- 悬停展开的分块面板：点击条目直达正文对应标题（图编辑模式下隐藏） -->
             <div
               v-if="box.blocks.length && !graphEditMode"
