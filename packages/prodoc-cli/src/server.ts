@@ -312,6 +312,10 @@ export async function startProDocServer(
       ],
     },
     optimizeDeps: {
+      // 关闭入口扫描：root 是调用者的 cwd，若恰好是另一个 vite 项目
+      // （如 ui-frame 仓库），默认扫描会爬进它的源码并因其自有路径别名
+      // （如 @/…）解析失败而报噪音错误。所需依赖已由 include 显式声明。
+      entries: [],
       include: ['marked', 'mermaid', '@echolab-auto/ui-frame/doc'],
     },
     plugins: [
