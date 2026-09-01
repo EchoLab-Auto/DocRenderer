@@ -8,10 +8,19 @@
 
 import path from 'path';
 import fs from 'fs/promises';
+import fsSync from 'fs';
 import { startProDocServer } from './server.js';
 
 const PKG_NAME = 'echo-prodoc';
-const PKG_VERSION = '0.1.0';
+/** 版本号取根包 package.json（发布版 echo-prodoc 与开发仓库的相对层级一致），取不到则回退 */
+const PKG_VERSION = (() => {
+  try {
+    const pkgPath = new URL('../../../package.json', import.meta.url);
+    return JSON.parse(fsSync.readFileSync(pkgPath, 'utf-8')).version ?? '0.1.1';
+  } catch {
+    return '0.1.1';
+  }
+})();
 
 /** 显示帮助信息 */
 function showHelp() {

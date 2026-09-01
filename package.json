@@ -22,6 +22,8 @@
     "clean": "npm run clean --workspaces",
     "view": "node ./packages/prodoc-cli/dist/index.js view",
     "dev:view": "PRODOC_DEV=1 tsx packages/prodoc-cli/src/index.ts view",
+    "prepack": "node scripts/publish-package.js apply",
+    "postpack": "node scripts/publish-package.js restore",
     "prepublishOnly": "npm run build",
     "use-local-ui-frame": "node scripts/switch-ui-frame.js local",
     "use-npm-ui-frame": "node scripts/switch-ui-frame.js npm"
@@ -30,20 +32,20 @@
     "@types/node": "^22.0.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
-    "vite": "^8.0.16"
+    "vite": "^8.0.16",
+    "vue-tsc": "^2.2.12"
   },
   "engines": {
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@echolab-auto/ui-frame": "^1.1.1",
+    "@echolab-auto/ui-frame": "^1.3.0",
     "@prodoc/core": "file:packages/prodoc-core",
     "@prodoc/renderer": "file:packages/prodoc-renderer",
     "@vitejs/plugin-vue": "^6.0.7",
     "marked": "^18.0.5",
-    "mermaid": "^10.9.6",
-    "vue": "^3.5.35",
-    "vue-tsc": "^2.2.12"
+    "mermaid": "^11.0.0",
+    "vue": "^3.5.35"
   },
   "overrides": {
     "fsevents": "file:vendor/fsevents-stub"

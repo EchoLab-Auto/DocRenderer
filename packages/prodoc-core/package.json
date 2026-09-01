@@ -28,11 +28,11 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "mermaid": "^10.9.6",
-    "@echolab-auto/ui-frame": "^1.1.1"
+    "mermaid": "^11.0.0",
+    "@echolab-auto/ui-frame": "^1.3.0"
   },
   "devDependencies": {
-    "@echolab-auto/ui-frame": "^1.1.1",
+    "@echolab-auto/ui-frame": "^1.3.0",
     "typescript": "^5.7.0",
     "vite": "^8.0.16"
   }

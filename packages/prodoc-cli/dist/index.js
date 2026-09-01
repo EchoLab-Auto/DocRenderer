@@ -1,22 +1,22 @@
 #!/usr/bin/env node
 import e from "path";
 import t from "fs/promises";
-import { createServer as n } from "vite";
-import r from "@vitejs/plugin-vue";
-import { createRequire as i } from "module";
-import a from "fs";
+import n from "fs";
+import { createServer as r } from "vite";
+import i from "@vitejs/plugin-vue";
+import { createRequire as a } from "module";
 import { buildDocGraph as o, parseFrameBlock as s, writeFramePosition as c } from "@prodoc/core/pure";
 //#region src/server.ts
-var l = i(import.meta.url);
+var l = a(import.meta.url);
 function u(t) {
 	try {
 		let n = l.resolve(`${t}/package.json`);
 		return e.dirname(n);
 	} catch {
-		let n = l.resolve(t), r = e.dirname(n);
-		for (; r !== e.dirname(r);) {
-			if (a.existsSync(e.join(r, "package.json"))) return r;
-			r = e.dirname(r);
+		let r = l.resolve(t), i = e.dirname(r);
+		for (; i !== e.dirname(i);) {
+			if (n.existsSync(e.join(i, "package.json"))) return i;
+			i = e.dirname(i);
 		}
 		throw Error(`Cannot find package directory for ${t}`);
 	}
@@ -47,17 +47,17 @@ async function h(n, r) {
 	return a;
 }
 function g(t) {
-	let n = e.join(u(t), "dist", "style.css").replace(/\\/g, "/");
-	if (!a.existsSync(n)) throw Error(`CSS file not found for ${t}: ${n}. Please ensure @echolab-auto/ui-frame is installed.`);
-	return n;
+	let r = e.join(u(t), "dist", "style.css").replace(/\\/g, "/");
+	if (!n.existsSync(r)) throw Error(`CSS file not found for ${t}: ${r}. Please ensure @echolab-auto/ui-frame is installed.`);
+	return r;
 }
 function _() {
 	let t = e.join(u("@echolab-auto/ui-frame"), "dist", "index.css").replace(/\\/g, "/");
-	return a.existsSync(t) ? t : null;
+	return n.existsSync(t) ? t : null;
 }
 function v(t) {
-	let n = u(t), r = e.join(n, "src", "index.ts"), i = e.join(n, "dist", "index.js");
-	return process.env.PRODOC_DEV === "1" && a.existsSync(r) ? r.replace(/\\/g, "/") : i.replace(/\\/g, "/");
+	let r = u(t), i = e.join(r, "src", "index.ts"), a = e.join(r, "dist", "index.js");
+	return process.env.PRODOC_DEV === "1" && n.existsSync(i) ? i.replace(/\\/g, "/") : a.replace(/\\/g, "/");
 }
 function y() {
 	return "async (filePath, content, base) => {\n            try {\n              const res = await fetch('/__prodoc_api/save', {\n                method: 'POST',\n                headers: { 'Content-Type': 'application/json' },\n                body: JSON.stringify({ path: filePath, content, base }),\n              });\n              const data = await res.json();\n              if (data.success) {\n                console.log('[ProDoc] saved:', filePath);\n                // 乐观同步本地基准：磁盘内容现在就是 content，\n                // 后续编辑/保存以它为基准，不再依赖热更新推送的时序\n                state.files[filePath] = content;\n                return true;\n              }\n              if (res.status === 409) {\n                alert('[ProDoc] 保存被拒绝：' + filePath + ' 在磁盘上已被其他程序修改。\\n你的修改仍保留在画布暂存中；请刷新页面同步最新内容后重试（或点「↩ 放弃更改」丢弃）。');\n                return false;\n              }\n              alert('[ProDoc] 保存失败：' + filePath + ' — ' + (data.error || '未知错误'));\n              return false;\n            } catch (e) {\n              alert('[ProDoc] 保存请求出错：' + filePath + ' — ' + e);\n              return false;\n            }\n          }";
@@ -105,15 +105,15 @@ if (import.meta.hot) {
 }
 `;
 }
-async function x(i, a = {}) {
+async function x(n, a = {}) {
 	let o = a.port ?? d;
-	console.log(`📂 Loading documents from: ${e.resolve(i)}`);
-	let s = await m(i), c = Object.keys(s).length;
-	if (c === 0) throw Error(`No .md files found in: ${i}`);
+	console.log(`📂 Loading documents from: ${e.resolve(n)}`);
+	let s = await m(n), c = Object.keys(s).length;
+	if (c === 0) throw Error(`No .md files found in: ${n}`);
 	console.log(`✅ Loaded ${c} document(s)`);
-	let l = await h(i, s);
+	let l = await h(n, s);
 	l.length > 0 && console.log(`📍 Wrote auto-layout coordinates to ${l.length} document(s)`);
-	let u = await n({
+	let u = await r({
 		root: process.cwd(),
 		configFile: !1,
 		server: {
@@ -134,7 +134,7 @@ async function x(i, a = {}) {
 			"@echolab-auto/ui-frame/doc"
 		] },
 		plugins: [
-			r(),
+			i(),
 			{
 				name: "prodoc-html",
 				configureServer(e) {
@@ -160,13 +160,13 @@ async function x(i, a = {}) {
 			{
 				name: "prodoc-docs-watch",
 				configureServer(t) {
-					let n = e.resolve(i);
-					t.watcher.add(n);
-					let r = null, a = async () => {
-						let e = await m(n), r = await h(n, e);
-						s = e, t.ws.send("prodoc:docs-update", s), console.log(`🔄 Documents reloaded (${Object.keys(s).length} file(s)` + (r.length > 0 ? `, wrote coordinates to ${r.length}` : "") + ")");
+					let r = e.resolve(n);
+					t.watcher.add(r);
+					let i = null, a = async () => {
+						let e = await m(r), n = await h(r, e);
+						s = e, t.ws.send("prodoc:docs-update", s), console.log(`🔄 Documents reloaded (${Object.keys(s).length} file(s)` + (n.length > 0 ? `, wrote coordinates to ${n.length}` : "") + ")");
 					}, o = (e) => {
-						!e.startsWith(n) || !e.endsWith(".md") || (r && clearTimeout(r), r = setTimeout(() => {
+						!e.startsWith(r) || !e.endsWith(".md") || (i && clearTimeout(i), i = setTimeout(() => {
 							a().catch((e) => console.error("[ProDoc] reload failed:", e));
 						}, 100));
 					};
@@ -175,25 +175,25 @@ async function x(i, a = {}) {
 			},
 			{
 				name: "prodoc-save-api",
-				configureServer(n) {
-					n.middlewares.use(async (n, r, a) => {
-						if (n.url === "/__prodoc_api/save" && n.method === "POST") {
+				configureServer(r) {
+					r.middlewares.use(async (r, i, a) => {
+						if (r.url === "/__prodoc_api/save" && r.method === "POST") {
 							try {
 								let a = "", o = 0;
-								n.on("data", (e) => {
+								r.on("data", (e) => {
 									if (o += e.length, o > f) {
-										r.statusCode = 413, r.setHeader("content-type", "application/json"), r.end(JSON.stringify({
+										i.statusCode = 413, i.setHeader("content-type", "application/json"), i.end(JSON.stringify({
 											success: !1,
 											error: "Payload Too Large"
 										}));
 										return;
 									}
 									a += e.toString();
-								}), n.on("end", async () => {
+								}), r.on("end", async () => {
 									try {
-										let { path: n, content: o, base: s } = JSON.parse(a), c = e.resolve(i, n), l = e.resolve(i) + e.sep;
+										let { path: r, content: o, base: s } = JSON.parse(a), c = e.resolve(n, r), l = e.resolve(n) + e.sep;
 										if (!e.resolve(c).startsWith(l)) {
-											r.statusCode = 403, r.setHeader("content-type", "application/json"), r.end(JSON.stringify({
+											i.statusCode = 403, i.setHeader("content-type", "application/json"), i.end(JSON.stringify({
 												success: !1,
 												error: "Forbidden: path outside doc root"
 											}));
@@ -207,23 +207,23 @@ async function x(i, a = {}) {
 												e = null;
 											}
 											if (e !== s) {
-												r.statusCode = 409, r.setHeader("content-type", "application/json"), r.end(JSON.stringify({
+												i.statusCode = 409, i.setHeader("content-type", "application/json"), i.end(JSON.stringify({
 													success: !1,
 													error: "Conflict: file changed on disk"
 												}));
 												return;
 											}
 										}
-										await t.writeFile(c, o, "utf-8"), r.setHeader("content-type", "application/json"), r.end(JSON.stringify({ success: !0 }));
+										await t.writeFile(c, o, "utf-8"), i.setHeader("content-type", "application/json"), i.end(JSON.stringify({ success: !0 }));
 									} catch (e) {
-										r.statusCode = 500, r.setHeader("content-type", "application/json"), r.end(JSON.stringify({
+										i.statusCode = 500, i.setHeader("content-type", "application/json"), i.end(JSON.stringify({
 											success: !1,
 											error: e.message
 										}));
 									}
 								});
 							} catch (e) {
-								r.statusCode = 500, r.setHeader("content-type", "application/json"), r.end(JSON.stringify({
+								i.statusCode = 500, i.setHeader("content-type", "application/json"), i.end(JSON.stringify({
 									success: !1,
 									error: e.message
 								}));
@@ -241,11 +241,18 @@ async function x(i, a = {}) {
 		local: [],
 		network: []
 	}, _ = g.local[0] ?? `http://localhost:${o}`;
-	return console.log("\n🚀 Echo-ProDoc server is running!\n"), console.log(`   Docs:    ${e.resolve(i)}`), console.log(`   Local:   ${_}`), g.network.length > 0 && console.log(`   Network: ${g.network[0]}`), console.log(""), u;
+	return console.log("\n🚀 Echo-ProDoc server is running!\n"), console.log(`   Docs:    ${e.resolve(n)}`), console.log(`   Local:   ${_}`), g.network.length > 0 && console.log(`   Network: ${g.network[0]}`), console.log(""), u;
 }
 //#endregion
 //#region src/index.ts
-var S = "echo-prodoc", C = "0.1.0";
+var S = "echo-prodoc", C = (() => {
+	try {
+		let e = new URL("data:application/json;base64,ewogICJuYW1lIjogIkBlY2hvbGFiLWF1dG8vZWNoby1wcm9kb2MiLAogICJ2ZXJzaW9uIjogIjAuMS4xIiwKICAiZGVzY3JpcHRpb24iOiAiUHJvRG9jIC0g5paH5qGj5riy5p+T5LiO57yW6L6R5qGG5p62IiwKICAid29ya3NwYWNlcyI6IFsKICAgICJwYWNrYWdlcy8qIgogIF0sCiAgImJpbiI6IHsKICAgICJlY2hvLXByb2RvYyI6ICIuL2Jpbi9lY2hvLXByb2RvYy5qcyIKICB9LAogICJmaWxlcyI6IFsKICAgICJiaW4vIiwKICAgICJwYWNrYWdlcy8qL2Rpc3QvKioiLAogICAgInBhY2thZ2VzLyovcGFja2FnZS5qc29uIiwKICAgICJzY3JpcHRzLyIsCiAgICAidmVuZG9yL2ZzZXZlbnRzLXN0dWIvKioiCiAgXSwKICAic2NyaXB0cyI6IHsKICAgICJidWlsZCI6ICJucG0gcnVuIGJ1aWxkIC0td29ya3NwYWNlcyIsCiAgICAiYnVpbGQ6dWktZnJhbWUiOiAibm9kZSBzY3JpcHRzL2luc3RhbGwtdWktZnJhbWUuanMiLAogICAgInR5cGUtY2hlY2siOiAibnBtIHJ1biB0eXBlLWNoZWNrIC0td29ya3NwYWNlcyIsCiAgICAiY2xlYW4iOiAibnBtIHJ1biBjbGVhbiAtLXdvcmtzcGFjZXMiLAogICAgInZpZXciOiAibm9kZSAuL3BhY2thZ2VzL3Byb2RvYy1jbGkvZGlzdC9pbmRleC5qcyB2aWV3IiwKICAgICJkZXY6dmlldyI6ICJQUk9ET0NfREVWPTEgdHN4IHBhY2thZ2VzL3Byb2RvYy1jbGkvc3JjL2luZGV4LnRzIHZpZXciLAogICAgInByZXBhY2siOiAibm9kZSBzY3JpcHRzL3B1Ymxpc2gtcGFja2FnZS5qcyBhcHBseSIsCiAgICAicG9zdHBhY2siOiAibm9kZSBzY3JpcHRzL3B1Ymxpc2gtcGFja2FnZS5qcyByZXN0b3JlIiwKICAgICJwcmVwdWJsaXNoT25seSI6ICJucG0gcnVuIGJ1aWxkIiwKICAgICJ1c2UtbG9jYWwtdWktZnJhbWUiOiAibm9kZSBzY3JpcHRzL3N3aXRjaC11aS1mcmFtZS5qcyBsb2NhbCIsCiAgICAidXNlLW5wbS11aS1mcmFtZSI6ICJub2RlIHNjcmlwdHMvc3dpdGNoLXVpLWZyYW1lLmpzIG5wbSIKICB9LAogICJkZXZEZXBlbmRlbmNpZXMiOiB7CiAgICAiQHR5cGVzL25vZGUiOiAiXjIyLjAuMCIsCiAgICAidHN4IjogIl40LjE5LjAiLAogICAgInR5cGVzY3JpcHQiOiAiXjUuNy4wIiwKICAgICJ2aXRlIjogIl44LjAuMTYiLAogICAgInZ1ZS10c2MiOiAiXjIuMi4xMiIKICB9LAogICJlbmdpbmVzIjogewogICAgIm5vZGUiOiAiPj0xOC4wLjAiCiAgfSwKICAiZGVwZW5kZW5jaWVzIjogewogICAgIkBlY2hvbGFiLWF1dG8vdWktZnJhbWUiOiAiXjEuMy4wIiwKICAgICJAcHJvZG9jL2NvcmUiOiAiZmlsZTpwYWNrYWdlcy9wcm9kb2MtY29yZSIsCiAgICAiQHByb2RvYy9yZW5kZXJlciI6ICJmaWxlOnBhY2thZ2VzL3Byb2RvYy1yZW5kZXJlciIsCiAgICAiQHZpdGVqcy9wbHVnaW4tdnVlIjogIl42LjAuNyIsCiAgICAibWFya2VkIjogIl4xOC4wLjUiLAogICAgIm1lcm1haWQiOiAiXjExLjAuMCIsCiAgICAidnVlIjogIl4zLjUuMzUiCiAgfSwKICAib3ZlcnJpZGVzIjogewogICAgImZzZXZlbnRzIjogImZpbGU6dmVuZG9yL2ZzZXZlbnRzLXN0dWIiCiAgfQp9Cg==", "" + import.meta.url);
+		return JSON.parse(n.readFileSync(e, "utf-8")).version ?? "0.1.1";
+	} catch {
+		return "0.1.1";
+	}
+})();
 function w() {
 	console.log(`
 ${S} v${C}
