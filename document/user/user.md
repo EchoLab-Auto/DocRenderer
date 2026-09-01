@@ -13,7 +13,12 @@ link: ["cli | 命令行"]
 
 ```bash
 npm install -g @echolab-auto/echo-prodoc
+
+# 升级到最新版
+npm install -g @echolab-auto/echo-prodoc@latest
 ```
+
+`echo-prodoc --version` 查看当前版本，`npm outdated -g` 列出可升级的全局包。
 
 ## 快速开始
 
