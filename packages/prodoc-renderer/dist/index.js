@@ -2,7 +2,7 @@ import { Fragment as e, computed as t, createBlock as n, createCommentVNode as r
 import { NeumorphismCanvas as ie, NeumorphismThemeToggle as ae } from "@echolab-auto/ui-frame";
 import { DocFlowCanvas as oe, DocViewer as v, MarkdownEditor as se, MarkdownRenderer as ce, MarkdownRenderer as le, writeFlowNodePosition as ue } from "@echolab-auto/ui-frame/doc";
 import "@echolab-auto/ui-frame/dist/style.css";
-//#region ../prodoc-core/dist/graph-CIUAnOoD.js
+//#region ../prodoc-core/dist/graph-AW9TabRY.js
 function y(e) {
 	let t = [], n = "", r = null;
 	for (let i of e) r ? (n += i, i === r && (r = null)) : i === "\"" || i === "'" ? (r = i, n += i) : i === "," ? (t.push(n), n = "") : n += i;
@@ -43,7 +43,7 @@ function x(e) {
 		let t = e.match(/^([A-Za-z_][A-Za-z0-9_-]*)\s*:\s*([\s\S]*)$/);
 		if (!t) continue;
 		let n = t[1], r = t[2];
-		if (r.trimStart().startsWith("[") && !/\]\s*$/.test(r)) {
+		if (r.trim() === "" && a < o.length && o[a].trimStart().startsWith("[") && (r = o[a], a += 1), r.trimStart().startsWith("[") && !/\]\s*$/.test(r)) {
 			let e = [r];
 			for (; a < o.length;) {
 				let t = o[a];
@@ -75,9 +75,9 @@ function w(e, t, n) {
 	if (a === -1) return e;
 	let o = RegExp(`^${t}\\s*:`), s = i.slice(1, a).findIndex((e) => o.test(e));
 	if (s >= 0) {
-		let e = s + 1, t = 1, r = i[e].replace(o, "");
-		if (r.trimStart().startsWith("[") && !/\]\s*$/.test(r)) {
-			let n = e + 1;
+		let e = s + 1, t = 1, r = e, c = i[e].replace(o, "");
+		if (c.trim() === "" && e + 1 < a && i[e + 1].trimStart().startsWith("[") && (r = e + 1, c = i[r], t = 2), c.trimStart().startsWith("[") && !/\]\s*$/.test(c)) {
+			let n = r + 1;
 			for (; n < a && !/\]\s*$/.test(i[n]);) n++;
 			n < a && (t = n - e + 1);
 		}

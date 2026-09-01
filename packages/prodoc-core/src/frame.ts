@@ -100,6 +100,12 @@ export function parseFrameBlock(content: string): FrameBlock {
     if (!m) continue; // 无法识别的行跳过，不中断解析
     const key = m[1];
     let raw = m[2];
+    // 值换行书写（prettier 等格式化工具会把 `key: [...]` 排成 `key:` + 下行 `[`）：
+    // 本行为空且下行以 [ 起 → 先取下行作为值
+    if (raw.trim() === '' && i < frameLines.length && frameLines[i].trimStart().startsWith('[')) {
+      raw = frameLines[i];
+      i += 1;
+    }
     // 多行数组：值以 [ 开头但本行未闭合 → 跨行收集直到闭括号或参数区结束
     if (raw.trimStart().startsWith('[') && !/\]\s*$/.test(raw)) {
       const collected = [raw];
@@ -169,11 +175,19 @@ function writeFrameParamLine(content: string, key: string, paramLine: string | n
   if (existingIdx >= 0) {
     const start = existingIdx + 1;
     let span = 1;
+    let valueStart = start;
+    let firstValue = lines[start].replace(keyPattern, '');
+    // prettier 风格换行：键行值为空、值写在下一行（`key:` 下行才是 `[...]`），
+    // 值行也要并入替换范围
+    if (firstValue.trim() === '' && start + 1 < closeIdx && lines[start + 1].trimStart().startsWith('[')) {
+      valueStart = start + 1;
+      firstValue = lines[valueStart];
+      span = 2;
+    }
     // 现有参数是跨行数组（值以 [ 开头、本行未闭合）时，连同续行一起替换/移除，
     // 否则会留下无法再被解析的孤儿行（污染参数区）
-    const firstValue = lines[start].replace(keyPattern, '');
     if (firstValue.trimStart().startsWith('[') && !/\]\s*$/.test(firstValue)) {
-      let scan = start + 1;
+      let scan = valueStart + 1;
       while (scan < closeIdx && !/\]\s*$/.test(lines[scan])) scan++;
       if (scan < closeIdx) span = scan - start + 1; // 找到闭合行才按跨行处理（容错）
     }

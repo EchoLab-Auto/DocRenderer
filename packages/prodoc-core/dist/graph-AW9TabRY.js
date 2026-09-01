@@ -39,7 +39,7 @@ function n(e) {
 		let n = e.match(/^([A-Za-z_][A-Za-z0-9_-]*)\s*:\s*([\s\S]*)$/);
 		if (!n) continue;
 		let r = n[1], i = n[2];
-		if (i.trimStart().startsWith("[") && !/\]\s*$/.test(i)) {
+		if (i.trim() === "" && o < s.length && s[o].trimStart().startsWith("[") && (i = s[o], o += 1), i.trimStart().startsWith("[") && !/\]\s*$/.test(i)) {
 			let e = [i];
 			for (; o < s.length;) {
 				let t = s[o];
@@ -71,11 +71,11 @@ function o(e, t, r) {
 	if (o === -1) return e;
 	let s = RegExp(`^${t}\\s*:`), c = a.slice(1, o).findIndex((e) => s.test(e));
 	if (c >= 0) {
-		let e = c + 1, t = 1, n = a[e].replace(s, "");
-		if (n.trimStart().startsWith("[") && !/\]\s*$/.test(n)) {
-			let n = e + 1;
-			for (; n < o && !/\]\s*$/.test(a[n]);) n++;
-			n < o && (t = n - e + 1);
+		let e = c + 1, t = 1, n = e, i = a[e].replace(s, "");
+		if (i.trim() === "" && e + 1 < o && a[e + 1].trimStart().startsWith("[") && (n = e + 1, i = a[n], t = 2), i.trimStart().startsWith("[") && !/\]\s*$/.test(i)) {
+			let r = n + 1;
+			for (; r < o && !/\]\s*$/.test(a[r]);) r++;
+			r < o && (t = r - e + 1);
 		}
 		r === null ? a.splice(e, t) : a.splice(e, t, r);
 	} else r !== null && a.splice(o, 0, r);
@@ -381,4 +381,4 @@ function F(e) {
 //#endregion
 export { s as _, f as a, C as c, T as d, S as f, c as g, i as h, p as i, D as l, n as m, u as n, F as o, r as p, m as r, E as s, d as t, P as u, l as v };
 
-//# sourceMappingURL=graph-CIUAnOoD.js.map
+//# sourceMappingURL=graph-AW9TabRY.js.map
