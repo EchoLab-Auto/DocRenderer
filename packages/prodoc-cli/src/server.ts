@@ -143,8 +143,8 @@ function resolveProDocEntry(pkgName: string): string {
 }
 
 /** 构建保存处理函数代码（base 为客户端依据的磁盘内容，服务端据此做冲突检测；
- *  返回是否写盘成功——失败时查看器保留对应暂存；成功即同步本地基准，
- *  后续编辑不必等待热更新推送） */
+ *  返回结构化结果 {ok, status?, error?}——失败原因交给查看器以 toast 展示；
+ *  成功即同步本地基准，后续编辑不必等待热更新推送） */
 function buildSaveHandler(): string {
   return `async (filePath, content, base) => {
             try {
@@ -159,17 +159,33 @@ function buildSaveHandler(): string {
                 // 乐观同步本地基准：磁盘内容现在就是 content，
                 // 后续编辑/保存以它为基准，不再依赖热更新推送的时序
                 state.files[filePath] = content;
-                return true;
+                return { ok: true };
               }
-              if (res.status === 409) {
-                alert('[ProDoc] 保存被拒绝：' + filePath + ' 在磁盘上已被其他程序修改。\\n你的修改仍保留在画布暂存中；请刷新页面同步最新内容后重试（或点「↩ 放弃更改」丢弃）。');
-                return false;
-              }
-              alert('[ProDoc] 保存失败：' + filePath + ' — ' + (data.error || '未知错误'));
-              return false;
+              return { ok: false, status: res.status, error: data.error };
             } catch (e) {
-              alert('[ProDoc] 保存请求出错：' + filePath + ' — ' + e);
-              return false;
+              return { ok: false, error: String(e) };
+            }
+          }`;
+}
+
+/** 构建删除处理函数代码（与保存 API 同构：路径安全校验 + 可选基准冲突检测；
+ *  文件已不存在视为删除目标达成，返回成功） */
+function buildDeleteHandler(): string {
+  return `async (filePath, base) => {
+            try {
+              const res = await fetch('/__prodoc_api/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: filePath, base }),
+              });
+              const data = await res.json();
+              if (data.success) {
+                console.log('[ProDoc] deleted:', filePath);
+                return { ok: true };
+              }
+              return { ok: false, status: res.status, error: data.error };
+            } catch (e) {
+              return { ok: false, error: String(e) };
             }
           }`;
 }
@@ -178,8 +194,9 @@ function buildSaveHandler(): string {
 function generateClientEntry(files: Record<string, string>): string {
   // 文档图模型：DocGraphViewer 直接消费文件映射，
   // 框架参数区解析、图构建、正文剥离都在 @prodoc/core + 组件内完成；
-  // 浏览与编辑一体化，内置编辑器通过 saveHandler 走保存 API 写回源文件
-  const componentProps = `{ files: state.files, saveHandler: ${buildSaveHandler()} }`;
+  // 浏览与编辑一体化，内置编辑器通过 saveHandler 走保存 API 写回源文件，
+  // 画布节点删除通过 deleteHandler 走删除 API（均携带基准做冲突检测）
+  const componentProps = `{ files: state.files, saveHandler: ${buildSaveHandler()}, deleteHandler: ${buildDeleteHandler()} }`;
 
   // 使用绝对路径导入 CSS，避免 Vite alias 对 CSS 解析问题
   const cssImports = [
@@ -384,11 +401,66 @@ export async function startProDocServer(
         },
       },
 
-      // 插件：保存 API（内置编辑器与画布编辑共用）
+      // 插件：保存/删除 API（内置编辑器、画布编辑与节点删除共用）
       {
         name: 'prodoc-save-api',
         configureServer(s: ViteDevServer) {
           s.middlewares.use(async (req, res, next) => {
+            if (req.url === '/__prodoc_api/delete' && req.method === 'POST') {
+              try {
+                let body = '';
+                req.on('data', (chunk: Buffer) => {
+                  body += chunk.toString();
+                });
+                req.on('end', async () => {
+                  try {
+                    const { path: filePath, base } = JSON.parse(body);
+                    const fullPath = path.resolve(docRoot, filePath);
+                    // 安全检查：确保文件在 docRoot 内（与保存 API 同一规则）
+                    const resolvedDocRoot = path.resolve(docRoot) + path.sep;
+                    const resolvedTarget = path.resolve(fullPath);
+                    if (!resolvedTarget.startsWith(resolvedDocRoot)) {
+                      res.statusCode = 403;
+                      res.setHeader('content-type', 'application/json');
+                      res.end(JSON.stringify({ success: false, error: 'Forbidden: path outside doc root' }));
+                      return;
+                    }
+                    // 冲突检测：客户端声明了基准内容时，磁盘已偏离则拒绝删除
+                    if (typeof base === 'string') {
+                      let current: string | null = null;
+                      try {
+                        current = await fs.readFile(fullPath, 'utf-8');
+                      } catch {
+                        current = null;
+                      }
+                      if (current !== base) {
+                        res.statusCode = 409;
+                        res.setHeader('content-type', 'application/json');
+                        res.end(JSON.stringify({ success: false, error: 'Conflict: file changed on disk' }));
+                        return;
+                      }
+                    }
+                    try {
+                      await fs.unlink(fullPath);
+                    } catch (err: any) {
+                      // 文件本就不存在：删除目标已达成，视为成功
+                      if (err.code !== 'ENOENT') throw err;
+                    }
+                    res.setHeader('content-type', 'application/json');
+                    res.end(JSON.stringify({ success: true }));
+                  } catch (err: any) {
+                    res.statusCode = 500;
+                    res.setHeader('content-type', 'application/json');
+                    res.end(JSON.stringify({ success: false, error: err.message }));
+                  }
+                });
+              } catch (err: any) {
+                res.statusCode = 500;
+                res.setHeader('content-type', 'application/json');
+                res.end(JSON.stringify({ success: false, error: err.message }));
+              }
+              return;
+            }
             if (req.url === '/__prodoc_api/save' && req.method === 'POST') {
               try {
                 let body = '';

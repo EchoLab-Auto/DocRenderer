@@ -2,13 +2,13 @@
 import e from "path";
 import t from "fs/promises";
 import n from "fs";
-import { createServer as r } from "vite";
-import i from "@vitejs/plugin-vue";
-import { createRequire as a } from "module";
-import { fileURLToPath as o } from "url";
+import { fileURLToPath as r } from "url";
+import { createServer as i } from "vite";
+import a from "@vitejs/plugin-vue";
+import { createRequire as o } from "module";
 import { buildDocGraph as s, parseFrameBlock as c, writeFramePosition as l } from "@prodoc/core/pure";
 //#region src/server.ts
-var u = a(import.meta.url);
+var u = o(import.meta.url);
 function d(t) {
 	try {
 		let n = u.resolve(`${t}/package.json`);
@@ -61,10 +61,13 @@ function y(t) {
 	return process.env.PRODOC_DEV === "1" && n.existsSync(i) ? i.replace(/\\/g, "/") : a.replace(/\\/g, "/");
 }
 function b() {
-	return "async (filePath, content, base) => {\n            try {\n              const res = await fetch('/__prodoc_api/save', {\n                method: 'POST',\n                headers: { 'Content-Type': 'application/json' },\n                body: JSON.stringify({ path: filePath, content, base }),\n              });\n              const data = await res.json();\n              if (data.success) {\n                console.log('[ProDoc] saved:', filePath);\n                // 乐观同步本地基准：磁盘内容现在就是 content，\n                // 后续编辑/保存以它为基准，不再依赖热更新推送的时序\n                state.files[filePath] = content;\n                return true;\n              }\n              if (res.status === 409) {\n                alert('[ProDoc] 保存被拒绝：' + filePath + ' 在磁盘上已被其他程序修改。\\n你的修改仍保留在画布暂存中；请刷新页面同步最新内容后重试（或点「↩ 放弃更改」丢弃）。');\n                return false;\n              }\n              alert('[ProDoc] 保存失败：' + filePath + ' — ' + (data.error || '未知错误'));\n              return false;\n            } catch (e) {\n              alert('[ProDoc] 保存请求出错：' + filePath + ' — ' + e);\n              return false;\n            }\n          }";
+	return "async (filePath, content, base) => {\n            try {\n              const res = await fetch('/__prodoc_api/save', {\n                method: 'POST',\n                headers: { 'Content-Type': 'application/json' },\n                body: JSON.stringify({ path: filePath, content, base }),\n              });\n              const data = await res.json();\n              if (data.success) {\n                console.log('[ProDoc] saved:', filePath);\n                // 乐观同步本地基准：磁盘内容现在就是 content，\n                // 后续编辑/保存以它为基准，不再依赖热更新推送的时序\n                state.files[filePath] = content;\n                return { ok: true };\n              }\n              return { ok: false, status: res.status, error: data.error };\n            } catch (e) {\n              return { ok: false, error: String(e) };\n            }\n          }";
 }
-function x(t) {
-	let n = `{ files: state.files, saveHandler: ${b()} }`;
+function x() {
+	return "async (filePath, base) => {\n            try {\n              const res = await fetch('/__prodoc_api/delete', {\n                method: 'POST',\n                headers: { 'Content-Type': 'application/json' },\n                body: JSON.stringify({ path: filePath, base }),\n              });\n              const data = await res.json();\n              if (data.success) {\n                console.log('[ProDoc] deleted:', filePath);\n                return { ok: true };\n              }\n              return { ok: false, status: res.status, error: data.error };\n            } catch (e) {\n              return { ok: false, error: String(e) };\n            }\n          }";
+}
+function S(t) {
+	let n = `{ files: state.files, saveHandler: ${b()}, deleteHandler: ${x()} }`;
 	return `
 import { createApp, h, reactive } from 'vue';
 import uiFrame, { ThemeProvider } from '@echolab-auto/ui-frame';
@@ -106,8 +109,8 @@ if (import.meta.hot) {
 }
 `;
 }
-async function S(n, a = {}) {
-	let s = a.port ?? f;
+async function C(n, o = {}) {
+	let s = o.port ?? f;
 	console.log(`📂 Loading documents from: ${e.resolve(n)}`);
 	let c = await h(n), l = Object.keys(c).length;
 	if (l === 0) throw Error(`No .md files found in: ${n}`);
@@ -116,17 +119,17 @@ async function S(n, a = {}) {
 	_.length > 0 && console.log(`📍 Wrote auto-layout coordinates to ${_.length} document(s)`);
 	let v = d("@prodoc/cli"), b = (e) => {
 		try {
-			return o(import.meta.resolve(e)).replace(/\\/g, "/");
+			return r(import.meta.resolve(e)).replace(/\\/g, "/");
 		} catch {
 			return u.resolve(e).replace(/\\/g, "/");
 		}
-	}, S = await r({
+	}, x = await i({
 		root: process.cwd(),
 		configFile: !1,
 		cacheDir: e.join(v, "node_modules", ".vite"),
 		server: {
 			port: s,
-			open: a.open ?? !0,
+			open: o.open ?? !0,
 			host: !0,
 			fs: { allow: [
 				process.cwd(),
@@ -190,7 +193,7 @@ async function S(n, a = {}) {
 			]
 		},
 		plugins: [
-			i(),
+			a(),
 			{
 				name: "prodoc-html",
 				configureServer(e) {
@@ -210,7 +213,7 @@ async function S(n, a = {}) {
 					if (e === "/@prodoc/entry") return "\0prodoc-entry";
 				},
 				load(e) {
-					if (e === "\0prodoc-entry") return x(c);
+					if (e === "\0prodoc-entry") return S(c);
 				}
 			},
 			{
@@ -233,6 +236,57 @@ async function S(n, a = {}) {
 				name: "prodoc-save-api",
 				configureServer(r) {
 					r.middlewares.use(async (r, i, a) => {
+						if (r.url === "/__prodoc_api/delete" && r.method === "POST") {
+							try {
+								let a = "";
+								r.on("data", (e) => {
+									a += e.toString();
+								}), r.on("end", async () => {
+									try {
+										let { path: r, base: o } = JSON.parse(a), s = e.resolve(n, r), c = e.resolve(n) + e.sep;
+										if (!e.resolve(s).startsWith(c)) {
+											i.statusCode = 403, i.setHeader("content-type", "application/json"), i.end(JSON.stringify({
+												success: !1,
+												error: "Forbidden: path outside doc root"
+											}));
+											return;
+										}
+										if (typeof o == "string") {
+											let e = null;
+											try {
+												e = await t.readFile(s, "utf-8");
+											} catch {
+												e = null;
+											}
+											if (e !== o) {
+												i.statusCode = 409, i.setHeader("content-type", "application/json"), i.end(JSON.stringify({
+													success: !1,
+													error: "Conflict: file changed on disk"
+												}));
+												return;
+											}
+										}
+										try {
+											await t.unlink(s);
+										} catch (e) {
+											if (e.code !== "ENOENT") throw e;
+										}
+										i.setHeader("content-type", "application/json"), i.end(JSON.stringify({ success: !0 }));
+									} catch (e) {
+										i.statusCode = 500, i.setHeader("content-type", "application/json"), i.end(JSON.stringify({
+											success: !1,
+											error: e.message
+										}));
+									}
+								});
+							} catch (e) {
+								i.statusCode = 500, i.setHeader("content-type", "application/json"), i.end(JSON.stringify({
+									success: !1,
+									error: e.message
+								}));
+							}
+							return;
+						}
 						if (r.url === "/__prodoc_api/save" && r.method === "POST") {
 							try {
 								let a = "", o = 0;
@@ -292,42 +346,42 @@ async function S(n, a = {}) {
 			}
 		]
 	});
-	await S.listen();
-	let C = S.resolvedUrls ?? {
+	await x.listen();
+	let C = x.resolvedUrls ?? {
 		local: [],
 		network: []
 	}, w = C.local[0] ?? `http://localhost:${s}`;
-	return console.log("\n🚀 Echo-ProDoc server is running!\n"), console.log(`   Docs:    ${e.resolve(n)}`), console.log(`   Local:   ${w}`), C.network.length > 0 && console.log(`   Network: ${C.network[0]}`), console.log(""), S;
+	return console.log("\n🚀 Echo-ProDoc server is running!\n"), console.log(`   Docs:    ${e.resolve(n)}`), console.log(`   Local:   ${w}`), C.network.length > 0 && console.log(`   Network: ${C.network[0]}`), console.log(""), x;
 }
 //#endregion
 //#region src/index.ts
-var C = "echo-prodoc", w = (() => {
+var w = "echo-prodoc", T = (() => {
 	try {
-		let e = new URL("data:application/json;base64,ewogICJuYW1lIjogIkBlY2hvbGFiLWF1dG8vZWNoby1wcm9kb2MiLAogICJ2ZXJzaW9uIjogIjAuMS40IiwKICAiZGVzY3JpcHRpb24iOiAiUHJvRG9jIC0g5paH5qGj5riy5p+T5LiO57yW6L6R5qGG5p62IiwKICAid29ya3NwYWNlcyI6IFsKICAgICJwYWNrYWdlcy8qIgogIF0sCiAgImJpbiI6IHsKICAgICJlY2hvLXByb2RvYyI6ICIuL2Jpbi9lY2hvLXByb2RvYy5qcyIKICB9LAogICJmaWxlcyI6IFsKICAgICJiaW4vIiwKICAgICJwYWNrYWdlcy8qL2Rpc3QvKioiLAogICAgInBhY2thZ2VzLyovcGFja2FnZS5qc29uIiwKICAgICJzY3JpcHRzLyIsCiAgICAidmVuZG9yL2ZzZXZlbnRzLXN0dWIvKioiCiAgXSwKICAic2NyaXB0cyI6IHsKICAgICJidWlsZCI6ICJucG0gcnVuIGJ1aWxkIC0td29ya3NwYWNlcyIsCiAgICAiYnVpbGQ6dWktZnJhbWUiOiAibm9kZSBzY3JpcHRzL2luc3RhbGwtdWktZnJhbWUuanMiLAogICAgInR5cGUtY2hlY2siOiAibnBtIHJ1biB0eXBlLWNoZWNrIC0td29ya3NwYWNlcyIsCiAgICAiY2xlYW4iOiAibnBtIHJ1biBjbGVhbiAtLXdvcmtzcGFjZXMiLAogICAgInZpZXciOiAibm9kZSAuL3BhY2thZ2VzL3Byb2RvYy1jbGkvZGlzdC9pbmRleC5qcyB2aWV3IiwKICAgICJkZXY6dmlldyI6ICJQUk9ET0NfREVWPTEgdHN4IHBhY2thZ2VzL3Byb2RvYy1jbGkvc3JjL2luZGV4LnRzIHZpZXciLAogICAgInByZXBhY2siOiAibm9kZSBzY3JpcHRzL3B1Ymxpc2gtcGFja2FnZS5qcyBhcHBseSIsCiAgICAicG9zdHBhY2siOiAibm9kZSBzY3JpcHRzL3B1Ymxpc2gtcGFja2FnZS5qcyByZXN0b3JlIiwKICAgICJwcmVwdWJsaXNoT25seSI6ICJucG0gcnVuIGJ1aWxkIiwKICAgICJ1c2UtbG9jYWwtdWktZnJhbWUiOiAibm9kZSBzY3JpcHRzL3N3aXRjaC11aS1mcmFtZS5qcyBsb2NhbCIsCiAgICAidXNlLW5wbS11aS1mcmFtZSI6ICJub2RlIHNjcmlwdHMvc3dpdGNoLXVpLWZyYW1lLmpzIG5wbSIKICB9LAogICJkZXZEZXBlbmRlbmNpZXMiOiB7CiAgICAiQHR5cGVzL25vZGUiOiAiXjIyLjAuMCIsCiAgICAidHN4IjogIl40LjE5LjAiLAogICAgInR5cGVzY3JpcHQiOiAiXjUuNy4wIiwKICAgICJ2aXRlIjogIl44LjAuMTYiLAogICAgInZ1ZS10c2MiOiAiXjIuMi4xMiIKICB9LAogICJlbmdpbmVzIjogewogICAgIm5vZGUiOiAiPj0xOC4wLjAiCiAgfSwKICAiZGVwZW5kZW5jaWVzIjogewogICAgIkBlY2hvbGFiLWF1dG8vdWktZnJhbWUiOiAiXjEuMy4wIiwKICAgICJAcHJvZG9jL2NvcmUiOiAiZmlsZTpwYWNrYWdlcy9wcm9kb2MtY29yZSIsCiAgICAiQHByb2RvYy9yZW5kZXJlciI6ICJmaWxlOnBhY2thZ2VzL3Byb2RvYy1yZW5kZXJlciIsCiAgICAiQHZpdGVqcy9wbHVnaW4tdnVlIjogIl42LjAuNyIsCiAgICAiZG9tcHVyaWZ5IjogIl4zLjQuMTQiLAogICAgIm1hcmtlZCI6ICJeMTguMC41IiwKICAgICJtZXJtYWlkIjogIl4xMS4wLjAiLAogICAgInZ1ZSI6ICJeMy41LjM1IgogIH0sCiAgIm92ZXJyaWRlcyI6IHsKICAgICJmc2V2ZW50cyI6ICJmaWxlOnZlbmRvci9mc2V2ZW50cy1zdHViIgogIH0KfQo=", "" + import.meta.url);
-		return JSON.parse(n.readFileSync(e, "utf-8")).version ?? "0.1.1";
+		let t = e.resolve(e.dirname(r(import.meta.url)), "../../../package.json");
+		return JSON.parse(n.readFileSync(t, "utf-8")).version ?? "0.1.1";
 	} catch {
 		return "0.1.1";
 	}
 })();
-function T() {
+function E() {
 	console.log(`
-${C} v${w}
+${w} v${T}
 
 Usage:
-  ${C} view <document-path>   Start a rendering server for the document directory
-  ${C} --help                 Show this help message
-  ${C} --version              Show version
+  ${w} view <document-path>   Start a rendering server for the document directory
+  ${w} --help                 Show this help message
+  ${w} --version              Show version
 
 Options:
   --port, -p <number>    Server port (default: 3344)
   --no-open              Do not open browser automatically
 
 Examples:
-  ${C} view ./docs
-  ${C} view ./docs --port 8080
+  ${w} view ./docs
+  ${w} view ./docs --port 8080
 `);
 }
-function E(e) {
+function D(e) {
 	let t = e.slice(2), n = {
 		open: !0,
 		help: !1,
@@ -339,7 +393,7 @@ function E(e) {
 	}
 	return n;
 }
-async function D(n) {
+async function O(n) {
 	let r = e.resolve(n);
 	try {
 		if (!(await t.stat(r)).isDirectory()) throw Error(`Path is not a directory: ${r}`);
@@ -348,11 +402,11 @@ async function D(n) {
 	}
 	return r;
 }
-async function O() {
-	let e = E(process.argv);
-	e.help && (T(), process.exit(0)), e.version && (console.log(`${C} v${w}`), process.exit(0)), e.command || (console.error("Error: No command specified. Use \"view\"."), console.error(`\nRun "${C} --help" for usage information.`), process.exit(1)), e.docPath || (console.error("Error: No document path specified."), console.error(`\nRun "${C} --help" for usage information.`), process.exit(1));
+async function k() {
+	let e = D(process.argv);
+	e.help && (E(), process.exit(0)), e.version && (console.log(`${w} v${T}`), process.exit(0)), e.command || (console.error("Error: No command specified. Use \"view\"."), console.error(`\nRun "${w} --help" for usage information.`), process.exit(1)), e.docPath || (console.error("Error: No document path specified."), console.error(`\nRun "${w} --help" for usage information.`), process.exit(1));
 	try {
-		let t = await S(await D(e.docPath), {
+		let t = await C(await O(e.docPath), {
 			port: e.port,
 			open: e.open
 		}), n = () => {
@@ -365,7 +419,7 @@ async function O() {
 		console.error(`\n❌ Error: ${e.message}\n`), process.exit(1);
 	}
 }
-O();
+k();
 //#endregion
 
 //# sourceMappingURL=index.js.map

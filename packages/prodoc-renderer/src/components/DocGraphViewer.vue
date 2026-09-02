@@ -7,8 +7,16 @@
  * 正文渲染基于剥离框架参数区后的内容。地址栏 hash 同步当前文档路径。
  */
 
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
-import { NeumorphismCanvas, NeumorphismThemeToggle } from '@echolab-auto/ui-frame';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import {
+  NeumorphismBadge,
+  NeumorphismCanvas,
+  NeumorphismModal,
+  NeumorphismPopover,
+  NeumorphismThemeToggle,
+  NeumorphismToastProvider,
+  useTouchDevice,
+} from '@echolab-auto/ui-frame';
 import { MarkdownEditor, MarkdownRenderer, writeFlowNodePosition } from '@echolab-auto/ui-frame/doc';
 import {
   buildDocGraph,
@@ -26,17 +34,23 @@ import {
   GROUP_PAD,
   BOX_DEFAULT_W,
   BOX_DEFAULT_H,
+  slugify,
   type DocGraph,
   type DocBox,
   type DocGroup,
   type LinkSide,
 } from '@prodoc/core';
 
+/** 写盘结果：对象形式可携带失败原因（409 冲突 / 其他错误），布尔为兼容旧契约 */
+type SaveResult = { ok: boolean; status?: number; error?: string };
+
 const props = defineProps<{
   /** 相对路径 → 文件完整内容 */
   files: Record<string, string>;
-  /** 保存处理器（可选）：返回是否写盘成功；提供时优先于 save 事件（可感知失败） */
-  saveHandler?: (path: string, content: string, base?: string) => Promise<boolean>;
+  /** 保存处理器（可选）：返回写盘结果；提供时优先于 save 事件（可感知失败） */
+  saveHandler?: (path: string, content: string, base?: string) => Promise<boolean | SaveResult>;
+  /** 删除处理器（可选）：删除磁盘文件；提供时图编辑模式开放节点删除 */
+  deleteHandler?: (path: string, base?: string) => Promise<boolean | SaveResult>;
 }>();
 
 const emit = defineEmits<{
@@ -46,18 +60,178 @@ const emit = defineEmits<{
   save: [path: string, content: string, base?: string];
 }>();
 
-/** 保存通道：优先 saveHandler prop（返回成败），否则 fire-and-forget 的 save 事件 */
-function requestSave(path: string, content: string, base?: string): Promise<boolean> {
-  if (props.saveHandler) return props.saveHandler(path, content, base);
+/** 统一通知通道（ui-frame toast，替代原生 alert） */
+const toastRef = ref<{ addToast: (o: { message: string; type?: 'info' | 'success' | 'warning' | 'error'; duration?: number }) => string } | null>(null);
+function notify(message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info', duration = 4000) {
+  toastRef.value?.addToast({ message, type, duration });
+}
+
+/** 保存通道：优先 saveHandler prop，否则 fire-and-forget 的 save 事件；统一归一为 SaveResult */
+async function requestSave(path: string, content: string, base?: string): Promise<SaveResult> {
+  if (props.saveHandler) {
+    const r = await props.saveHandler(path, content, base);
+    return typeof r === 'object' ? r : { ok: r };
+  }
   emit('save', path, content, base);
-  return Promise.resolve(true);
+  return { ok: true };
+}
+
+/** 删除通道：deleteHandler prop；未提供时调用方应隐藏删除入口 */
+async function requestDelete(path: string, base?: string): Promise<SaveResult> {
+  if (!props.deleteHandler) return { ok: false, error: '当前环境不支持删除文档' };
+  const r = await props.deleteHandler(path, base);
+  return typeof r === 'object' ? r : { ok: r };
+}
+
+/** 写盘失败的统一提示：409 与其他错误区分文案 */
+function notifyWriteFailure(action: '保存' | '删除', path: string, res: SaveResult) {
+  if (res.status === 409) {
+    notify(`「${path}」在磁盘上已被其他程序修改，${action}被拒绝。该文件的暂存已保留，可刷新页面同步后重试（或「↩ 放弃更改」丢弃）。`, 'error', 8000);
+  } else {
+    notify(`「${path}」${action}失败：${res.error ?? '未知错误'}`, 'error', 6000);
+  }
 }
 
 /** 图编辑模式的暂存修改：docPath → 修改后的完整内容（未写盘，「💾 保存」统一写回） */
 const pendingDrafts = ref<Map<string, string>>(new Map());
 
-/** 有待保存的图修改 */
-const graphDirty = computed(() => pendingDrafts.value.size > 0);
+/** 暂存的删除标记：docPath 集合（「💾 保存」时经删除 API 删文件；保存前可撤销） */
+const pendingDeletes = ref<Set<string>>(new Set());
+
+/** 有待保存的图修改（内容暂存 + 删除暂存） */
+const graphDirty = computed(() => pendingDrafts.value.size > 0 || pendingDeletes.value.size > 0);
+
+/* ============ 撤销 / 重做（图编辑模式操作栈） ============ */
+
+/** 编辑状态快照：暂存、新建标记、删除标记与位置覆盖的整体状态 */
+interface EditSnapshot {
+  drafts: [string, string][];
+  newPaths: string[];
+  deletes: string[];
+  overrides: [string, { x: number; y: number }][] | null;
+}
+
+const undoStack = ref<EditSnapshot[]>([]);
+const redoStack = ref<EditSnapshot[]>([]);
+
+function takeSnapshot(): EditSnapshot {
+  return {
+    drafts: [...pendingDrafts.value],
+    newPaths: [...newDraftPaths],
+    deletes: [...pendingDeletes.value],
+    overrides: relayouted.value ? [...relayouted.value] : null,
+  };
+}
+
+function snapshotsEqual(a: EditSnapshot, b: EditSnapshot): boolean {
+  if (a.deletes.length !== b.deletes.length || a.newPaths.length !== b.newPaths.length) return false;
+  if (a.drafts.length !== b.drafts.length) return false;
+  if ((a.overrides?.length ?? 0) !== (b.overrides?.length ?? 0)) return false;
+  const am = new Map(a.drafts);
+  if (!b.drafts.every(([p, c]) => am.get(p) === c)) return false;
+  if (!a.deletes.every((p) => b.deletes.includes(p))) return false;
+  if (!a.newPaths.every((p) => b.newPaths.includes(p))) return false;
+  const ao = new Map(a.overrides ?? []);
+  return (b.overrides ?? []).every(([id, pos]) => ao.get(id)?.x === pos.x && ao.get(id)?.y === pos.y);
+}
+
+/** 操作完成后提交撤销点：before 为操作前快照；状态未变（纯点击等）则不产生撤销点 */
+function commitUndo(before: EditSnapshot) {
+  if (snapshotsEqual(before, takeSnapshot())) return;
+  undoStack.value = [...undoStack.value, before];
+  redoStack.value = [];
+}
+
+function applySnapshot(s: EditSnapshot) {
+  pendingDrafts.value = new Map(s.drafts);
+  newDraftPaths = new Set(s.newPaths);
+  pendingDeletes.value = new Set(s.deletes);
+  relayouted.value = s.overrides ? new Map(s.overrides) : null;
+}
+
+function undoEdit() {
+  const s = undoStack.value[undoStack.value.length - 1];
+  if (!s) return;
+  undoStack.value = undoStack.value.slice(0, -1);
+  redoStack.value = [...redoStack.value, takeSnapshot()];
+  applySnapshot(s);
+}
+
+function redoEdit() {
+  const s = redoStack.value[redoStack.value.length - 1];
+  if (!s) return;
+  redoStack.value = redoStack.value.slice(0, -1);
+  undoStack.value = [...undoStack.value, takeSnapshot()];
+  applySnapshot(s);
+}
+
+/* ============ 暂存持久化（刷新/关页后可恢复，以磁盘内容为基准校验） ============ */
+
+const DRAFT_STORAGE_KEY = `prodoc-drafts:${typeof location !== 'undefined' ? location.origin : ''}`;
+
+/** 把当前暂存写入 localStorage；无暂存时清除 */
+function persistDrafts() {
+  try {
+    if (!graphDirty.value) {
+      localStorage.removeItem(DRAFT_STORAGE_KEY);
+      return;
+    }
+    localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({
+      v: 1,
+      drafts: [...pendingDrafts.value].map(([path, content]) => ({
+        path,
+        base: props.files[path] ?? null,
+        content,
+      })),
+      deletes: [...pendingDeletes.value].map((path) => ({ path, base: props.files[path] ?? null })),
+    }));
+  } catch { /* 隐私模式等场景下存储不可用，静默降级为不持久化 */ }
+}
+
+/**
+ * 启动时恢复上次未保存的暂存。恢复校验（与磁盘内容比对）：
+ * 内容已一致（保存生效）或基准已偏离（磁盘被外部改动）的条目丢弃，其余恢复；
+ * 返回恢复的条数。
+ */
+function restoreDrafts(): number {
+  let raw: string | null = null;
+  try {
+    raw = localStorage.getItem(DRAFT_STORAGE_KEY);
+    localStorage.removeItem(DRAFT_STORAGE_KEY);
+  } catch { return 0; }
+  if (!raw) return 0;
+  try {
+    const data = JSON.parse(raw) as {
+      drafts?: { path: string; base: string | null; content: string }[];
+      deletes?: { path: string; base: string | null }[];
+    };
+    const drafts = new Map<string, string>();
+    const deletes = new Set<string>();
+    for (const item of data.drafts ?? []) {
+      const disk = props.files[item.path];
+      if (disk === item.content) continue; // 已保存生效
+      if (item.base !== null && disk !== item.base) continue; // 磁盘已偏离基准
+      if (item.base === null && disk !== undefined) continue; // 新建文件却在磁盘出现且内容不同
+      drafts.set(item.path, item.content);
+      if (disk === undefined) newDraftPaths.add(item.path);
+    }
+    for (const item of data.deletes ?? []) {
+      const disk = props.files[item.path];
+      if (disk === undefined) continue; // 已被删除
+      if (item.base !== null && disk !== item.base) continue;
+      deletes.add(item.path);
+    }
+    const restored = drafts.size + deletes.size;
+    if (restored > 0) {
+      pendingDrafts.value = drafts;
+      pendingDeletes.value = deletes;
+    }
+    return restored;
+  } catch { return 0; }
+}
+
+// 暂存变化即持久化（pendingDrafts/pendingDeletes 都以整体替换方式更新，浅监听即可）
+watch([pendingDrafts, pendingDeletes], persistDrafts);
 
 /** 画布消费的文件映射：磁盘内容 + 暂存修改覆盖（暂存即时反映在画布上） */
 const effectiveFiles = computed<Record<string, string>>(() =>
@@ -121,6 +295,9 @@ interface RelationEdge {
   y2: number;
   labelX: number;
   labelY: number;
+  /** 删除按钮（✕）位置：沿中点法线偏移，避免压住标签文字 */
+  delX: number;
+  delY: number;
 }
 
 /** 边中点及其外法线方向 */
@@ -190,6 +367,12 @@ const relationEdges = computed<RelationEdge[]>(() => {
     }
 
     const { x1, y1, x2, y2, d } = edgeGeometry(from, to, fromSide, toSide);
+    const labelX = (x1 + x2) / 2;
+    const labelY = (y1 + y2) / 2 - 7;
+    // ✕ 沿两端连线的法线方向偏移 18px，与标签文字错开
+    const ddx = x2 - x1;
+    const ddy = y2 - y1;
+    const len = Math.hypot(ddx, ddy) || 1;
     return [{
       id: relation.id,
       fromId: from.id,
@@ -204,8 +387,10 @@ const relationEdges = computed<RelationEdge[]>(() => {
       y1,
       x2,
       y2,
-      labelX: (x1 + x2) / 2,
-      labelY: (y1 + y2) / 2 - 7,
+      labelX,
+      labelY,
+      delX: labelX + (-ddy / len) * 18,
+      delY: labelY + 7 + (ddx / len) * 18,
     }];
   });
 });
@@ -279,11 +464,22 @@ const groupRegions = computed<DocGroup[]>(() => {
 const isGroupDimmed = (group: DocGroup) =>
   hovered.value !== null && !group.members.some((id) => hoverNeighbors.value.has(id));
 
-/** 一键分层重排：忽略文件坐标，按连线层级重新排布（仅当前视图，不写回文件） */
+/** 一键分层重排：忽略文件坐标，按连线层级重新排布（仅当前视图，不写回文件）。
+ *  编辑模式下有暂存的框不参与——其视图必须反映暂存内容中的坐标，
+ *  否则画布显示与「💾 保存」将写回的内容脱节 */
 function toggleRelayout() {
-  relayouted.value = relayouted.value
-    ? null
-    : computeLayeredLayout(graph.value.boxes, graph.value.relations);
+  if (relayouted.value) {
+    relayouted.value = null;
+    return;
+  }
+  const map = computeLayeredLayout(graph.value.boxes, graph.value.relations);
+  if (graphEditMode.value) {
+    for (const p of pendingDrafts.value.keys()) {
+      const box = graph.value.boxes.find((b) => b.docPath === p);
+      if (box) map.delete(box.id);
+    }
+  }
+  relayouted.value = map;
 }
 
 /** 悬停分块面板：条目、溢出行数与弹出方向（贴近画布底边时向上弹出） */
@@ -303,7 +499,26 @@ const graphEditMode = ref(false);
 const editTool = ref<'select' | 'link' | 'node'>('select');
 
 /** 暂存中的新建文件路径（热更新修剪时「磁盘上不存在」对它们是正常状态，不视为删除信号） */
-const newDraftPaths = new Set<string>();
+let newDraftPaths = new Set<string>();
+
+/* ============ 通用确认对话框（丢弃修改、删除文档等破坏性操作前的拦截） ============ */
+
+const confirmDialog = ref<{ title: string; message: string; action: (() => void) | null }>({
+  title: '',
+  message: '',
+  action: null,
+});
+const confirmVisible = ref(false);
+
+function askConfirm(title: string, message: string, action: () => void) {
+  confirmDialog.value = { title, message, action };
+  confirmVisible.value = true;
+}
+
+function onConfirmDialog() {
+  confirmVisible.value = false;
+  confirmDialog.value.action?.();
+}
 
 /** 当前有效内容：暂存草稿优先，其次磁盘已知内容 */
 function stagedContent(path: string): string | undefined {
@@ -326,16 +541,28 @@ function stageDraft(path: string, next: string) {
 /** 保存批量写回中（防止重复提交；热更新回推后复位） */
 const graphSaving = ref(false);
 
-/** 💾 保存：全部暂存修改逐文件写回；写盘失败（如 409 冲突）的文件保留暂存，便于重试或放弃 */
+/** 💾 保存：全部暂存修改（内容 + 删除）逐文件写回；写盘失败（如 409 冲突）的文件保留暂存，便于重试或放弃 */
 async function saveGraphEdits() {
   if (!graphDirty.value || graphSaving.value) return;
   graphSaving.value = true;
   const failed: string[] = [];
+  const failedDeletes: string[] = [];
   for (const [path, content] of pendingDrafts.value) {
-    // 逐个 await：结果顺序与暂存一一对应；失败的保留暂存（handler 负责弹窗提示）
-    if (!(await requestSave(path, content, props.files[path]))) failed.push(path);
+    // 逐个 await：结果顺序与暂存一一对应；失败的保留暂存并 toast 提示
+    const res = await requestSave(path, content, props.files[path]);
+    if (!res.ok) {
+      failed.push(path);
+      notifyWriteFailure('保存', path, res);
+    }
   }
-  if (failed.length > 0) {
+  for (const path of pendingDeletes.value) {
+    const res = await requestDelete(path, props.files[path]);
+    if (!res.ok) {
+      failedDeletes.push(path);
+      notifyWriteFailure('删除', path, res);
+    }
+  }
+  if (failed.length > 0 || failedDeletes.length > 0) {
     const drafts = new Map(pendingDrafts.value);
     for (const path of drafts.keys()) {
       if (!failed.includes(path)) {
@@ -344,16 +571,22 @@ async function saveGraphEdits() {
       }
     }
     pendingDrafts.value = drafts;
+    pendingDeletes.value = new Set([...pendingDeletes.value].filter((p) => failedDeletes.includes(p)));
   } else {
     // 全部写盘成功：清空暂存并复位按钮（服务端热更新随后会推送
-    // 最新文件映射；即使推送丢失/被修剪，也不让按钮卡灰）
+    // 最新文件映射；即使推送丢失/被修剪，也不让按钮卡灰）；
+    // 保存是状态基线，撤销/重做栈一并清空（避免撤销回已落盘的旧暂存）
     pendingDrafts.value = new Map();
+    pendingDeletes.value = new Set();
     newDraftPaths.clear();
+    undoStack.value = [];
+    redoStack.value = [];
+    notify('图修改已保存', 'success', 2500);
   }
   graphSaving.value = false;
 }
 
-/** ↩ 放弃更改：丢弃全部暂存（含拖框的位置覆盖），退出编辑模式 */
+/** ↩ 放弃更改：丢弃全部暂存与删除标记（含拖框的位置覆盖），退出编辑模式 */
 function discardGraphEdits() {
   if (!graphDirty.value) return;
   const stagedIds = new Set(
@@ -362,6 +595,7 @@ function discardGraphEdits() {
       .filter((id): id is string => Boolean(id)),
   );
   pendingDrafts.value = new Map();
+  pendingDeletes.value = new Set();
   if (relayouted.value) {
     const next = new Map(relayouted.value);
     stagedIds.forEach((id) => next.delete(id));
@@ -370,6 +604,8 @@ function discardGraphEdits() {
   selectedEdgeId.value = null;
   editTool.value = 'select';
   newDraftPaths.clear();
+  undoStack.value = [];
+  redoStack.value = [];
   graphEditMode.value = false;
 }
 
@@ -379,6 +615,8 @@ function toggleGraphEdit() {
     if (graphDirty.value) return;
     selectedEdgeId.value = null;
     editTool.value = 'select';
+    undoStack.value = [];
+    redoStack.value = [];
     graphEditMode.value = false;
   } else {
     graphEditMode.value = true;
@@ -409,7 +647,47 @@ const dragBox = ref<{
   baseY: number;
   moved: boolean;
   raf: number;
+  /** 边缘自动平移：画布滚动容器与舞台坐标系的累计平移量 */
+  scroller: HTMLElement | null;
+  panX: number;
+  panY: number;
+  /** 拖拽开始前的编辑快照（松手有改动时提交为撤销点） */
+  before: EditSnapshot;
 } | null>(null);
+
+/** 向上找到画布的可滚动容器（自动平移的滚动对象；不依赖 ui-frame 内部结构） */
+function findScroller(el: HTMLElement | null): HTMLElement | null {
+  let cur = el?.parentElement ?? null;
+  while (cur) {
+    const style = getComputedStyle(cur);
+    if (/(auto|scroll)/.test(`${style.overflow} ${style.overflowX} ${style.overflowY}`)) return cur;
+    cur = cur.parentElement;
+  }
+  return null;
+}
+
+/**
+ * 拖拽边缘自动平移：指针贴近滚动容器边缘（40px 内）时按距离梯度滚动，
+ * 返回本次滚动折算的舞台坐标位移（调用方累加进拖拽基准）。
+ */
+function autoPanStep(clientX: number, clientY: number, scroller: HTMLElement | null, scale: number): { px: number; py: number } {
+  if (!scroller) return { px: 0, py: 0 };
+  const EDGE = 40;
+  const MAX = 14;
+  const rect = scroller.getBoundingClientRect();
+  const ramp = (dist: number) => Math.max(0, Math.min(1, (EDGE - dist) / EDGE));
+  let sx = 0;
+  let sy = 0;
+  if (clientX < rect.left + EDGE) sx = -MAX * ramp(clientX - rect.left);
+  else if (clientX > rect.right - EDGE) sx = MAX * ramp(rect.right - clientX);
+  if (clientY < rect.top + EDGE) sy = -MAX * ramp(clientY - rect.top);
+  else if (clientY > rect.bottom - EDGE) sy = MAX * ramp(rect.bottom - clientY);
+  if (sx || sy) {
+    scroller.scrollLeft += sx;
+    scroller.scrollTop += sy;
+  }
+  return { px: sx / scale, py: sy / scale };
+}
 
 /** 拖拽中的对齐参考线（吸附辅助） */
 interface AlignGuide {
@@ -516,14 +794,14 @@ function collectGuides(
   return guides;
 }
 
-/** 框拖拽吸附：候选位置与其他框的六条特征线比较，返回吸附后坐标与应显示的参考线 */
+/** 框拖拽吸附：候选位置与其他框的六条特征线比较，返回吸附后坐标与应显示的参考线；坐标钳制不为负（防止框被拖出画布左上边界后丢失） */
 function snapPosition(id: string, rawX: number, rawY: number, scale: number) {
   const me = layoutBoxes.value.find((b) => b.id === id);
-  if (!me) return { x: rawX, y: rawY, guides: [] as AlignGuide[] };
+  if (!me) return { x: Math.max(0, Math.round(rawX)), y: Math.max(0, Math.round(rawY)), guides: [] as AlignGuide[] };
   const others = layoutBoxes.value.filter((b) => b.id !== id);
   const snap = snapDelta({ x: rawX, y: rawY, w: me.w, h: me.h }, others, scale, ALL_LINES);
-  const x = Math.round(rawX + (snap.dx ?? 0));
-  const y = Math.round(rawY + (snap.dy ?? 0));
+  const x = Math.max(0, Math.round(rawX + (snap.dx ?? 0)));
+  const y = Math.max(0, Math.round(rawY + (snap.dy ?? 0)));
   const guides =
     snap.dx !== undefined || snap.dy !== undefined
       ? collectGuides({ x, y, w: me.w, h: me.h }, others, ALL_LINES)
@@ -555,6 +833,10 @@ function onBoxPointerdown(e: PointerEvent, box: DocBox) {
     baseY: box.y,
     moved: false,
     raf: 0,
+    scroller: findScroller(stageEl.value),
+    panX: 0,
+    panY: 0,
+    before: takeSnapshot(),
   };
   window.addEventListener('pointermove', onBoxDragMove);
   window.addEventListener('pointerup', onBoxDragEnd);
@@ -575,8 +857,11 @@ function applyBoxDrag() {
   const d = dragBox.value;
   if (!d) return;
   d.raf = 0;
-  const dx = (d.lastClientX - d.startClientX) / d.scale;
-  const dy = (d.lastClientY - d.startClientY) / d.scale;
+  const step = autoPanStep(d.lastClientX, d.lastClientY, d.scroller, d.scale);
+  d.panX += step.px;
+  d.panY += step.py;
+  const dx = (d.lastClientX - d.startClientX) / d.scale + d.panX;
+  const dy = (d.lastClientY - d.startClientY) / d.scale + d.panY;
   if (!d.moved && Math.hypot(dx, dy) < 3) return;
   d.moved = true;
   const snapped = snapPosition(d.id, d.baseX + dx, d.baseY + dy, d.scale);
@@ -595,7 +880,10 @@ function endBoxDrag() {
   const pos = relayouted.value?.get(d.id);
   if (!pos) return;
   const content = stagedContent(d.path);
-  if (content !== undefined) stageDraft(d.path, writeFramePosition(content, pos));
+  if (content !== undefined) {
+    stageDraft(d.path, writeFramePosition(content, pos));
+    commitUndo(d.before);
+  }
 }
 
 function onBoxDragEnd() {
@@ -605,14 +893,23 @@ function onBoxDragEnd() {
   endBoxDrag();
 }
 
-/** 框点击：拖拽结束后抑制一次；图编辑模式下单击不打开（避免拖框误触） */
-function onBoxClick(path: string) {
+/** 框点击：拖拽结束后抑制一次；图编辑模式下单击不打开（避免拖框误触）；
+ *  触屏无 hover：含分块的框第一次点按展开分块面板，再次点按才打开 */
+const { isTouch } = useTouchDevice();
+const touchPanelId = ref<string | null>(null);
+
+function onBoxClick(box: DocBox) {
   if (suppressClick) {
     suppressClick = false;
     return;
   }
   if (graphEditMode.value) return;
-  open(path);
+  if (isTouch.value && box.blocks.length > 0 && touchPanelId.value !== box.id) {
+    touchPanelId.value = box.id;
+    return;
+  }
+  touchPanelId.value = null;
+  open(box.docPath);
 }
 
 /** 连线草稿：从框四边中点的连接点拖出，松手落在目标框上即创建；raf 节流同框拖拽 */
@@ -626,6 +923,10 @@ const linkDraft = ref<{
   lastClientX: number;
   lastClientY: number;
   raf: number;
+  /** 边缘自动平移的滚动容器（端点坐标每帧按 rect 重算，无需累计平移量） */
+  scroller: HTMLElement | null;
+  /** 拖出前的编辑快照（创建成功时提交为撤销点） */
+  before: EditSnapshot;
 } | null>(null);
 
 /** 新建连线的入场动画标记（描边绘制动画播完后清除） */
@@ -655,6 +956,8 @@ function startLinkDraft(e: PointerEvent, box: DocBox, side?: LinkSide) {
     lastClientX: e.clientX,
     lastClientY: e.clientY,
     raf: 0,
+    scroller: findScroller(stageEl.value),
+    before: takeSnapshot(),
   };
   window.addEventListener('pointermove', onLinkMove);
   window.addEventListener('pointerup', onLinkEnd);
@@ -678,6 +981,7 @@ function applyLinkMove() {
   const d = linkDraft.value;
   if (!d) return;
   d.raf = 0;
+  autoPanStep(d.lastClientX, d.lastClientY, d.scroller, 1);
   const pt = toStageCoords(d.lastClientX, d.lastClientY);
   const hit = layoutBoxes.value.find(
     (b) => pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.y + b.h,
@@ -711,16 +1015,17 @@ function onLinkEnd(e: PointerEvent) {
   if (!target || target.id === d.fromId) return;
   if (graph.value.relations.some((r) => r.from === d.fromId && r.to === target.id)) return;
   // 目标边取落点所在方位的最近边，用户拖到哪条边就连哪条边
-  addLink(d.fromId, target.id, d.fromSide, nearestSide(target, pt));
+  addLink(d.fromId, target.id, d.fromSide, nearestSide(target, pt), d.before);
 }
 
-function addLink(fromId: string, toId: string, fromSide?: LinkSide, toSide?: LinkSide) {
+function addLink(fromId: string, toId: string, fromSide?: LinkSide, toSide?: LinkSide, before?: EditSnapshot) {
   const from = graph.value.boxes.find((b) => b.id === fromId);
   if (!from) return;
   const content = stagedContent(from.docPath);
   if (content === undefined) return;
   const entry = buildLinkEntry({ ref: toId, fromSide, toSide });
   stageDraft(from.docPath, writeFrameLinks(content, [...readFrameLinks(content), entry]));
+  if (before) commitUndo(before);
   // 新连线播一次描边绘制入场动画
   justLinkedId.value = `${fromId}->${toId}`;
   if (justLinkedTimer) clearTimeout(justLinkedTimer);
@@ -755,8 +1060,25 @@ function linkTargetState(box: DocBox): 'valid' | 'invalid' | null {
   return 'valid';
 }
 
+onMounted(() => {
+  window.addEventListener('keydown', onGlobalKeydown);
+  window.addEventListener('popstate', onPopstate);
+  // 恢复上次未保存的暂存（刷新/关页后，基准校验通过的条目）；有恢复则进入编辑模式
+  const restored = restoreDrafts();
+  if (restored > 0) {
+    graphEditMode.value = true;
+    nextTick(() => notify(`已恢复 ${restored} 项上次未保存的图修改，可「💾 保存」或「↩ 放弃更改」`, 'info', 6000));
+  }
+  // 首屏自动适配全图（hash 直达正文时跳过，「🗺 返回图」时会再 fit）
+  if (!currentPath.value) {
+    nextTick(() => requestAnimationFrame(() => canvasRef.value?.fit?.()));
+  }
+});
+
 onBeforeUnmount(() => {
   if (justLinkedTimer) clearTimeout(justLinkedTimer);
+  window.removeEventListener('keydown', onGlobalKeydown);
+  window.removeEventListener('popstate', onPopstate);
 });
 
 /* ============ 节点工具：点空白创建新文档框（新文件暂存草稿） ============ */
@@ -782,10 +1104,11 @@ function onStagePointerup(e: PointerEvent) {
   createNodeAt(pt.x, pt.y);
 }
 
-/** 在画布坐标 (x, y) 处创建新文档框：暂存 untitled-N.md 新文件草稿（点击点居中取整） */
+/** 在画布坐标 (x, y) 处创建新文档框：暂存 untitled-N.md 新文件草稿（点击点居中取整，钳制不出左上边界） */
 function createNodeAt(x: number, y: number) {
-  const px = Math.round(x - BOX_DEFAULT_W / 2);
-  const py = Math.round(y - BOX_DEFAULT_H / 2);
+  const px = Math.max(0, Math.round(x - BOX_DEFAULT_W / 2));
+  const py = Math.max(0, Math.round(y - BOX_DEFAULT_H / 2));
+  const before = takeSnapshot();
   // 编号取磁盘文件与暂存新文件中未占用的最小 N
   const known = new Set([...Object.keys(props.files), ...pendingDrafts.value.keys()]);
   let n = 1;
@@ -793,6 +1116,7 @@ function createNodeAt(x: number, y: number) {
   const path = `untitled-${n}.md`;
   const title = `未命名文档 ${n}`;
   stageDraft(path, `---\ntitle: "${title}"\nx: ${px}\ny: ${py}\n---\n\n# ${title}\n`);
+  commitUndo(before);
 }
 
 /** 连线选中与删除（仅图编辑模式） */
@@ -833,6 +1157,7 @@ function commitLabelEdit() {
   if (!from) return;
   const content = stagedContent(from.docPath);
   if (content === undefined) return;
+  const before = takeSnapshot();
   const links = readFrameLinks(content).map((entry) => {
     const parsed = parseLinkEntry(entry);
     if (resolveDocId(parsed.ref) !== edge.toId) return entry;
@@ -844,6 +1169,7 @@ function commitLabelEdit() {
     });
   });
   stageDraft(from.docPath, writeFrameLinks(content, links));
+  commitUndo(before);
 }
 
 function cancelLabelEdit() {
@@ -858,6 +1184,7 @@ const sideDrag = ref<{
   lastClientX: number;
   lastClientY: number;
   raf: number;
+  before: EditSnapshot;
 } | null>(null);
 
 /** 光标方位 → 边：按框宽高归一化后的主导轴判定（宽框的左右边判定域更窄） */
@@ -883,6 +1210,7 @@ function onSideHandleDown(e: PointerEvent, edge: RelationEdge, which: 'from' | '
     lastClientX: e.clientX,
     lastClientY: e.clientY,
     raf: 0,
+    before: takeSnapshot(),
   };
   window.addEventListener('pointermove', onSideDragMove);
   window.addEventListener('pointerup', onSideDragEnd);
@@ -937,6 +1265,7 @@ function onSideDragEnd() {
   // 与现状一致时不写文件（纯点击手柄不视为修改）
   if (fromSide === edge.fromSide && toSide === edge.toSide) return;
   persistEdgeSides(edge, fromSide, toSide);
+  commitUndo(d.before);
 }
 
 /** 暂存选中连线的连接边（只给一端时另一端写 `_`，保持自动） */
@@ -974,10 +1303,12 @@ function removeSelectedEdge() {
   if (!from) return;
   const content = stagedContent(from.docPath);
   if (content === undefined) return;
+  const before = takeSnapshot();
   const links = readFrameLinks(content).filter(
     (entry) => resolveDocId(parseLinkEntry(entry).ref) !== edge.toId,
   );
   stageDraft(from.docPath, writeFrameLinks(content, links));
+  commitUndo(before);
   selectedEdgeId.value = null;
 }
 
@@ -1000,6 +1331,10 @@ const groupDrag = ref<{
   dy: number;
   moved: boolean;
   raf: number;
+  scroller: HTMLElement | null;
+  panX: number;
+  panY: number;
+  before: EditSnapshot;
 } | null>(null);
 
 /** 组尺寸拖拽状态：拖右下角手柄调整区域长宽（右/下边缘可吸附；下限 = 成员包围盒余量，成员不外溢）；松手后区域转为显式几何暂存到 holder */
@@ -1019,6 +1354,7 @@ const groupResize = ref<{
   curH: number;
   moved: boolean;
   raf: number;
+  before: EditSnapshot;
 } | null>(null);
 
 function onGroupLabelDown(e: PointerEvent, group: DocGroup) {
@@ -1045,6 +1381,10 @@ function onGroupLabelDown(e: PointerEvent, group: DocGroup) {
     dy: 0,
     moved: false,
     raf: 0,
+    scroller: findScroller(stageEl.value),
+    panX: 0,
+    panY: 0,
+    before: takeSnapshot(),
   };
   window.addEventListener('pointermove', onGroupDragMove);
   window.addEventListener('pointerup', onGroupDragEnd);
@@ -1068,8 +1408,11 @@ function applyGroupDrag() {
   const d = groupDrag.value;
   if (!d) return;
   d.raf = 0;
-  const rawDx = Math.round((d.lastClientX - d.startClientX) / d.scale);
-  const rawDy = Math.round((d.lastClientY - d.startClientY) / d.scale);
+  const step = autoPanStep(d.lastClientX, d.lastClientY, d.scroller, d.scale);
+  d.panX += step.px;
+  d.panY += step.py;
+  const rawDx = Math.round((d.lastClientX - d.startClientX) / d.scale + d.panX);
+  const rawDy = Math.round((d.lastClientY - d.startClientY) / d.scale + d.panY);
   if (!d.moved && Math.hypot(rawDx, rawDy) < 3) return;
   const others: SnapRectShape[] = [
     ...layoutBoxes.value.filter((b) => !d.basePositions.has(b.id)),
@@ -1081,8 +1424,11 @@ function applyGroupDrag() {
     d.scale,
     ALL_LINES,
   );
-  const dx = rawDx + (snap.dx ?? 0);
-  const dy = rawDy + (snap.dy ?? 0);
+  // 钳制：成员与区域均不可移出左上边界（负坐标写回后无法找回）
+  const minBaseX = Math.min(d.baseRegion.x, ...[...d.basePositions.values()].map((p) => p.x));
+  const minBaseY = Math.min(d.baseRegion.y, ...[...d.basePositions.values()].map((p) => p.y));
+  const dx = Math.max(rawDx + (snap.dx ?? 0), -minBaseX);
+  const dy = Math.max(rawDy + (snap.dy ?? 0), -minBaseY);
   groupDrag.value = { ...d, dx, dy, moved: true };
   for (const [id, base] of d.basePositions) {
     setPositionOverride(id, { x: base.x + dx, y: base.y + dy });
@@ -1137,6 +1483,7 @@ function onGroupDragEnd() {
       );
     }
   }
+  commitUndo(d.before);
 }
 
 function onGroupResizeDown(e: PointerEvent, group: DocGroup) {
@@ -1165,6 +1512,7 @@ function onGroupResizeDown(e: PointerEvent, group: DocGroup) {
     curH: region.h,
     moved: false,
     raf: 0,
+    before: takeSnapshot(),
   };
   window.addEventListener('pointermove', onGroupResizeMove);
   window.addEventListener('pointerup', onGroupResizeEnd);
@@ -1237,23 +1585,73 @@ function onGroupResizeEnd() {
       }),
     ),
   );
+  commitUndo(d.before);
 }
+
+/* ============ 节点删除（暂存删除标记，「💾 保存」时经删除 API 删文件） ============ */
+
+/** 删除入口点击：已标记删除的框再次点击为撤销删除；磁盘文件需确认；新建草稿直接丢弃 */
+function onDeleteBoxClick(box: DocBox) {
+  if (pendingDeletes.value.has(box.docPath)) {
+    const before = takeSnapshot();
+    pendingDeletes.value = new Set([...pendingDeletes.value].filter((p) => p !== box.docPath));
+    commitUndo(before);
+    return;
+  }
+  const isNewDraft = newDraftPaths.has(box.docPath) && !(box.docPath in props.files);
+  if (isNewDraft) {
+    stageDeleteBox(box);
+    return;
+  }
+  askConfirm(
+    '删除文档',
+    `「${box.title}」（${box.docPath}）将在「💾 保存」后从磁盘删除，保存前可撤销。确定标记删除？`,
+    () => stageDeleteBox(box),
+  );
+}
+
+/** 暂存删除：清掉该文件的内容暂存；磁盘文件加删除标记（新建草稿直接消失） */
+function stageDeleteBox(box: DocBox) {
+  const before = takeSnapshot();
+  if (pendingDrafts.value.has(box.docPath)) {
+    const drafts = new Map(pendingDrafts.value);
+    drafts.delete(box.docPath);
+    pendingDrafts.value = drafts;
+  }
+  newDraftPaths.delete(box.docPath);
+  if (box.docPath in props.files) {
+    pendingDeletes.value = new Set([...pendingDeletes.value, box.docPath]);
+  }
+  commitUndo(before);
+}
+
+/* ============ 全局键控：Esc 链（取消选中→切回选择）、撤销/重做、删除连线 ============ */
 
 function onGlobalKeydown(e: KeyboardEvent) {
   if (currentPath.value || !graphEditMode.value) return;
+  // 标签输入框编辑中：Esc/Delete/Ctrl+Z 均交给输入框自身
+  if (labelEdit.value) return;
+  const mod = e.ctrlKey || e.metaKey;
+  if (mod && (e.key === 'z' || e.key === 'Z' || e.key === 'y')) {
+    e.preventDefault();
+    if (e.key === 'y' || e.shiftKey) redoEdit();
+    else undoEdit();
+    return;
+  }
   if (e.key === 'Escape') {
-    // Esc 切回选择工具（标签输入框编辑中的 Esc 由输入框自行处理）
-    if (!labelEdit.value && editTool.value !== 'select') editTool.value = 'select';
+    if (selectedEdgeId.value) {
+      selectedEdgeId.value = null; // 先取消连线选中，再切回选择工具
+      return;
+    }
+    if (editTool.value !== 'select') editTool.value = 'select';
     return;
   }
   if (!selectedEdgeId.value) return;
-  if (labelEdit.value) return; // 标签输入框编辑中，Delete/Backspace 作用于文本
   if (e.key === 'Delete' || e.key === 'Backspace') {
     e.preventDefault();
     removeSelectedEdge();
   }
 }
-if (typeof window !== 'undefined') window.addEventListener('keydown', onGlobalKeydown);
 const currentTitle = computed(() => {
   if (!currentPath.value) return '';
   return graph.value.boxes.find((b) => b.docPath === currentPath.value)?.title ?? currentPath.value;
@@ -1261,14 +1659,39 @@ const currentTitle = computed(() => {
 
 function syncHash() {
   // encodeURIComponent：浏览器会把 hash 中的非 ASCII（如中文路径）percent-encode，
-  // 写入时主动编码，读取时配对 decode，避免刷新/分享链接定位失败
+  // 写入时主动编码，读取时配对 decode，避免刷新/分享链接定位失败。
+  // pushState 入栈：文档间跳转可用浏览器前进/后退导航；
+  // hash 与现状一致时（含 popstate 恢复后）退化为 replaceState，不产生重复历史
   const hash = currentPath.value ? `#${encodeURIComponent(currentPath.value)}` : '#';
-  history.replaceState(null, '', hash);
+  if (window.location.hash === hash) {
+    history.replaceState(null, '', hash);
+    return;
+  }
+  history.pushState(null, '', hash);
+}
+
+/** 浏览器前进/后退：按 hash 恢复视图（无效 hash 退回图画布） */
+function onPopstate() {
+  const raw = window.location.hash;
+  let p: string | null = null;
+  if (raw.length > 1) {
+    try {
+      p = decodeURIComponent(raw.slice(1));
+    } catch {
+      p = null;
+    }
+  }
+  editing.value = false;
+  currentPath.value = p && props.files[p] ? p : null;
 }
 
 /** 打开某个文档 */
 function open(path: string) {
   if (!props.files[path]) return;
+  if (currentPath.value === path) {
+    editing.value = false;
+    return;
+  }
   editing.value = false;
   currentPath.value = path;
   emit('navigate', path);
@@ -1298,21 +1721,31 @@ function openBlock(path: string, anchor: string) {
   });
 }
 
-/** 返回图画布 */
+/** 返回图画布：正文编辑态有未保存修改时先确认（与图编辑模式同一原则——修改不被悄悄带走） */
 function backToGraph() {
+  if (editing.value && dirty.value) {
+    askConfirm('丢弃未保存的修改？', '正文有未保存的修改，返回图画布将丢弃这些修改。', doBackToGraph);
+    return;
+  }
+  doBackToGraph();
+}
+
+function doBackToGraph() {
+  editing.value = false;
   currentPath.value = null;
   syncHash();
   nextTick(() => requestAnimationFrame(() => canvasRef.value?.fit?.()));
 }
 
-// 文档热更新：当前打开的文档被删除时退回图画布；
+// 文档热更新：当前打开的文档被删除时退回图画布（文件已不在，无需确认丢弃草稿）；
 // 暂存草稿逐项修剪——热更新回推内容与暂存一致（保存生效）或文件被删除时丢弃；
+// 删除标记逐项修剪——文件已从磁盘消失（删除生效）的移除；
 // 坐标覆盖表逐项修剪——与文件坐标一致的（如拖拽已写回的）移除，已删除框的丢弃
 watch(
   () => props.files,
   (files) => {
     graphSaving.value = false;
-    if (currentPath.value && !files[currentPath.value]) backToGraph();
+    if (currentPath.value && !files[currentPath.value]) doBackToGraph();
     if (pendingDrafts.value.size) {
       const drafts = new Map(pendingDrafts.value);
       for (const [p, c] of drafts) {
@@ -1326,6 +1759,10 @@ watch(
         }
       }
       pendingDrafts.value = drafts;
+    }
+    if (pendingDeletes.value.size) {
+      const next = new Set([...pendingDeletes.value].filter((p) => files[p] !== undefined));
+      if (next.size !== pendingDeletes.value.size) pendingDeletes.value = next;
     }
     if (!relayouted.value) return;
     const boxes = graph.value.boxes;
@@ -1362,9 +1799,10 @@ function cancelEdit() {
   editing.value = false;
 }
 
-function saveEdit() {
+async function saveEdit() {
   if (!currentPath.value || !dirty.value) return;
-  requestSave(currentPath.value, draft.value, props.files[currentPath.value]);
+  const res = await requestSave(currentPath.value, draft.value, props.files[currentPath.value]);
+  if (!res.ok) notifyWriteFailure('保存', currentPath.value, res);
 }
 
 /** 编辑器内 Ctrl/Cmd+S 保存（MarkdownEditor 内部不拦截冒泡） */
@@ -1375,19 +1813,63 @@ function onEditorKeydown(e: KeyboardEvent) {
   }
 }
 
-/** 框的键盘可达性：Enter / Space 打开（图编辑模式下屏蔽，与单击一致） */
-function onBoxKeydown(e: KeyboardEvent, path: string) {
-  if (graphEditMode.value) return;
+/** 框的键盘可达性：浏览态 Enter / Space 打开；编辑态（选择工具）方向键微调位置（Shift ×10） */
+function onBoxKeydown(e: KeyboardEvent, box: DocBox) {
+  if (graphEditMode.value) {
+    if (editTool.value !== 'select') return;
+    const step = e.shiftKey ? 10 : 1;
+    const dirs: Record<string, [number, number]> = {
+      ArrowLeft: [-step, 0],
+      ArrowRight: [step, 0],
+      ArrowUp: [0, -step],
+      ArrowDown: [0, step],
+    };
+    const d = dirs[e.key];
+    if (!d) return;
+    e.preventDefault();
+    nudgeBox(box, d[0], d[1]);
+    return;
+  }
   if (e.key === 'Enter' || e.key === ' ') {
     e.preventDefault();
-    open(path);
+    open(box.docPath);
   }
 }
 
-/** 正文内相对文档链接 → 相对文档根的路径 */
-function resolveHref(fromPath: string, href: string): string | null {
-  if (/^(https?:|mailto:|#)/.test(href)) return null;
-  const clean = href.split('#')[0].trim();
+/** 方向键微调：连续微调同一框只产生一个撤销点（800ms 内合并） */
+let lastNudge: { id: string; time: number } | null = null;
+
+function nudgeBox(box: DocBox, dx: number, dy: number) {
+  const x = Math.max(0, Math.round(box.x + dx));
+  const y = Math.max(0, Math.round(box.y + dy));
+  if (x === box.x && y === box.y) return;
+  const now = Date.now();
+  const before = lastNudge?.id === box.id && now - lastNudge.time < 800 ? null : takeSnapshot();
+  lastNudge = { id: box.id, time: now };
+  setPositionOverride(box.id, { x, y });
+  const content = stagedContent(box.docPath);
+  if (content !== undefined) {
+    stageDraft(box.docPath, writeFramePosition(content, { x, y }));
+    if (before) commitUndo(before);
+  }
+}
+
+/** 正文内相对文档链接 → 相对文档根的路径与可选锚点（`./guide.md#安装` 的 fragment 不再丢弃） */
+function resolveHref(fromPath: string, href: string): { path: string; anchor?: string } | null {
+  if (/^(https?:|mailto:)/.test(href)) return null;
+  const [withoutHash, hash] = href.split('#');
+  const clean = withoutHash.trim();
+  // 锚点与标题 id 的 slug 规则对齐（percent-decode 后 slugify）
+  const rawAnchor = hash?.trim();
+  let anchor: string | undefined;
+  if (rawAnchor) {
+    try {
+      anchor = slugify(decodeURIComponent(rawAnchor));
+    } catch {
+      anchor = slugify(rawAnchor);
+    }
+  }
+  if (!clean) return anchor ? { path: fromPath, anchor } : null; // 同文档锚点
   if (!clean.endsWith('.md')) return null;
   const parts = clean.startsWith('/')
     ? clean.split('/')
@@ -1398,13 +1880,18 @@ function resolveHref(fromPath: string, href: string): string | null {
     if (p === '..') out.pop();
     else out.push(p);
   }
-  return out.join('/');
+  return { path: out.join('/'), anchor };
 }
 
 function onDocLink(href: string) {
   if (!currentPath.value) return;
   const target = resolveHref(currentPath.value, href);
-  if (target) open(target);
+  if (!target) return;
+  if (target.anchor) {
+    openBlock(target.path, target.anchor);
+  } else {
+    open(target.path);
+  }
 }
 
 /** 流程画布节点拖拽落点 → 坐标编码回 prodoc-flow 块（`id @ x, y`）并保存 */
@@ -1413,7 +1900,11 @@ function onFlowNodeMove(p: { id: string; x: number; y: number; source: string })
   const content = props.files[currentPath.value];
   if (content === undefined) return;
   const updated = writeFlowNodePosition(content, p.source, p.id, p.x, p.y);
-  if (updated !== content) requestSave(currentPath.value, updated, content);
+  if (updated === content) return;
+  const path = currentPath.value;
+  requestSave(path, updated, content).then((res) => {
+    if (!res.ok) notifyWriteFailure('保存', path, res);
+  });
 }
 
 // 初始定位：地址栏 hash 指向的文档（decode 与 syncHash 的 encode 配对）
@@ -1433,6 +1924,8 @@ if (typeof window !== 'undefined' && window.location.hash.length > 1) {
           <button v-if="!graphEditMode" class="pd-back-btn" @click="toggleGraphEdit">🛠 编辑图</button>
           <template v-else>
             <!-- 编辑模式退出路径：有暂存修改时只能保存（留在编辑模式）或放弃（丢弃并退出） -->
+            <button class="pd-back-btn" :disabled="undoStack.length === 0" title="撤销（Ctrl+Z）" aria-label="撤销" @click="undoEdit">↶</button>
+            <button class="pd-back-btn" :disabled="redoStack.length === 0" title="重做（Ctrl+Shift+Z / Ctrl+Y）" aria-label="重做" @click="redoEdit">↷</button>
             <button class="pd-back-btn" :disabled="!graphDirty || graphSaving" @click="saveGraphEdits">💾 保存</button>
             <button v-if="graphDirty" class="pd-back-btn" :disabled="graphSaving" @click="discardGraphEdits">↩ 放弃更改</button>
             <button v-else class="pd-back-btn pd-back-btn--active" @click="toggleGraphEdit">✓ 完成</button>
@@ -1449,6 +1942,21 @@ if (typeof window !== 'undefined' && window.location.hash.length > 1) {
           </template>
           <button class="pd-back-btn" @click="backToGraph">🗺 返回图</button>
         </template>
+        <!-- 解析告警（重复 id、悬空引用等）：数量徽标 + 点击查看明细 -->
+        <NeumorphismPopover v-if="graph.warnings.length" trigger="click" position="bottom" :width="360">
+          <template #default>
+            <span class="pd-warn-trigger">
+              <NeumorphismBadge :value="graph.warnings.length">
+                <button class="pd-back-btn" type="button" title="解析告警明细">⚠️</button>
+              </NeumorphismBadge>
+            </span>
+          </template>
+          <template #content>
+            <ul class="pd-warn-list">
+              <li v-for="w in graph.warnings" :key="w">{{ w }}</li>
+            </ul>
+          </template>
+        </NeumorphismPopover>
         <NeumorphismThemeToggle size="small" />
       </div>
     </header>
@@ -1477,7 +1985,7 @@ if (typeof window !== 'undefined' && window.location.hash.length > 1) {
           }"
           :style="{ width: `${stage.w}px`, height: `${stage.h}px` }"
           @pointerdown="onStagePointerdown"
-          @click="selectedEdgeId = null"
+          @click="selectedEdgeId = null; touchPanelId = null"
         >
           <!-- 分组区域：同组框的圆角矩形围合（位于连线与框之下；区域本体不响应指针） -->
           <div
@@ -1576,12 +2084,12 @@ if (typeof window !== 'undefined' && window.location.hash.length > 1) {
               </circle>
             </g>
           </svg>
-          <!-- 选中连线的删除按钮（位于连线中点；标签编辑中隐藏） -->
+          <!-- 选中连线的删除按钮（连线中点法线偏移处，避免压住标签；标签编辑中隐藏） -->
           <button
             v-if="graphEditMode && selectedEdge && !labelEdit"
             type="button"
             class="pd-edge-delete"
-            :style="{ left: `${selectedEdge.labelX}px`, top: `${selectedEdge.labelY}px` }"
+            :style="{ left: `${selectedEdge.delX}px`, top: `${selectedEdge.delY}px` }"
             :aria-label="`删除连线 ${selectedEdge.fromTitle} → ${selectedEdge.toTitle}`"
             :title="`删除连线（Delete）`"
             @click.stop="removeSelectedEdge"
@@ -1612,6 +2120,7 @@ if (typeof window !== 'undefined' && window.location.hash.length > 1) {
                 'pd-dim': isBoxDimmed(box.id),
                 'pd-doc-box--link-target': linkTargetState(box) === 'valid',
                 'pd-doc-box--link-invalid': linkTargetState(box) === 'invalid',
+                'pd-doc-box--deleting': pendingDeletes.has(box.docPath),
               },
             ]"
             :style="{ left: `${box.x}px`, top: `${box.y}px`, width: `${box.w}px`, height: `${box.h}px` }"
@@ -1620,13 +2129,13 @@ if (typeof window !== 'undefined' && window.location.hash.length > 1) {
             :aria-label="`${box.title}（跳转到文档）`"
             data-nm-no-pan
             @pointerdown="onBoxPointerdown($event, box)"
-            @click="onBoxClick(box.docPath)"
-            @keydown="onBoxKeydown($event, box.docPath)"
+            @click="onBoxClick(box)"
+            @keydown="onBoxKeydown($event, box)"
             @mouseenter="onBoxHover(box.id)"
             @mouseleave="onBoxHover(null)"
           >
             <div class="pd-doc-box__head">
-              <span class="pd-doc-box__title">{{ box.title }}</span>
+              <span class="pd-doc-box__title" :title="box.title">{{ box.title }}</span>
               <span class="pd-doc-box__icon" aria-hidden="true">↗</span>
             </div>
             <!-- 悬停显示的编辑入口：直接进入该文档的编辑状态（图编辑模式下隐藏，避免带着暂存离开画布） -->
@@ -1640,6 +2149,17 @@ if (typeof window !== 'undefined' && window.location.hash.length > 1) {
               @keydown.enter.stop="openEdit(box.docPath)"
               @keydown.space.stop="openEdit(box.docPath)"
             >✏️</button>
+            <!-- 删除入口（仅图编辑模式且宿主提供删除能力）：点击标记删除，再点撤销；保存时才真正删文件 -->
+            <button
+              v-if="graphEditMode && deleteHandler"
+              type="button"
+              class="pd-doc-box__delete"
+              :class="{ 'pd-doc-box__delete--armed': pendingDeletes.has(box.docPath) }"
+              :aria-label="pendingDeletes.has(box.docPath) ? `撤销删除 ${box.title}` : `删除 ${box.title}`"
+              :title="pendingDeletes.has(box.docPath) ? '撤销删除标记' : '标记删除（💾 保存后生效）'"
+              @click.stop="onDeleteBoxClick(box)"
+              @pointerdown.stop
+            >{{ pendingDeletes.has(box.docPath) ? '↩' : '✕' }}</button>
             <!-- 连接点：四条边的中点各一个，从哪条边拖出就固定该边为源边；
                  落点在目标框的哪一侧就连接目标的哪条边（仅图编辑模式） -->
             <template v-if="graphEditMode">
@@ -1655,11 +2175,14 @@ if (typeof window !== 'undefined' && window.location.hash.length > 1) {
                 @click.stop
               ></button>
             </template>
-            <!-- 悬停展开的分块面板：点击条目直达正文对应标题（图编辑模式下隐藏） -->
+            <!-- 悬停展开的分块面板：点击条目直达正文对应标题（图编辑模式下隐藏；触屏点按一次强制展开） -->
             <div
               v-if="box.blocks.length && !graphEditMode"
               class="pd-doc-blocks-pop"
-              :class="{ 'pd-doc-blocks-pop--above': panelAbove(box, stage.h) }"
+              :class="{
+                'pd-doc-blocks-pop--above': panelAbove(box, stage.h),
+                'pd-doc-blocks-pop--force': touchPanelId === box.id,
+              }"
             >
               <div class="pd-doc-blocks-pop__card" role="menu">
                 <button
@@ -1731,6 +2254,19 @@ if (typeof window !== 'undefined' && window.location.hash.length > 1) {
           @click="editTool = 'node'"
         >📄 节点</button>
       </div>
+
+      <!-- 统一通知（替代原生 alert）与破坏性操作的确认对话框 -->
+      <NeumorphismToastProvider ref="toastRef" />
+      <NeumorphismModal
+        v-model="confirmVisible"
+        :title="confirmDialog.title"
+        size="small"
+        confirm-label="确认"
+        cancel-label="取消"
+        @confirm="onConfirmDialog"
+      >
+        {{ confirmDialog.message }}
+      </NeumorphismModal>
     </div>
   </div>
 </template>

@@ -31,7 +31,7 @@ export interface DocBox {
   depth: number;
   /** 文档内分块（正文 H2 ≥ 2 时提取，用于框内子块渲染） */
   blocks: DocBlock[];
-  /** 画布坐标与尺寸（px）；高度随分块内容自适应（不小于声明值） */
+  /** 画布坐标与尺寸（px） */
   x: number;
   y: number;
   w: number;

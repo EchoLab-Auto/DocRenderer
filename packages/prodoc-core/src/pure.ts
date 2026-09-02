@@ -15,5 +15,6 @@ export {
   buildLinkEntry,
   parseGroupEntry,
   buildGroupEntry,
+  slugify,
 } from './graph.js';
 export type { DocBlock, DocBox, DocGraph, DocGroup, DocRelation, GroupGeometry, LinkSide } from './graph.js';

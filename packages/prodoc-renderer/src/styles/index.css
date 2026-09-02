@@ -458,6 +458,11 @@
   font-weight: 600;
   color: var(--nm-text-primary, #333);
   word-break: break-word;
+  /* 长标题最多两行，溢出省略（完整文字经 title 悬浮提示可达），防止撑破卡片 */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .pd-doc-box__icon {
@@ -489,6 +494,44 @@
 .pd-doc-box__edit:hover {
   opacity: 1;
   transform: scale(1.15);
+}
+
+/* 框右上角删除入口（图编辑模式）：悬停/聚焦时显现；已标记删除时常显并转为撤销 */
+.pd-doc-box__delete {
+  position: absolute;
+  top: 5px;
+  right: 7px;
+  border: none;
+  padding: 2px;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  background: transparent;
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.pd-doc-box:hover .pd-doc-box__delete,
+.pd-doc-box:focus-within .pd-doc-box__delete,
+.pd-doc-box__delete--armed {
+  opacity: 0.85;
+}
+
+.pd-doc-box__delete:hover {
+  opacity: 1;
+  transform: scale(1.15);
+  color: var(--nm-danger-color, #e05555);
+}
+
+/* 已标记删除的框：危险色虚线 + 标题删除线，保存后才真正消失 */
+.pd-doc-box--deleting {
+  border-style: dashed;
+  border-color: var(--nm-danger-color, #e05555);
+  opacity: 0.65;
+}
+
+.pd-doc-box--deleting .pd-doc-box__title {
+  text-decoration: line-through;
 }
 
 /* 连接点：四条边中点各一个，悬停框时错峰弹入，拖到其他框创建连线 */
@@ -598,10 +641,31 @@
 }
 
 .pd-doc-box:hover .pd-doc-blocks-pop,
-.pd-doc-box:focus-within .pd-doc-blocks-pop {
+.pd-doc-box:focus-within .pd-doc-blocks-pop,
+.pd-doc-blocks-pop--force {
   opacity: 1;
   visibility: visible;
   transform: none;
+}
+
+/* ============ 解析告警徽标（头部 ⚠️） ============ */
+
+.pd-warn-trigger {
+  display: inline-flex;
+}
+
+.pd-warn-list {
+  margin: 0;
+  padding: 4px 0 4px 18px;
+  max-height: 240px;
+  overflow-y: auto;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--nm-text-secondary, #666);
+}
+
+.pd-warn-list li + li {
+  margin-top: 4px;
 }
 
 .pd-doc-blocks-pop--above {

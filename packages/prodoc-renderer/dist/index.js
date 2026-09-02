@@ -1,17 +1,17 @@
-import { Fragment as e, computed as t, createBlock as n, createCommentVNode as r, createElementBlock as i, createElementVNode as a, createVNode as o, defineComponent as s, nextTick as c, normalizeClass as l, normalizeStyle as u, onBeforeUnmount as d, openBlock as f, ref as p, renderList as m, toDisplayString as h, unref as ee, vModelText as te, watch as ne, withCtx as re, withDirectives as ie, withKeys as g, withModifiers as _ } from "vue";
-import { NeumorphismCanvas as ae, NeumorphismThemeToggle as oe } from "@echolab-auto/ui-frame";
-import { DocFlowCanvas as se, DocViewer as v, MarkdownEditor as ce, MarkdownRenderer as le, MarkdownRenderer as ue, writeFlowNodePosition as de } from "@echolab-auto/ui-frame/doc";
+import { Fragment as e, computed as t, createBlock as n, createCommentVNode as r, createElementBlock as i, createElementVNode as a, createTextVNode as o, createVNode as s, defineComponent as c, nextTick as l, normalizeClass as u, normalizeStyle as d, onBeforeUnmount as f, onMounted as p, openBlock as m, ref as h, renderList as g, toDisplayString as _, unref as v, vModelText as ee, watch as te, withCtx as ne, withDirectives as re, withKeys as y, withModifiers as b } from "vue";
+import { NeumorphismBadge as ie, NeumorphismCanvas as ae, NeumorphismModal as oe, NeumorphismPopover as se, NeumorphismThemeToggle as ce, NeumorphismToastProvider as le, useTouchDevice as ue } from "@echolab-auto/ui-frame";
+import { DocFlowCanvas as de, DocViewer as x, MarkdownEditor as fe, MarkdownRenderer as pe, MarkdownRenderer as me, writeFlowNodePosition as he } from "@echolab-auto/ui-frame/doc";
 import "@echolab-auto/ui-frame/dist/style.css";
-//#region ../prodoc-core/dist/graph-AW9TabRY.js
-function fe(e) {
+//#region ../prodoc-core/dist/graph-C2fVzQvi.js
+function ge(e) {
 	let t = [], n = "", r = null;
 	for (let i of e) r ? (n += i, i === r && (r = null)) : i === "\"" || i === "'" ? (r = i, n += i) : i === "," ? (t.push(n), n = "") : n += i;
 	return t.push(n), t;
 }
-function y(e) {
+function S(e) {
 	let t = e.trim();
 	if (t === "") return "";
-	if (t.startsWith("[") && t.endsWith("]")) return fe(t.slice(1, -1)).map((e) => y(e)).filter((e) => e !== "");
+	if (t.startsWith("[") && t.endsWith("]")) return ge(t.slice(1, -1)).map((e) => S(e)).filter((e) => e !== "");
 	if (t === "true") return !0;
 	if (t === "false") return !1;
 	if (/^-?\d+$/.test(t)) return parseInt(t, 10);
@@ -19,7 +19,7 @@ function y(e) {
 	let n = t.match(/^(["'])([\s\S]*)\1$/);
 	return n ? n[2] : t;
 }
-function b(e) {
+function C(e) {
 	let t = e.indexOf("\n");
 	if ((t === -1 ? e : e.slice(0, t)).trim() !== "---") return {
 		params: {},
@@ -51,7 +51,7 @@ function b(e) {
 			}
 			r = e.join("\n");
 		}
-		i[n] = y(r);
+		i[n] = S(r);
 	}
 	return {
 		params: i,
@@ -59,18 +59,18 @@ function b(e) {
 		hasFrame: !0
 	};
 }
-function x(e) {
+function _e(e) {
 	return (Array.isArray(e) ? e : typeof e == "string" ? e.split(",") : []).filter((e) => typeof e == "string").map((e) => e.trim()).filter(Boolean);
 }
-function pe(e) {
-	return x(b(e).params.link);
+function ve(e) {
+	return _e(C(e).params.link);
 }
-function me(e) {
+function ye(e) {
 	return e === "" || e !== e.trim() || /[|,"]/.test(e) ? e.includes("\"") ? `'${e}'` : `"${e}"` : e;
 }
-function S(e, t, n) {
+function be(e, t, n) {
 	let r = e.includes("\r\n") ? "\r\n" : "\n";
-	if (!b(e).hasFrame) return n === null ? e : `---${r}${n}${r}---${r}${e}`;
+	if (!C(e).hasFrame) return n === null ? e : `---${r}${n}${r}---${r}${e}`;
 	let i = e.split(/\r?\n/), a = i.findIndex((e, t) => t > 0 && e.trim() === "---");
 	if (a === -1) return e;
 	let o = RegExp(`^${t}\\s*:`), s = i.slice(1, a).findIndex((e) => o.test(e));
@@ -85,17 +85,17 @@ function S(e, t, n) {
 	} else n !== null && i.splice(a, 0, n);
 	return i.join(r);
 }
-function C(e, t) {
-	return S(e, "link", t.length > 0 ? `link: [${t.map(me).join(", ")}]` : null);
+function xe(e, t) {
+	return be(e, "link", t.length > 0 ? `link: [${t.map(ye).join(", ")}]` : null);
 }
-function he(e, t) {
-	return S(e, "group", t === null ? null : `group: ${me(t)}`);
+function Se(e, t) {
+	return be(e, "group", t === null ? null : `group: ${ye(t)}`);
 }
-function ge(e, t) {
+function Ce(e, t) {
 	let n = Object.entries(t).filter((e) => (e[0] === "x" || e[0] === "y") && typeof e[1] == "number" && Number.isFinite(e[1]));
 	if (n.length === 0) return e;
 	let r = e.includes("\r\n") ? "\r\n" : "\n";
-	if (!b(e).hasFrame) return `---${r}${n.map(([e, t]) => `${e}: ${t}`).join(r)}${r}---${r}${e}`;
+	if (!C(e).hasFrame) return `---${r}${n.map(([e, t]) => `${e}: ${t}`).join(r)}${r}---${r}${e}`;
 	let i = e.split(/\r?\n/), a = i.findIndex((e, t) => t > 0 && e.trim() === "---");
 	if (a === -1) return e;
 	let o = a;
@@ -105,7 +105,7 @@ function ge(e, t) {
 	}
 	return i.join(r);
 }
-var _e = 72, w = 48, ve = /* @__PURE__ */ new Set([
+var w = 72, T = 48, E = /* @__PURE__ */ new Set([
 	"id",
 	"title",
 	"x",
@@ -115,39 +115,39 @@ var _e = 72, w = 48, ve = /* @__PURE__ */ new Set([
 	"link",
 	"group"
 ]);
-function T(e) {
+function D(e) {
 	return typeof e == "number" && Number.isFinite(e) ? e : void 0;
 }
-var E = {
+var O = {
 	t: "top",
 	r: "right",
 	b: "bottom",
 	l: "left"
-}, D = {
+}, k = {
 	top: "t",
 	right: "r",
 	bottom: "b",
 	left: "l"
-}, ye = /^([trbl_])>([trbl_])$/;
-function be(e) {
+}, we = /^([trbl_])>([trbl_])$/;
+function Te(e) {
 	let t = e.split("|").map((e) => e.trim()), n = { ref: t[0] };
 	for (let e of t.slice(1)) {
-		let t = e.match(ye);
-		t ? (t[1] !== "_" && (n.fromSide = E[t[1]]), t[2] !== "_" && (n.toSide = E[t[2]])) : e !== "" && (n.label = e);
+		let t = e.match(we);
+		t ? (t[1] !== "_" && (n.fromSide = O[t[1]]), t[2] !== "_" && (n.toSide = O[t[2]])) : e !== "" && (n.label = e);
 	}
 	return n;
 }
-function xe(e) {
+function Ee(e) {
 	let t = e.ref;
 	if (e.label && (t += ` | ${e.label}`), e.fromSide || e.toSide) {
-		let n = e.fromSide ? D[e.fromSide] : "_", r = e.toSide ? D[e.toSide] : "_";
+		let n = e.fromSide ? k[e.fromSide] : "_", r = e.toSide ? k[e.toSide] : "_";
 		t += ` | ${n}>${r}`;
 	}
 	return t;
 }
-var O = /^(.*)\s*@\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/;
-function k(e) {
-	let t = e.match(O);
+var A = /^(.*)\s*@\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/;
+function De(e) {
+	let t = e.match(A);
 	return !t || !t[1].trim() ? { name: e.trim() } : {
 		name: t[1].trim(),
 		geo: {
@@ -158,7 +158,7 @@ function k(e) {
 		}
 	};
 }
-function Se(e) {
+function Oe(e) {
 	let { name: t, x: n, y: r, w: i, h: a } = e;
 	return [
 		n,
@@ -167,7 +167,7 @@ function Se(e) {
 		a
 	].every((e) => typeof e == "number" && Number.isFinite(e)) ? `${t} @ ${n}, ${r}, ${i}, ${a}` : t;
 }
-function Ce(e, t) {
+function ke(e, t) {
 	if (t) return { ...t };
 	if (e.length === 0) return {
 		x: 0,
@@ -184,17 +184,17 @@ function Ce(e, t) {
 		h: a - r + 34 + 24
 	};
 }
-function we(e) {
+function Ae(e) {
 	let t = e.match(/^#[ \t]+(.+)$/m);
 	return t ? t[1].trim() : void 0;
 }
-function Te(e) {
+function je(e) {
 	return e.toLowerCase().replace(/[^\p{L}\p{N}\s-]/gu, "").replace(/[\s-]+/g, "-").replace(/^-+|-+$/g, "");
 }
-function Ee(e) {
+function Me(e) {
 	return e.replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/[`*_~]/g, "").replace(/<[^>]+>/g, "").trim();
 }
-function De(e) {
+function Ne(e) {
 	let t = [], n = null;
 	for (let r of e.split("\n")) {
 		let e = r.match(/^\s*(`{3,}|~{3,})/);
@@ -205,16 +205,16 @@ function De(e) {
 		if (n !== null) continue;
 		let i = r.match(/^##[ \t]+(.+?)\s*#*\s*$/);
 		if (i) {
-			let e = Ee(i[1]);
+			let e = Me(i[1]);
 			e && t.push({
-				anchor: Te(e),
+				anchor: je(e),
 				title: e
 			});
 		}
 	}
 	return t.length >= 2 ? t : [];
 }
-function Oe(e, t) {
+function Pe(e, t) {
 	let n = /* @__PURE__ */ new Map();
 	for (let e of t) {
 		let t = n.get(e.to);
@@ -236,7 +236,7 @@ function Oe(e, t) {
 	for (let t of e) a(t.id);
 	return r;
 }
-function A(e, t, n, r) {
+function Fe(e, t, n, r) {
 	let i = e.filter((e) => {
 		let t = r.get(e.id);
 		return t.rawX === void 0 || t.rawY === void 0;
@@ -257,7 +257,7 @@ function A(e, t, n, r) {
 		let t = l.get(e.depth);
 		t ? t.push(e) : l.set(e.depth, [e]);
 	}
-	let u = [...l.keys()].sort((e, t) => e - t), d = w;
+	let u = [...l.keys()].sort((e, t) => e - t), d = T;
 	for (let e of u) {
 		let t = l.get(e), n = t.map((e, n) => {
 			let r = (c.get(e.box.id) ?? []).map((e) => s.get(e)).filter((e) => e !== void 0);
@@ -267,50 +267,50 @@ function A(e, t, n, r) {
 			};
 		});
 		n.sort((e, t) => e.bary - t.bary);
-		let i = n.map((e) => e.auto), u = d, f = 0, p = w, m = 0;
+		let i = n.map((e) => e.auto), u = d, f = 0, p = T, m = 0;
 		for (let { box: e } of i) {
-			m === a && (u += f + _e, f = 0, p = w, m = 0);
+			m === a && (u += f + w, f = 0, p = T, m = 0);
 			let t = r.get(e.id);
 			t.rawX === void 0 && (e.x = p), t.rawY === void 0 && (e.y = u), s.set(e.id, o(e)), p += e.w + 64, f = Math.max(f, e.h), m++;
 		}
-		d = u + f + _e;
+		d = u + f + w;
 	}
 }
-function ke(e, t) {
+function Ie(e, t) {
 	let n = e.map((e) => ({
 		...e,
 		x: 0,
 		y: 0
 	}));
-	return A(n, t, Oe(n, t), new Map(n.map((e) => [e.id, {}]))), new Map(n.map((e) => [e.id, {
+	return Fe(n, t, Pe(n, t), new Map(n.map((e) => [e.id, {}]))), new Map(n.map((e) => [e.id, {
 		x: e.x,
 		y: e.y
 	}]));
 }
-function Ae(e) {
+function Le(e) {
 	let t = Object.keys(e).sort(), n = [], r = /* @__PURE__ */ new Map(), i = /* @__PURE__ */ new Map(), a = /* @__PURE__ */ new Map();
 	for (let o of t) {
-		let { params: t, body: s } = b(e[o]), c = typeof t.id == "string" && t.id.trim() !== "" ? t.id.trim() : o.replace(/\.md$/, ""), l = typeof t.title == "string" && t.title.trim() !== "" && t.title.trim() || we(s) || c, u = De(s), d = T(t.w) ?? 220, f = T(t.h) ?? 96, p = {};
-		for (let [e, n] of Object.entries(t)) ve.has(e) || (p[e] = n);
+		let { params: t, body: s } = C(e[o]), c = typeof t.id == "string" && t.id.trim() !== "" ? t.id.trim() : o.replace(/\.md$/, ""), l = typeof t.title == "string" && t.title.trim() !== "" && t.title.trim() || Ae(s) || c, u = Ne(s), d = D(t.w) ?? 220, f = D(t.h) ?? 96, p = {};
+		for (let [e, n] of Object.entries(t)) E.has(e) || (p[e] = n);
 		let m = {
 			id: c,
 			title: l,
 			docPath: o,
 			depth: 0,
 			blocks: u,
-			x: T(t.x) ?? 0,
-			y: T(t.y) ?? 0,
+			x: D(t.x) ?? 0,
+			y: D(t.y) ?? 0,
 			w: d,
 			h: f,
 			attrs: p
 		};
 		if (i.set(c, {
-			rawX: T(t.x),
-			rawY: T(t.y)
+			rawX: D(t.x),
+			rawY: D(t.y)
 		}), t.group !== void 0) {
 			let e = (Array.isArray(t.group) ? t.group : [t.group]).map((e) => typeof e == "string" ? e : typeof e == "number" ? String(e) : "").filter((e) => e.trim() !== "");
-			if (e.length > 1 && n.push(`文档 "${c}" 声明了多个 group，仅取第一个 "${k(e[0]).name || e[0]}"`), e.length > 0) {
-				let { name: t, geo: n } = k(e[0]);
+			if (e.length > 1 && n.push(`文档 "${c}" 声明了多个 group，仅取第一个 "${De(e[0]).name || e[0]}"`), e.length > 0) {
+				let { name: t, geo: n } = De(e[0]);
 				t && a.set(c, {
 					name: t,
 					geo: n
@@ -347,9 +347,9 @@ function Ae(e) {
 		}));
 	}
 	for (let t of o) {
-		let { params: n } = b(e[t.docPath]);
-		for (let e of x(n.link)) {
-			let { ref: n, label: r, fromSide: i, toSide: a } = be(e);
+		let { params: n } = C(e[t.docPath]);
+		for (let e of _e(n.link)) {
+			let { ref: n, label: r, fromSide: i, toSide: a } = Te(e);
 			n && d(t.id, n, {
 				label: r,
 				fromSide: i,
@@ -357,9 +357,9 @@ function Ae(e) {
 			}, t.id + ".link");
 		}
 	}
-	let f = Oe(o, c);
+	let f = Pe(o, c);
 	for (let e of o) e.depth = f.get(e.id) ?? 0;
-	A(o, c, f, i);
+	Fe(o, c, f, i);
 	let p = /* @__PURE__ */ new Map();
 	for (let e of o) {
 		let t = a.get(e.id);
@@ -373,7 +373,7 @@ function Ae(e) {
 		groups: [...p.entries()].map(([e, t]) => ({
 			name: e,
 			members: t.members.map((e) => e.id),
-			...Ce(t.members, t.geo),
+			...ke(t.members, t.geo),
 			explicit: t.geo !== void 0,
 			holder: t.holder ?? t.members[0].docPath
 		})),
@@ -382,71 +382,174 @@ function Ae(e) {
 }
 //#endregion
 //#region src/components/DocGraphViewer.vue?vue&type=script&setup=true&lang.ts
-var je = { class: "pd-graph-viewer" }, Me = { class: "pd-graph-header" }, Ne = {
+var Re = { class: "pd-graph-viewer" }, ze = { class: "pd-graph-header" }, Be = {
 	key: 0,
 	class: "pd-graph-current"
-}, Pe = { class: "pd-graph-actions" }, Fe = ["disabled"], Ie = ["disabled"], Le = ["disabled"], Re = { class: "pd-graph-main" }, ze = ["title", "onPointerdown"], Be = ["aria-label", "onPointerdown"], Ve = ["width", "height"], He = [
+}, Ve = { class: "pd-graph-actions" }, He = ["disabled"], Ue = ["disabled"], We = ["disabled"], Ge = ["disabled"], Ke = ["disabled"], qe = { class: "pd-warn-trigger" }, Je = { class: "pd-warn-list" }, Ye = { class: "pd-graph-main" }, Xe = ["title", "onPointerdown"], Ze = ["aria-label", "onPointerdown"], Qe = ["width", "height"], $e = [
 	"d",
 	"onClick",
 	"onDblclick"
-], Ue = ["d"], We = ["x", "y"], Ge = ["d"], Ke = [
+], et = ["d"], tt = ["x", "y"], nt = ["d"], rt = [
 	"x1",
 	"y1",
 	"x2",
 	"y2"
-], qe = {
+], it = {
 	key: 1,
 	class: "pd-edge-handles"
-}, Je = ["cx", "cy"], Ye = ["cx", "cy"], Xe = ["aria-label"], Ze = ["aria-label", "onKeydown"], Qe = [
+}, at = ["cx", "cy"], ot = ["cx", "cy"], st = ["aria-label"], ct = ["aria-label", "onKeydown"], lt = [
 	"aria-label",
 	"onPointerdown",
 	"onClick",
 	"onKeydown",
 	"onMouseenter"
-], $e = { class: "pd-doc-box__head" }, et = { class: "pd-doc-box__title" }, tt = [
+], ut = { class: "pd-doc-box__head" }, dt = ["title"], ft = [
 	"aria-label",
 	"onClick",
 	"onKeydown"
-], nt = ["aria-label", "onPointerdown"], rt = {
+], pt = [
+	"aria-label",
+	"title",
+	"onClick"
+], mt = ["aria-label", "onPointerdown"], ht = {
 	class: "pd-doc-blocks-pop__card",
 	role: "menu"
-}, it = [
+}, gt = [
 	"title",
 	"aria-label",
 	"onClick",
 	"onKeydown"
-], at = ["aria-label", "onClick"], ot = {
+], _t = ["aria-label", "onClick"], vt = {
 	key: 2,
 	class: "pd-edit-toolbar",
 	role: "toolbar",
 	"aria-label": "图编辑工具栏"
-}, st = 30, j = /* @__PURE__ */ s({
+}, yt = 30, bt = /* @__PURE__ */ c({
 	__name: "DocGraphViewer",
 	props: {
 		files: {},
-		saveHandler: { type: Function }
+		saveHandler: { type: Function },
+		deleteHandler: { type: Function }
 	},
 	emits: ["navigate", "save"],
-	setup(s, { emit: se }) {
-		let v = s, le = se;
-		function fe(e, t, n) {
-			return v.saveHandler ? v.saveHandler(e, t, n) : (le("save", e, t, n), Promise.resolve(!0));
+	setup(c, { emit: de }) {
+		let x = c, pe = de, ge = h(null);
+		function S(e, t = "info", n = 4e3) {
+			ge.value?.addToast({
+				message: e,
+				type: t,
+				duration: n
+			});
 		}
-		let y = p(/* @__PURE__ */ new Map()), x = t(() => y.value.size > 0), me = t(() => y.value.size ? {
-			...v.files,
-			...Object.fromEntries(y.value)
-		} : v.files), S = t(() => Ae(me.value)), _e = t(() => Object.fromEntries(Object.entries(v.files).map(([e, t]) => [e, b(t).body])));
-		ne(() => S.value.warnings, (e) => e.forEach((e) => console.warn("[ProDoc]", e)), { immediate: !0 });
-		let w = p(null), ve = p(null), T = t(() => {
+		async function _e(e, t, n) {
+			if (x.saveHandler) {
+				let r = await x.saveHandler(e, t, n);
+				return typeof r == "object" ? r : { ok: r };
+			}
+			return pe("save", e, t, n), { ok: !0 };
+		}
+		async function ye(e, t) {
+			if (!x.deleteHandler) return {
+				ok: !1,
+				error: "当前环境不支持删除文档"
+			};
+			let n = await x.deleteHandler(e, t);
+			return typeof n == "object" ? n : { ok: n };
+		}
+		function be(e, t, n) {
+			n.status === 409 ? S(`「${t}」在磁盘上已被其他程序修改，${e}被拒绝。该文件的暂存已保留，可刷新页面同步后重试（或「↩ 放弃更改」丢弃）。`, "error", 8e3) : S(`「${t}」${e}失败：${n.error ?? "未知错误"}`, "error", 6e3);
+		}
+		let w = h(/* @__PURE__ */ new Map()), T = h(/* @__PURE__ */ new Set()), E = t(() => w.value.size > 0 || T.value.size > 0), D = h([]), O = h([]);
+		function k() {
+			return {
+				drafts: [...w.value],
+				newPaths: [...B],
+				deletes: [...T.value],
+				overrides: I.value ? [...I.value] : null
+			};
+		}
+		function we(e, t) {
+			if (e.deletes.length !== t.deletes.length || e.newPaths.length !== t.newPaths.length || e.drafts.length !== t.drafts.length || (e.overrides?.length ?? 0) !== (t.overrides?.length ?? 0)) return !1;
+			let n = new Map(e.drafts);
+			if (!t.drafts.every(([e, t]) => n.get(e) === t) || !e.deletes.every((e) => t.deletes.includes(e)) || !e.newPaths.every((e) => t.newPaths.includes(e))) return !1;
+			let r = new Map(e.overrides ?? []);
+			return (t.overrides ?? []).every(([e, t]) => r.get(e)?.x === t.x && r.get(e)?.y === t.y);
+		}
+		function A(e) {
+			we(e, k()) || (D.value = [...D.value, e], O.value = []);
+		}
+		function De(e) {
+			w.value = new Map(e.drafts), B = new Set(e.newPaths), T.value = new Set(e.deletes), I.value = e.overrides ? new Map(e.overrides) : null;
+		}
+		function Ae() {
+			let e = D.value[D.value.length - 1];
+			e && (D.value = D.value.slice(0, -1), O.value = [...O.value, k()], De(e));
+		}
+		function Me() {
+			let e = O.value[O.value.length - 1];
+			e && (O.value = O.value.slice(0, -1), D.value = [...D.value, k()], De(e));
+		}
+		let Ne = `prodoc-drafts:${typeof location < "u" ? location.origin : ""}`;
+		function Pe() {
+			try {
+				if (!E.value) {
+					localStorage.removeItem(Ne);
+					return;
+				}
+				localStorage.setItem(Ne, JSON.stringify({
+					v: 1,
+					drafts: [...w.value].map(([e, t]) => ({
+						path: e,
+						base: x.files[e] ?? null,
+						content: t
+					})),
+					deletes: [...T.value].map((e) => ({
+						path: e,
+						base: x.files[e] ?? null
+					}))
+				}));
+			} catch {}
+		}
+		function Fe() {
+			let e = null;
+			try {
+				e = localStorage.getItem(Ne), localStorage.removeItem(Ne);
+			} catch {
+				return 0;
+			}
+			if (!e) return 0;
+			try {
+				let t = JSON.parse(e), n = /* @__PURE__ */ new Map(), r = /* @__PURE__ */ new Set();
+				for (let e of t.drafts ?? []) {
+					let t = x.files[e.path];
+					t !== e.content && (e.base !== null && t !== e.base || e.base === null && t !== void 0 || (n.set(e.path, e.content), t === void 0 && B.add(e.path)));
+				}
+				for (let e of t.deletes ?? []) {
+					let t = x.files[e.path];
+					t !== void 0 && (e.base !== null && t !== e.base || r.add(e.path));
+				}
+				let i = n.size + r.size;
+				return i > 0 && (w.value = n, T.value = r), i;
+			} catch {
+				return 0;
+			}
+		}
+		te([w, T], Pe);
+		let bt = t(() => w.value.size ? {
+			...x.files,
+			...Object.fromEntries(w.value)
+		} : x.files), j = t(() => Le(bt.value)), xt = t(() => Object.fromEntries(Object.entries(x.files).map(([e, t]) => [e, C(t).body])));
+		te(() => j.value.warnings, (e) => e.forEach((e) => console.warn("[ProDoc]", e)), { immediate: !0 });
+		let M = h(null), St = h(null), N = t(() => {
 			let e = 0, t = 0;
-			for (let n of j.value) e = Math.max(e, n.x + n.w + 48), t = Math.max(t, n.y + n.h + 48);
-			for (let n of M.value) e = Math.max(e, n.x + n.w + 48), t = Math.max(t, n.y + n.h + 48);
+			for (let n of L.value) e = Math.max(e, n.x + n.w + 48), t = Math.max(t, n.y + n.h + 48);
+			for (let n of Mt.value) e = Math.max(e, n.x + n.w + 48), t = Math.max(t, n.y + n.h + 48);
 			return {
 				w: Math.max(e, 640),
 				h: Math.max(t, 480)
 			};
 		});
-		function E(e, t) {
+		function Ct(e, t) {
 			switch (t) {
 				case "top": return {
 					x: e.x + e.w / 2,
@@ -474,7 +577,7 @@ var je = { class: "pd-graph-viewer" }, Me = { class: "pd-graph-header" }, Ne = {
 				};
 			}
 		}
-		function D(e, t) {
+		function wt(e, t) {
 			let n = e.x + e.w / 2, r = e.y + e.h / 2, i = t.x + t.w / 2 - n, a = t.y + t.h / 2 - r;
 			return Math.abs(a) >= Math.abs(i) ? {
 				fs: a >= 0 ? "bottom" : "top",
@@ -484,8 +587,8 @@ var je = { class: "pd-graph-viewer" }, Me = { class: "pd-graph-header" }, Ne = {
 				ts: i >= 0 ? "left" : "right"
 			};
 		}
-		function ye(e, t, n, r) {
-			let i = D(e, t), a = E(e, n ?? i.fs), o = E(t, r ?? i.ts), s = Math.hypot(o.x - a.x, o.y - a.y), c = Math.max(24, Math.min(s * .45, 96)), l = `M ${a.x} ${a.y} C ${a.x + a.nx * c} ${a.y + a.ny * c}, ${o.x + o.nx * c} ${o.y + o.ny * c}, ${o.x} ${o.y}`;
+		function Tt(e, t, n, r) {
+			let i = wt(e, t), a = Ct(e, n ?? i.fs), o = Ct(t, r ?? i.ts), s = Math.hypot(o.x - a.x, o.y - a.y), c = Math.max(24, Math.min(s * .45, 96)), l = `M ${a.x} ${a.y} C ${a.x + a.nx * c} ${a.y + a.ny * c}, ${o.x + o.nx * c} ${o.y + o.ny * c}, ${o.x} ${o.y}`;
 			return {
 				x1: a.x,
 				y1: a.y,
@@ -494,14 +597,14 @@ var je = { class: "pd-graph-viewer" }, Me = { class: "pd-graph-header" }, Ne = {
 				d: l
 			};
 		}
-		let O = t(() => {
-			let e = new Map(j.value.map((e) => [e.id, e])), t = J.value;
-			return S.value.relations.flatMap((n) => {
+		let P = t(() => {
+			let e = new Map(L.value.map((e) => [e.id, e])), t = X.value;
+			return j.value.relations.flatMap((n) => {
 				let r = e.get(n.from), i = e.get(n.to);
 				if (!r || !i) return [];
 				let a = n.fromSide, o = n.toSide;
 				t && t.edgeId === n.id && (t.which === "from" ? a = t.side : o = t.side);
-				let { x1: s, y1: c, x2: l, y2: u, d } = ye(r, i, a, o);
+				let { x1: s, y1: c, x2: l, y2: u, d } = Tt(r, i, a, o), f = (s + l) / 2, p = (c + u) / 2 - 7, m = l - s, h = u - c, g = Math.hypot(m, h) || 1;
 				return [{
 					id: n.id,
 					fromId: r.id,
@@ -516,34 +619,36 @@ var je = { class: "pd-graph-viewer" }, Me = { class: "pd-graph-header" }, Ne = {
 					y1: c,
 					x2: l,
 					y2: u,
-					labelX: (s + l) / 2,
-					labelY: (c + u) / 2 - 7
+					labelX: f,
+					labelY: p,
+					delX: f + -h / g * 18,
+					delY: p + 7 + m / g * 18
 				}];
 			});
-		}), k = p(null);
-		function we(e) {
-			B.value || U.value || J.value || (k.value = e);
+		}), F = h(null);
+		function Et(e) {
+			W.value || K.value || X.value || (F.value = e);
 		}
-		let Te = t(() => {
-			if (!k.value) return /* @__PURE__ */ new Set();
-			let e = /* @__PURE__ */ new Set([k.value]);
-			for (let t of S.value.relations) t.from === k.value && e.add(t.to), t.to === k.value && e.add(t.from);
+		let Dt = t(() => {
+			if (!F.value) return /* @__PURE__ */ new Set();
+			let e = /* @__PURE__ */ new Set([F.value]);
+			for (let t of j.value.relations) t.from === F.value && e.add(t.to), t.to === F.value && e.add(t.from);
 			return e;
-		}), Ee = (e) => k.value !== null && !Te.value.has(e), De = (e) => k.value !== null && (e.fromId === k.value || e.toId === k.value), Oe = (e) => k.value !== null && !De(e), A = p(null), j = t(() => S.value.boxes.map((e) => {
-			let t = A.value?.get(e.id);
+		}), Ot = (e) => F.value !== null && !Dt.value.has(e), kt = (e) => F.value !== null && (e.fromId === F.value || e.toId === F.value), At = (e) => F.value !== null && !kt(e), I = h(null), L = t(() => j.value.boxes.map((e) => {
+			let t = I.value?.get(e.id);
 			return t ? {
 				...e,
 				x: t.x,
 				y: t.y
 			} : e;
 		}));
-		function ct(e, t) {
-			let n = new Map(A.value ?? []);
-			n.set(e, t), A.value = n;
+		function jt(e, t) {
+			let n = new Map(I.value ?? []);
+			n.set(e, t), I.value = n;
 		}
-		let M = t(() => {
-			let e = Y.value, t = X.value;
-			return S.value.groups.map((n) => {
+		let Mt = t(() => {
+			let e = Z.value, t = Q.value;
+			return j.value.groups.map((n) => {
 				if (t && t.moved && t.name === n.name) return {
 					...n,
 					x: t.baseRegion.x,
@@ -556,68 +661,119 @@ var je = { class: "pd-graph-viewer" }, Me = { class: "pd-graph-header" }, Ne = {
 					x: e.baseRegion.x + e.dx,
 					y: e.baseRegion.y + e.dy
 				} : n;
-				let r = n.members.map((e) => j.value.find((t) => t.id === e)).filter((e) => !!e);
+				let r = n.members.map((e) => L.value.find((t) => t.id === e)).filter((e) => !!e);
 				return {
 					...n,
-					...Ce(r)
+					...ke(r)
 				};
 			});
-		}), lt = (e) => k.value !== null && !e.members.some((e) => Te.value.has(e));
-		function ut() {
-			A.value = A.value ? null : ke(S.value.boxes, S.value.relations);
-		}
-		let dt = (e) => e.blocks.slice(0, 6), ft = (e) => Math.max(0, e.blocks.length - 6), pt = (e) => (dt(e).length + +(ft(e) > 0)) * st + 12, mt = (e, t) => e.y + e.h + 6 + pt(e) > t, N = p(!1), P = p("select"), F = /* @__PURE__ */ new Set();
-		function I(e) {
-			return y.value.get(e) ?? v.files[e];
-		}
-		function L(e, t) {
-			let n = new Map(y.value);
-			t === v.files[e] ? (n.delete(e), F.delete(e)) : (n.set(e, t), e in v.files || F.add(e)), y.value = n;
-		}
-		let R = p(!1);
-		async function ht() {
-			if (!x.value || R.value) return;
-			R.value = !0;
-			let e = [];
-			for (let [t, n] of y.value) await fe(t, n, v.files[t]) || e.push(t);
-			if (e.length > 0) {
-				let t = new Map(y.value);
-				for (let n of t.keys()) e.includes(n) || (t.delete(n), F.delete(n));
-				y.value = t;
-			} else y.value = /* @__PURE__ */ new Map(), F.clear();
-			R.value = !1;
-		}
-		function gt() {
-			if (!x.value) return;
-			let e = new Set([...y.value.keys()].map((e) => S.value.boxes.find((t) => t.docPath === e)?.id).filter((e) => !!e));
-			if (y.value = /* @__PURE__ */ new Map(), A.value) {
-				let t = new Map(A.value);
-				e.forEach((e) => t.delete(e)), A.value = t.size > 0 ? t : null;
+		}), Nt = (e) => F.value !== null && !e.members.some((e) => Dt.value.has(e));
+		function Pt() {
+			if (I.value) {
+				I.value = null;
+				return;
 			}
-			G.value = null, P.value = "select", F.clear(), N.value = !1;
+			let e = Ie(j.value.boxes, j.value.relations);
+			if (R.value) for (let t of w.value.keys()) {
+				let n = j.value.boxes.find((e) => e.docPath === t);
+				n && e.delete(n.id);
+			}
+			I.value = e;
 		}
-		function _t() {
-			if (N.value) {
-				if (x.value) return;
-				G.value = null, P.value = "select", N.value = !1;
-			} else N.value = !0;
+		let Ft = (e) => e.blocks.slice(0, 6), It = (e) => Math.max(0, e.blocks.length - 6), Lt = (e) => (Ft(e).length + +(It(e) > 0)) * yt + 12, Rt = (e, t) => e.y + e.h + 6 + Lt(e) > t, R = h(!1), z = h("select"), B = /* @__PURE__ */ new Set(), zt = h({
+			title: "",
+			message: "",
+			action: null
+		}), Bt = h(!1);
+		function Vt(e, t, n) {
+			zt.value = {
+				title: e,
+				message: t,
+				action: n
+			}, Bt.value = !0;
 		}
-		let vt = p(null);
-		function z(e, t) {
-			let n = vt.value;
+		function Ht() {
+			Bt.value = !1, zt.value.action?.();
+		}
+		function V(e) {
+			return w.value.get(e) ?? x.files[e];
+		}
+		function H(e, t) {
+			let n = new Map(w.value);
+			t === x.files[e] ? (n.delete(e), B.delete(e)) : (n.set(e, t), e in x.files || B.add(e)), w.value = n;
+		}
+		let Ut = h(!1);
+		async function Wt() {
+			if (!E.value || Ut.value) return;
+			Ut.value = !0;
+			let e = [], t = [];
+			for (let [t, n] of w.value) {
+				let r = await _e(t, n, x.files[t]);
+				r.ok || (e.push(t), be("保存", t, r));
+			}
+			for (let e of T.value) {
+				let n = await ye(e, x.files[e]);
+				n.ok || (t.push(e), be("删除", e, n));
+			}
+			if (e.length > 0 || t.length > 0) {
+				let n = new Map(w.value);
+				for (let t of n.keys()) e.includes(t) || (n.delete(t), B.delete(t));
+				w.value = n, T.value = new Set([...T.value].filter((e) => t.includes(e)));
+			} else w.value = /* @__PURE__ */ new Map(), T.value = /* @__PURE__ */ new Set(), B.clear(), D.value = [], O.value = [], S("图修改已保存", "success", 2500);
+			Ut.value = !1;
+		}
+		function Gt() {
+			if (!E.value) return;
+			let e = new Set([...w.value.keys()].map((e) => j.value.boxes.find((t) => t.docPath === e)?.id).filter((e) => !!e));
+			if (w.value = /* @__PURE__ */ new Map(), T.value = /* @__PURE__ */ new Set(), I.value) {
+				let t = new Map(I.value);
+				e.forEach((e) => t.delete(e)), I.value = t.size > 0 ? t : null;
+			}
+			q.value = null, z.value = "select", B.clear(), D.value = [], O.value = [], R.value = !1;
+		}
+		function Kt() {
+			if (R.value) {
+				if (E.value) return;
+				q.value = null, z.value = "select", D.value = [], O.value = [], R.value = !1;
+			} else R.value = !0;
+		}
+		let qt = h(null);
+		function U(e, t) {
+			let n = qt.value;
 			if (!n) return {
 				x: 0,
 				y: 0,
 				scale: 1
 			};
-			let r = n.getBoundingClientRect(), i = r.width / T.value.w || 1;
+			let r = n.getBoundingClientRect(), i = r.width / N.value.w || 1;
 			return {
 				x: (e - r.left) / i,
 				y: (t - r.top) / i,
 				scale: i
 			};
 		}
-		let B = p(null), V = p([]), yt = {
+		let W = h(null);
+		function Jt(e) {
+			let t = e?.parentElement ?? null;
+			for (; t;) {
+				let e = getComputedStyle(t);
+				if (/(auto|scroll)/.test(`${e.overflow} ${e.overflowX} ${e.overflowY}`)) return t;
+				t = t.parentElement;
+			}
+			return null;
+		}
+		function Yt(e, t, n, r) {
+			if (!n) return {
+				px: 0,
+				py: 0
+			};
+			let i = n.getBoundingClientRect(), a = (e) => Math.max(0, Math.min(1, (40 - e) / 40)), o = 0, s = 0;
+			return e < i.left + 40 ? o = -14 * a(e - i.left) : e > i.right - 40 && (o = 14 * a(i.right - e)), t < i.top + 40 ? s = -14 * a(t - i.top) : t > i.bottom - 40 && (s = 14 * a(i.bottom - t)), (o || s) && (n.scrollLeft += o, n.scrollTop += s), {
+				px: o / r,
+				py: s / r
+			};
+		}
+		let G = h([]), Xt = {
 			x: [
 				"start",
 				"center",
@@ -628,11 +784,11 @@ var je = { class: "pd-graph-viewer" }, Me = { class: "pd-graph-header" }, Ne = {
 				"center",
 				"end"
 			]
-		}, bt = {
+		}, Zt = {
 			x: ["end"],
 			y: ["end"]
 		};
-		function xt(e, t) {
+		function Qt(e, t) {
 			return t === "x" ? {
 				start: e.x,
 				center: e.x + e.w / 2,
@@ -643,11 +799,11 @@ var je = { class: "pd-graph-viewer" }, Me = { class: "pd-graph-header" }, Ne = {
 				end: e.y + e.h
 			};
 		}
-		function St(e, t, n, r) {
+		function $t(e, t, n, r) {
 			let i = Math.min(Math.max(8 / n, 4), 12), a = {};
 			for (let n of ["x", "y"]) {
-				let o = xt(e, n), s = r[n].map((e) => o[e]), c = null;
-				for (let e of t) for (let t of Object.values(xt(e, n))) for (let e of s) {
+				let o = Qt(e, n), s = r[n].map((e) => o[e]), c = null;
+				for (let e of t) for (let t of Object.values(Qt(e, n))) for (let e of s) {
 					let n = t - e;
 					Math.abs(n) <= i && (c === null || Math.abs(n) < Math.abs(c)) && (c = n);
 				}
@@ -655,11 +811,11 @@ var je = { class: "pd-graph-viewer" }, Me = { class: "pd-graph-header" }, Ne = {
 			}
 			return a;
 		}
-		function Ct(e, t, n) {
+		function en(e, t, n) {
 			let r = [], i = /* @__PURE__ */ new Set();
 			for (let a of ["x", "y"]) {
-				let o = xt(e, a), s = n[a].map((e) => o[e]);
-				for (let n of t) for (let t of Object.values(xt(n, a))) {
+				let o = Qt(e, a), s = n[a].map((e) => o[e]);
+				for (let n of t) for (let t of Object.values(Qt(n, a))) {
 					if (!s.some((e) => Math.abs(e - t) < .5)) continue;
 					let o = `${a}${t}`, c = a === "x" ? Math.min(e.y, n.y) : Math.min(e.x, n.x), l = a === "x" ? Math.max(e.y + e.h, n.y + n.h) : Math.max(e.x + e.w, n.x + n.w), u = i.has(o) ? r.find((e) => e.axis === a && e.pos === t) : void 0;
 					u ? (u.start = Math.min(u.start, c), u.end = Math.max(u.end, l)) : (i.add(o), r.push({
@@ -672,345 +828,365 @@ var je = { class: "pd-graph-viewer" }, Me = { class: "pd-graph-header" }, Ne = {
 			}
 			return r;
 		}
-		function wt(e, t, n, r) {
-			let i = j.value.find((t) => t.id === e);
+		function tn(e, t, n, r) {
+			let i = L.value.find((t) => t.id === e);
 			if (!i) return {
-				x: t,
-				y: n,
+				x: Math.max(0, Math.round(t)),
+				y: Math.max(0, Math.round(n)),
 				guides: []
 			};
-			let a = j.value.filter((t) => t.id !== e), o = St({
+			let a = L.value.filter((t) => t.id !== e), o = $t({
 				x: t,
 				y: n,
 				w: i.w,
 				h: i.h
-			}, a, r, yt), s = Math.round(t + (o.dx ?? 0)), c = Math.round(n + (o.dy ?? 0));
+			}, a, r, Xt), s = Math.max(0, Math.round(t + (o.dx ?? 0))), c = Math.max(0, Math.round(n + (o.dy ?? 0)));
 			return {
 				x: s,
 				y: c,
-				guides: o.dx !== void 0 || o.dy !== void 0 ? Ct({
+				guides: o.dx !== void 0 || o.dy !== void 0 ? en({
 					x: s,
 					y: c,
 					w: i.w,
 					h: i.h
-				}, a, yt) : []
+				}, a, Xt) : []
 			};
 		}
-		let Tt = !1;
-		function Et(e, t) {
-			if (N.value && e.button === 0 && !e.target.closest("button")) {
-				if (P.value === "link") {
-					Nt(e, t);
+		let nn = !1;
+		function rn(e, t) {
+			if (R.value && e.button === 0 && !e.target.closest("button")) {
+				if (z.value === "link") {
+					hn(e, t);
 					return;
 				}
-				P.value !== "node" && (B.value = {
+				z.value !== "node" && (W.value = {
 					id: t.id,
 					path: t.docPath,
 					startClientX: e.clientX,
 					startClientY: e.clientY,
 					lastClientX: e.clientX,
 					lastClientY: e.clientY,
-					scale: z(e.clientX, e.clientY).scale,
+					scale: U(e.clientX, e.clientY).scale,
 					baseX: t.x,
 					baseY: t.y,
 					moved: !1,
-					raf: 0
-				}, window.addEventListener("pointermove", Dt), window.addEventListener("pointerup", H), window.addEventListener("pointercancel", H), k.value = null);
+					raf: 0,
+					scroller: Jt(qt.value),
+					panX: 0,
+					panY: 0,
+					before: k()
+				}, window.addEventListener("pointermove", an), window.addEventListener("pointerup", cn), window.addEventListener("pointercancel", cn), F.value = null);
 			}
 		}
-		function Dt(e) {
-			let t = B.value;
-			t && (t.lastClientX = e.clientX, t.lastClientY = e.clientY, t.raf ||= requestAnimationFrame(Ot));
+		function an(e) {
+			let t = W.value;
+			t && (t.lastClientX = e.clientX, t.lastClientY = e.clientY, t.raf ||= requestAnimationFrame(on));
 		}
-		function Ot() {
-			let e = B.value;
+		function on() {
+			let e = W.value;
 			if (!e) return;
 			e.raf = 0;
-			let t = (e.lastClientX - e.startClientX) / e.scale, n = (e.lastClientY - e.startClientY) / e.scale;
-			if (!e.moved && Math.hypot(t, n) < 3) return;
+			let t = Yt(e.lastClientX, e.lastClientY, e.scroller, e.scale);
+			e.panX += t.px, e.panY += t.py;
+			let n = (e.lastClientX - e.startClientX) / e.scale + e.panX, r = (e.lastClientY - e.startClientY) / e.scale + e.panY;
+			if (!e.moved && Math.hypot(n, r) < 3) return;
 			e.moved = !0;
-			let r = wt(e.id, e.baseX + t, e.baseY + n, e.scale);
-			ct(e.id, {
-				x: r.x,
-				y: r.y
-			}), V.value = r.guides;
+			let i = tn(e.id, e.baseX + n, e.baseY + r, e.scale);
+			jt(e.id, {
+				x: i.x,
+				y: i.y
+			}), G.value = i.guides;
 		}
-		function kt() {
-			let e = B.value;
-			if (B.value = null, V.value = [], !e || (e.raf && cancelAnimationFrame(e.raf), !e.moved)) return;
-			Tt = !0;
-			let t = A.value?.get(e.id);
+		function sn() {
+			let e = W.value;
+			if (W.value = null, G.value = [], !e || (e.raf && cancelAnimationFrame(e.raf), !e.moved)) return;
+			nn = !0;
+			let t = I.value?.get(e.id);
 			if (!t) return;
-			let n = I(e.path);
-			n !== void 0 && L(e.path, ge(n, t));
+			let n = V(e.path);
+			n !== void 0 && (H(e.path, Ce(n, t)), A(e.before));
 		}
-		function H() {
-			window.removeEventListener("pointermove", Dt), window.removeEventListener("pointerup", H), window.removeEventListener("pointercancel", H), kt();
+		function cn() {
+			window.removeEventListener("pointermove", an), window.removeEventListener("pointerup", cn), window.removeEventListener("pointercancel", cn), sn();
 		}
-		function At(e) {
-			if (Tt) {
-				Tt = !1;
+		let { isTouch: ln } = ue(), un = h(null);
+		function dn(e) {
+			if (nn) {
+				nn = !1;
 				return;
 			}
-			N.value || Z(e);
+			if (!R.value) {
+				if (ln.value && e.blocks.length > 0 && un.value !== e.id) {
+					un.value = e.id;
+					return;
+				}
+				un.value = null, ir(e.docPath);
+			}
 		}
-		let U = p(null), jt = p(null), W = null;
-		function Mt(e, t) {
+		let K = h(null), fn = h(null), pn = null;
+		function mn(e, t) {
 			let n = t.x - (e.x + e.w / 2), r = t.y - (e.y + e.h / 2);
 			return Math.abs(n) * e.h > Math.abs(r) * e.w ? n >= 0 ? "right" : "left" : r >= 0 ? "bottom" : "top";
 		}
-		function Nt(e, t, n) {
-			if (!N.value || e.button !== 0) return;
+		function hn(e, t, n) {
+			if (!R.value || e.button !== 0) return;
 			e.preventDefault();
-			let r = z(e.clientX, e.clientY);
-			U.value = {
+			let r = U(e.clientX, e.clientY);
+			K.value = {
 				fromId: t.id,
-				fromSide: n ?? Mt(t, r),
+				fromSide: n ?? mn(t, r),
 				targetId: null,
 				x: r.x,
 				y: r.y,
 				lastClientX: e.clientX,
 				lastClientY: e.clientY,
-				raf: 0
-			}, window.addEventListener("pointermove", Ft), window.addEventListener("pointerup", zt), window.addEventListener("pointercancel", Rt), k.value = null;
+				raf: 0,
+				scroller: Jt(qt.value),
+				before: k()
+			}, window.addEventListener("pointermove", _n), window.addEventListener("pointerup", xn), window.addEventListener("pointercancel", bn), F.value = null;
 		}
-		function Pt(e, t, n) {
-			Nt(e, t, n);
+		function gn(e, t, n) {
+			hn(e, t, n);
 		}
-		function Ft(e) {
-			let t = U.value;
-			t && (t.lastClientX = e.clientX, t.lastClientY = e.clientY, t.raf ||= requestAnimationFrame(It));
+		function _n(e) {
+			let t = K.value;
+			t && (t.lastClientX = e.clientX, t.lastClientY = e.clientY, t.raf ||= requestAnimationFrame(vn));
 		}
-		function It() {
-			let e = U.value;
+		function vn() {
+			let e = K.value;
 			if (!e) return;
-			e.raf = 0;
-			let t = z(e.lastClientX, e.lastClientY), n = j.value.find((e) => t.x >= e.x && t.x <= e.x + e.w && t.y >= e.y && t.y <= e.y + e.h);
-			U.value = {
+			e.raf = 0, Yt(e.lastClientX, e.lastClientY, e.scroller, 1);
+			let t = U(e.lastClientX, e.lastClientY), n = L.value.find((e) => t.x >= e.x && t.x <= e.x + e.w && t.y >= e.y && t.y <= e.y + e.h);
+			K.value = {
 				...e,
 				x: t.x,
 				y: t.y,
 				targetId: n?.id ?? null
 			};
 		}
-		function Lt() {
-			window.removeEventListener("pointermove", Ft), window.removeEventListener("pointerup", zt), window.removeEventListener("pointercancel", Rt);
+		function yn() {
+			window.removeEventListener("pointermove", _n), window.removeEventListener("pointerup", xn), window.removeEventListener("pointercancel", bn);
 		}
-		function Rt() {
-			Lt();
-			let e = U.value;
-			e?.raf && cancelAnimationFrame(e.raf), U.value = null;
+		function bn() {
+			yn();
+			let e = K.value;
+			e?.raf && cancelAnimationFrame(e.raf), K.value = null;
 		}
-		function zt(e) {
-			Lt();
-			let t = U.value;
-			if (t?.raf && cancelAnimationFrame(t.raf), U.value = null, !t) return;
-			let n = z(e.clientX, e.clientY), r = j.value.find((e) => n.x >= e.x && n.x <= e.x + e.w && n.y >= e.y && n.y <= e.y + e.h);
-			!r || r.id === t.fromId || S.value.relations.some((e) => e.from === t.fromId && e.to === r.id) || Bt(t.fromId, r.id, t.fromSide, Mt(r, n));
+		function xn(e) {
+			yn();
+			let t = K.value;
+			if (t?.raf && cancelAnimationFrame(t.raf), K.value = null, !t) return;
+			let n = U(e.clientX, e.clientY), r = L.value.find((e) => n.x >= e.x && n.x <= e.x + e.w && n.y >= e.y && n.y <= e.y + e.h);
+			!r || r.id === t.fromId || j.value.relations.some((e) => e.from === t.fromId && e.to === r.id) || Sn(t.fromId, r.id, t.fromSide, mn(r, n), t.before);
 		}
-		function Bt(e, t, n, r) {
-			let i = S.value.boxes.find((t) => t.id === e);
-			if (!i) return;
-			let a = I(i.docPath);
-			if (a === void 0) return;
-			let o = xe({
+		function Sn(e, t, n, r, i) {
+			let a = j.value.boxes.find((t) => t.id === e);
+			if (!a) return;
+			let o = V(a.docPath);
+			if (o === void 0) return;
+			let s = Ee({
 				ref: t,
 				fromSide: n,
 				toSide: r
 			});
-			L(i.docPath, C(a, [...pe(a), o])), jt.value = `${e}->${t}`, W && clearTimeout(W), W = setTimeout(() => {
-				jt.value = null, W = null;
+			H(a.docPath, xe(o, [...ve(o), s])), i && A(i), fn.value = `${e}->${t}`, pn && clearTimeout(pn), pn = setTimeout(() => {
+				fn.value = null, pn = null;
 			}, 700);
 		}
-		let Vt = t(() => {
-			let e = U.value;
+		let Cn = t(() => {
+			let e = K.value;
 			if (!e) return null;
-			let t = j.value.find((t) => t.id === e.fromId);
+			let t = L.value.find((t) => t.id === e.fromId);
 			if (!t) return null;
-			let n = e.targetId ? j.value.find((t) => t.id === e.targetId) : void 0;
+			let n = e.targetId ? L.value.find((t) => t.id === e.targetId) : void 0;
 			if (n && n.id !== e.fromId) {
-				let r = Mt(n, {
+				let r = mn(n, {
 					x: e.x,
 					y: e.y
 				});
-				return ye(t, n, e.fromSide, r).d;
+				return Tt(t, n, e.fromSide, r).d;
 			}
-			return ye(t, {
+			return Tt(t, {
 				x: e.x,
 				y: e.y,
 				w: 0,
 				h: 0
 			}, e.fromSide).d;
 		});
-		function Ht(e) {
-			let t = U.value;
-			return !t || t.targetId !== e.id ? null : e.id === t.fromId || S.value.relations.some((n) => n.from === t.fromId && n.to === e.id) ? "invalid" : "valid";
+		function wn(e) {
+			let t = K.value;
+			return !t || t.targetId !== e.id ? null : e.id === t.fromId || j.value.relations.some((n) => n.from === t.fromId && n.to === e.id) ? "invalid" : "valid";
 		}
-		d(() => {
-			W && clearTimeout(W);
+		p(() => {
+			window.addEventListener("keydown", er), window.addEventListener("popstate", rr);
+			let e = Fe();
+			e > 0 && (R.value = !0, l(() => S(`已恢复 ${e} 项上次未保存的图修改，可「💾 保存」或「↩ 放弃更改」`, "info", 6e3))), M.value || l(() => requestAnimationFrame(() => St.value?.fit?.()));
+		}), f(() => {
+			pn && clearTimeout(pn), window.removeEventListener("keydown", er), window.removeEventListener("popstate", rr);
 		});
-		let Ut = null;
-		function Wt(e) {
-			!N.value || P.value !== "node" || e.button === 0 && e.target === vt.value && (Ut = {
+		let Tn = null;
+		function En(e) {
+			!R.value || z.value !== "node" || e.button === 0 && e.target === qt.value && (Tn = {
 				clientX: e.clientX,
 				clientY: e.clientY
-			}, window.addEventListener("pointerup", Gt));
+			}, window.addEventListener("pointerup", Dn));
 		}
-		function Gt(e) {
-			window.removeEventListener("pointerup", Gt);
-			let t = Ut;
-			if (Ut = null, !t || Math.hypot(e.clientX - t.clientX, e.clientY - t.clientY) >= 3) return;
-			let n = z(e.clientX, e.clientY);
-			Kt(n.x, n.y);
+		function Dn(e) {
+			window.removeEventListener("pointerup", Dn);
+			let t = Tn;
+			if (Tn = null, !t || Math.hypot(e.clientX - t.clientX, e.clientY - t.clientY) >= 3) return;
+			let n = U(e.clientX, e.clientY);
+			On(n.x, n.y);
 		}
-		function Kt(e, t) {
-			let n = Math.round(e - 220 / 2), r = Math.round(t - 96 / 2), i = /* @__PURE__ */ new Set([...Object.keys(v.files), ...y.value.keys()]), a = 1;
-			for (; i.has(`untitled-${a}.md`);) a++;
-			let o = `untitled-${a}.md`, s = `未命名文档 ${a}`;
-			L(o, `---\ntitle: "${s}"\nx: ${n}\ny: ${r}\n---\n\n# ${s}\n`);
+		function On(e, t) {
+			let n = Math.max(0, Math.round(e - 220 / 2)), r = Math.max(0, Math.round(t - 96 / 2)), i = k(), a = /* @__PURE__ */ new Set([...Object.keys(x.files), ...w.value.keys()]), o = 1;
+			for (; a.has(`untitled-${o}.md`);) o++;
+			let s = `untitled-${o}.md`, c = `未命名文档 ${o}`;
+			H(s, `---\ntitle: "${c}"\nx: ${n}\ny: ${r}\n---\n\n# ${c}\n`), A(i);
 		}
-		let G = p(null), K = t(() => O.value.find((e) => e.id === G.value) ?? null);
-		function qt(e) {
-			N.value && (G.value = e.id);
+		let q = h(null), J = t(() => P.value.find((e) => e.id === q.value) ?? null);
+		function kn(e) {
+			R.value && (q.value = e.id);
 		}
-		let q = p(null), Jt = p(null);
-		function Yt(e) {
-			N.value && (G.value = e.id, q.value = {
+		let Y = h(null), An = h(null);
+		function jn(e) {
+			R.value && (q.value = e.id, Y.value = {
 				edgeId: e.id,
 				value: e.label ?? ""
-			}, c(() => {
-				Jt.value?.focus(), Jt.value?.select();
+			}, l(() => {
+				An.value?.focus(), An.value?.select();
 			}));
 		}
-		function Xt() {
-			let e = q.value;
-			if (q.value = null, !e) return;
-			let t = O.value.find((t) => t.id === e.edgeId);
+		function Mn() {
+			let e = Y.value;
+			if (Y.value = null, !e) return;
+			let t = P.value.find((t) => t.id === e.edgeId);
 			if (!t) return;
 			let n = e.value.trim();
 			if (n === (t.label ?? "")) return;
-			let r = S.value.boxes.find((e) => e.id === t.fromId);
+			let r = j.value.boxes.find((e) => e.id === t.fromId);
 			if (!r) return;
-			let i = I(r.docPath);
+			let i = V(r.docPath);
 			if (i === void 0) return;
-			let a = pe(i).map((e) => {
-				let r = be(e);
-				return sn(r.ref) === t.toId ? xe({
+			let a = k(), o = ve(i).map((e) => {
+				let r = Te(e);
+				return Hn(r.ref) === t.toId ? Ee({
 					ref: r.ref,
 					label: n || void 0,
 					fromSide: r.fromSide,
 					toSide: r.toSide
 				}) : e;
 			});
-			L(r.docPath, C(i, a));
+			H(r.docPath, xe(i, o)), A(a);
 		}
-		function Zt() {
-			q.value = null;
+		function Nn() {
+			Y.value = null;
 		}
-		let J = p(null);
-		function Qt(e, t, n) {
+		let X = h(null);
+		function Pn(e, t, n) {
 			let r = t - (e.x + e.w / 2), i = n - (e.y + e.h / 2);
 			return Math.abs(r) / (e.w / 2) >= Math.abs(i) / (e.h / 2) ? r >= 0 ? "right" : "left" : i >= 0 ? "bottom" : "top";
 		}
-		function $t(e, t, n) {
+		function Fn(e, t, n) {
 			if (e.button !== 0) return;
 			e.preventDefault(), e.stopPropagation();
-			let r = D(j.value.find((e) => e.id === t.fromId), j.value.find((e) => e.id === t.toId));
-			J.value = {
+			let r = wt(L.value.find((e) => e.id === t.fromId), L.value.find((e) => e.id === t.toId));
+			X.value = {
 				edgeId: t.id,
 				which: n,
 				side: (n === "from" ? t.fromSide : t.toSide) ?? (n === "from" ? r.fs : r.ts),
 				lastClientX: e.clientX,
 				lastClientY: e.clientY,
-				raf: 0
-			}, window.addEventListener("pointermove", en), window.addEventListener("pointerup", an), window.addEventListener("pointercancel", rn), k.value = null;
+				raf: 0,
+				before: k()
+			}, window.addEventListener("pointermove", In), window.addEventListener("pointerup", Bn), window.addEventListener("pointercancel", zn), F.value = null;
 		}
-		function en(e) {
-			let t = J.value;
-			t && (t.lastClientX = e.clientX, t.lastClientY = e.clientY, t.raf ||= requestAnimationFrame(tn));
+		function In(e) {
+			let t = X.value;
+			t && (t.lastClientX = e.clientX, t.lastClientY = e.clientY, t.raf ||= requestAnimationFrame(Ln));
 		}
-		function tn() {
-			let e = J.value;
+		function Ln() {
+			let e = X.value;
 			if (!e) return;
 			e.raf = 0;
-			let t = O.value.find((t) => t.id === e.edgeId);
+			let t = P.value.find((t) => t.id === e.edgeId);
 			if (!t) return;
-			let n = j.value.find((n) => n.id === (e.which === "from" ? t.fromId : t.toId));
+			let n = L.value.find((n) => n.id === (e.which === "from" ? t.fromId : t.toId));
 			if (!n) return;
-			let r = z(e.lastClientX, e.lastClientY), i = Qt(n, r.x, r.y);
-			i !== e.side && (J.value = {
+			let r = U(e.lastClientX, e.lastClientY), i = Pn(n, r.x, r.y);
+			i !== e.side && (X.value = {
 				...e,
 				side: i
 			});
 		}
-		function nn() {
-			window.removeEventListener("pointermove", en), window.removeEventListener("pointerup", an), window.removeEventListener("pointercancel", rn);
+		function Rn() {
+			window.removeEventListener("pointermove", In), window.removeEventListener("pointerup", Bn), window.removeEventListener("pointercancel", zn);
 		}
-		function rn() {
-			nn();
-			let e = J.value;
-			e?.raf && cancelAnimationFrame(e.raf), J.value = null;
+		function zn() {
+			Rn();
+			let e = X.value;
+			e?.raf && cancelAnimationFrame(e.raf), X.value = null;
 		}
-		function an() {
-			nn();
-			let e = J.value;
-			if (e?.raf && cancelAnimationFrame(e.raf), J.value = null, !e) return;
-			let t = O.value.find((t) => t.id === e.edgeId);
+		function Bn() {
+			Rn();
+			let e = X.value;
+			if (e?.raf && cancelAnimationFrame(e.raf), X.value = null, !e) return;
+			let t = P.value.find((t) => t.id === e.edgeId);
 			if (!t) return;
 			let n = e.which === "from" ? e.side : t.fromSide, r = e.which === "to" ? e.side : t.toSide;
-			n === t.fromSide && r === t.toSide || on(t, n, r);
+			n === t.fromSide && r === t.toSide || (Vn(t, n, r), A(e.before));
 		}
-		function on(e, t, n) {
-			let r = S.value.boxes.find((t) => t.id === e.fromId);
+		function Vn(e, t, n) {
+			let r = j.value.boxes.find((t) => t.id === e.fromId);
 			if (!r) return;
-			let i = I(r.docPath);
+			let i = V(r.docPath);
 			if (i === void 0) return;
-			let a = pe(i).map((r) => {
-				let i = be(r);
-				return sn(i.ref) === e.toId ? xe({
+			let a = ve(i).map((r) => {
+				let i = Te(r);
+				return Hn(i.ref) === e.toId ? Ee({
 					ref: i.ref,
 					label: i.label,
 					fromSide: t,
 					toSide: n
 				}) : r;
 			});
-			L(r.docPath, C(i, a));
+			H(r.docPath, xe(i, a));
 		}
-		function sn(e) {
-			let t = e.trim(), n = t.endsWith(".md") ? t : t + ".md", r = S.value.boxes;
+		function Hn(e) {
+			let t = e.trim(), n = t.endsWith(".md") ? t : t + ".md", r = j.value.boxes;
 			return (r.find((e) => e.id === t) ?? r.find((e) => e.docPath === t) ?? r.find((e) => e.docPath === n))?.id;
 		}
-		function cn() {
-			let e = K.value;
+		function Un() {
+			let e = J.value;
 			if (!e) return;
-			let t = S.value.boxes.find((t) => t.id === e.fromId);
+			let t = j.value.boxes.find((t) => t.id === e.fromId);
 			if (!t) return;
-			let n = I(t.docPath);
+			let n = V(t.docPath);
 			if (n === void 0) return;
-			let r = pe(n).filter((t) => sn(be(t).ref) !== e.toId);
-			L(t.docPath, C(n, r)), G.value = null;
+			let r = k(), i = ve(n).filter((t) => Hn(Te(t).ref) !== e.toId);
+			H(t.docPath, xe(n, i)), A(r), q.value = null;
 		}
-		let Y = p(null), X = p(null);
-		function ln(e, t) {
-			if (!N.value || e.button !== 0) return;
+		let Z = h(null), Q = h(null);
+		function Wn(e, t) {
+			if (!R.value || e.button !== 0) return;
 			e.preventDefault();
-			let n = M.value.find((e) => e.name === t.name);
+			let n = Mt.value.find((e) => e.name === t.name);
 			if (!n) return;
 			let r = /* @__PURE__ */ new Map();
 			for (let e of t.members) {
-				let t = j.value.find((t) => t.id === e);
+				let t = L.value.find((t) => t.id === e);
 				t && r.set(e, {
 					x: t.x,
 					y: t.y
 				});
 			}
-			Y.value = {
+			Z.value = {
 				name: t.name,
 				startClientX: e.clientX,
 				startClientY: e.clientY,
 				lastClientX: e.clientX,
 				lastClientY: e.clientY,
-				scale: z(e.clientX, e.clientY).scale,
+				scale: U(e.clientX, e.clientY).scale,
 				basePositions: r,
 				baseRegion: {
 					x: n.x,
@@ -1021,60 +1197,66 @@ var je = { class: "pd-graph-viewer" }, Me = { class: "pd-graph-header" }, Ne = {
 				dx: 0,
 				dy: 0,
 				moved: !1,
-				raf: 0
-			}, window.addEventListener("pointermove", un), window.addEventListener("pointerup", fn), window.addEventListener("pointercancel", fn), k.value = null;
+				raf: 0,
+				scroller: Jt(qt.value),
+				panX: 0,
+				panY: 0,
+				before: k()
+			}, window.addEventListener("pointermove", Gn), window.addEventListener("pointerup", qn), window.addEventListener("pointercancel", qn), F.value = null;
 		}
-		function un(e) {
-			let t = Y.value;
-			t && (t.lastClientX = e.clientX, t.lastClientY = e.clientY, t.raf ||= requestAnimationFrame(dn));
+		function Gn(e) {
+			let t = Z.value;
+			t && (t.lastClientX = e.clientX, t.lastClientY = e.clientY, t.raf ||= requestAnimationFrame(Kn));
 		}
-		function dn() {
-			let e = Y.value;
+		function Kn() {
+			let e = Z.value;
 			if (!e) return;
 			e.raf = 0;
-			let t = Math.round((e.lastClientX - e.startClientX) / e.scale), n = Math.round((e.lastClientY - e.startClientY) / e.scale);
-			if (!e.moved && Math.hypot(t, n) < 3) return;
-			let r = [...j.value.filter((t) => !e.basePositions.has(t.id)), ...M.value.filter((t) => t.name !== e.name)], i = St({
-				x: e.baseRegion.x + t,
-				y: e.baseRegion.y + n,
+			let t = Yt(e.lastClientX, e.lastClientY, e.scroller, e.scale);
+			e.panX += t.px, e.panY += t.py;
+			let n = Math.round((e.lastClientX - e.startClientX) / e.scale + e.panX), r = Math.round((e.lastClientY - e.startClientY) / e.scale + e.panY);
+			if (!e.moved && Math.hypot(n, r) < 3) return;
+			let i = [...L.value.filter((t) => !e.basePositions.has(t.id)), ...Mt.value.filter((t) => t.name !== e.name)], a = $t({
+				x: e.baseRegion.x + n,
+				y: e.baseRegion.y + r,
 				w: e.baseRegion.w,
 				h: e.baseRegion.h
-			}, r, e.scale, yt), a = t + (i.dx ?? 0), o = n + (i.dy ?? 0);
-			Y.value = {
+			}, i, e.scale, Xt), o = Math.min(e.baseRegion.x, ...[...e.basePositions.values()].map((e) => e.x)), s = Math.min(e.baseRegion.y, ...[...e.basePositions.values()].map((e) => e.y)), c = Math.max(n + (a.dx ?? 0), -o), l = Math.max(r + (a.dy ?? 0), -s);
+			Z.value = {
 				...e,
-				dx: a,
-				dy: o,
+				dx: c,
+				dy: l,
 				moved: !0
 			};
-			for (let [t, n] of e.basePositions) ct(t, {
-				x: n.x + a,
-				y: n.y + o
+			for (let [t, n] of e.basePositions) jt(t, {
+				x: n.x + c,
+				y: n.y + l
 			});
-			V.value = i.dx !== void 0 || i.dy !== void 0 ? Ct({
-				x: e.baseRegion.x + a,
-				y: e.baseRegion.y + o,
+			G.value = a.dx !== void 0 || a.dy !== void 0 ? en({
+				x: e.baseRegion.x + c,
+				y: e.baseRegion.y + l,
 				w: e.baseRegion.w,
 				h: e.baseRegion.h
-			}, r, yt) : [];
+			}, i, Xt) : [];
 		}
-		function fn() {
-			window.removeEventListener("pointermove", un), window.removeEventListener("pointerup", fn), window.removeEventListener("pointercancel", fn);
-			let e = Y.value;
-			if (Y.value = null, V.value = [], !e || (e.raf && cancelAnimationFrame(e.raf), !e.moved)) return;
-			let t = S.value.groups.find((t) => t.name === e.name);
+		function qn() {
+			window.removeEventListener("pointermove", Gn), window.removeEventListener("pointerup", qn), window.removeEventListener("pointercancel", qn);
+			let e = Z.value;
+			if (Z.value = null, G.value = [], !e || (e.raf && cancelAnimationFrame(e.raf), !e.moved)) return;
+			let t = j.value.groups.find((t) => t.name === e.name);
 			if (t) {
 				for (let n of t.members) {
-					let t = S.value.boxes.find((e) => e.id === n), r = e.basePositions.get(n);
+					let t = j.value.boxes.find((e) => e.id === n), r = e.basePositions.get(n);
 					if (!t || !r) continue;
-					let i = I(t.docPath);
-					i !== void 0 && L(t.docPath, ge(i, {
+					let i = V(t.docPath);
+					i !== void 0 && H(t.docPath, Ce(i, {
 						x: r.x + e.dx,
 						y: r.y + e.dy
 					}));
 				}
 				if (t.explicit) {
-					let n = I(t.holder);
-					n !== void 0 && L(t.holder, he(n, Se({
+					let n = V(t.holder);
+					n !== void 0 && H(t.holder, Se(n, Oe({
 						name: t.name,
 						x: e.baseRegion.x + e.dx,
 						y: e.baseRegion.y + e.dy,
@@ -1082,21 +1264,22 @@ var je = { class: "pd-graph-viewer" }, Me = { class: "pd-graph-header" }, Ne = {
 						h: e.baseRegion.h
 					})));
 				}
+				A(e.before);
 			}
 		}
-		function pn(e, t) {
-			if (!N.value || e.button !== 0) return;
+		function Jn(e, t) {
+			if (!R.value || e.button !== 0) return;
 			e.preventDefault();
-			let n = M.value.find((e) => e.name === t.name);
+			let n = Mt.value.find((e) => e.name === t.name);
 			if (!n) return;
-			let r = t.members.map((e) => j.value.find((t) => t.id === e)).filter((e) => !!e), i = Math.max(...r.map((e) => e.x + e.w)), a = Math.max(...r.map((e) => e.y + e.h));
-			X.value = {
+			let r = t.members.map((e) => L.value.find((t) => t.id === e)).filter((e) => !!e), i = Math.max(...r.map((e) => e.x + e.w)), a = Math.max(...r.map((e) => e.y + e.h));
+			Q.value = {
 				name: t.name,
 				startClientX: e.clientX,
 				startClientY: e.clientY,
 				lastClientX: e.clientX,
 				lastClientY: e.clientY,
-				scale: z(e.clientX, e.clientY).scale,
+				scale: U(e.clientX, e.clientY).scale,
 				baseRegion: {
 					x: n.x,
 					y: n.y,
@@ -1109,460 +1292,637 @@ var je = { class: "pd-graph-viewer" }, Me = { class: "pd-graph-header" }, Ne = {
 				curW: n.w,
 				curH: n.h,
 				moved: !1,
-				raf: 0
-			}, window.addEventListener("pointermove", mn), window.addEventListener("pointerup", gn), window.addEventListener("pointercancel", gn), k.value = null;
+				raf: 0,
+				before: k()
+			}, window.addEventListener("pointermove", Yn), window.addEventListener("pointerup", Zn), window.addEventListener("pointercancel", Zn), F.value = null;
 		}
-		function mn(e) {
-			let t = X.value;
-			t && (t.lastClientX = e.clientX, t.lastClientY = e.clientY, t.raf ||= requestAnimationFrame(hn));
+		function Yn(e) {
+			let t = Q.value;
+			t && (t.lastClientX = e.clientX, t.lastClientY = e.clientY, t.raf ||= requestAnimationFrame(Xn));
 		}
-		function hn() {
-			let e = X.value;
+		function Xn() {
+			let e = Q.value;
 			if (!e) return;
 			e.raf = 0;
 			let t = (e.lastClientX - e.startClientX) / e.scale, n = (e.lastClientY - e.startClientY) / e.scale;
 			if (!e.moved && Math.hypot(t, n) < 3) return;
-			let r = Math.round(e.baseRegion.w + t), i = Math.round(e.baseRegion.h + n), a = [...j.value.filter((t) => !e.memberIds.has(t.id)), ...M.value.filter((t) => t.name !== e.name)], o = St({
+			let r = Math.round(e.baseRegion.w + t), i = Math.round(e.baseRegion.h + n), a = [...L.value.filter((t) => !e.memberIds.has(t.id)), ...Mt.value.filter((t) => t.name !== e.name)], o = $t({
 				x: e.baseRegion.x,
 				y: e.baseRegion.y,
 				w: r,
 				h: i
-			}, a, e.scale, bt), s = Math.max(e.minW, Math.round(r + (o.dx ?? 0))), c = Math.max(e.minH, Math.round(i + (o.dy ?? 0)));
-			X.value = {
+			}, a, e.scale, Zt), s = Math.max(e.minW, Math.round(r + (o.dx ?? 0))), c = Math.max(e.minH, Math.round(i + (o.dy ?? 0)));
+			Q.value = {
 				...e,
 				curW: s,
 				curH: c,
 				moved: !0
-			}, V.value = o.dx !== void 0 || o.dy !== void 0 ? Ct({
+			}, G.value = o.dx !== void 0 || o.dy !== void 0 ? en({
 				x: e.baseRegion.x,
 				y: e.baseRegion.y,
 				w: s,
 				h: c
-			}, a, bt) : [];
+			}, a, Zt) : [];
 		}
-		function gn() {
-			window.removeEventListener("pointermove", mn), window.removeEventListener("pointerup", gn), window.removeEventListener("pointercancel", gn);
-			let e = X.value;
-			if (X.value = null, V.value = [], !e || (e.raf && cancelAnimationFrame(e.raf), !e.moved)) return;
-			let t = S.value.groups.find((t) => t.name === e.name);
+		function Zn() {
+			window.removeEventListener("pointermove", Yn), window.removeEventListener("pointerup", Zn), window.removeEventListener("pointercancel", Zn);
+			let e = Q.value;
+			if (Q.value = null, G.value = [], !e || (e.raf && cancelAnimationFrame(e.raf), !e.moved)) return;
+			let t = j.value.groups.find((t) => t.name === e.name);
 			if (!t) return;
-			let n = I(t.holder);
-			n !== void 0 && L(t.holder, he(n, Se({
+			let n = V(t.holder);
+			n !== void 0 && (H(t.holder, Se(n, Oe({
 				name: t.name,
 				x: e.baseRegion.x,
 				y: e.baseRegion.y,
 				w: e.curW,
 				h: e.curH
-			})));
+			}))), A(e.before));
 		}
-		function _n(e) {
-			if (!(w.value || !N.value)) {
-				if (e.key === "Escape") {
-					!q.value && P.value !== "select" && (P.value = "select");
+		function Qn(e) {
+			if (T.value.has(e.docPath)) {
+				let t = k();
+				T.value = new Set([...T.value].filter((t) => t !== e.docPath)), A(t);
+				return;
+			}
+			if (B.has(e.docPath) && !(e.docPath in x.files)) {
+				$n(e);
+				return;
+			}
+			Vt("删除文档", `「${e.title}」（${e.docPath}）将在「💾 保存」后从磁盘删除，保存前可撤销。确定标记删除？`, () => $n(e));
+		}
+		function $n(e) {
+			let t = k();
+			if (w.value.has(e.docPath)) {
+				let t = new Map(w.value);
+				t.delete(e.docPath), w.value = t;
+			}
+			B.delete(e.docPath), e.docPath in x.files && (T.value = /* @__PURE__ */ new Set([...T.value, e.docPath])), A(t);
+		}
+		function er(e) {
+			if (!(M.value || !R.value) && !Y.value) {
+				if ((e.ctrlKey || e.metaKey) && (e.key === "z" || e.key === "Z" || e.key === "y")) {
+					e.preventDefault(), e.key === "y" || e.shiftKey ? Me() : Ae();
 					return;
 				}
-				G.value && (q.value || (e.key === "Delete" || e.key === "Backspace") && (e.preventDefault(), cn()));
+				if (e.key === "Escape") {
+					if (q.value) {
+						q.value = null;
+						return;
+					}
+					z.value !== "select" && (z.value = "select");
+					return;
+				}
+				q.value && (e.key === "Delete" || e.key === "Backspace") && (e.preventDefault(), Un());
 			}
 		}
-		typeof window < "u" && window.addEventListener("keydown", _n);
-		let vn = t(() => w.value ? S.value.boxes.find((e) => e.docPath === w.value)?.title ?? w.value : "");
-		function yn() {
-			let e = w.value ? `#${encodeURIComponent(w.value)}` : "#";
-			history.replaceState(null, "", e);
+		let tr = t(() => M.value ? j.value.boxes.find((e) => e.docPath === M.value)?.title ?? M.value : "");
+		function nr() {
+			let e = M.value ? `#${encodeURIComponent(M.value)}` : "#";
+			if (window.location.hash === e) {
+				history.replaceState(null, "", e);
+				return;
+			}
+			history.pushState(null, "", e);
 		}
-		function Z(e) {
-			v.files[e] && (Q.value = !1, w.value = e, le("navigate", e), yn());
+		function rr() {
+			let e = window.location.hash, t = null;
+			if (e.length > 1) try {
+				t = decodeURIComponent(e.slice(1));
+			} catch {
+				t = null;
+			}
+			$.value = !1, M.value = t && x.files[t] ? t : null;
 		}
-		function bn(e) {
+		function ir(e) {
+			if (x.files[e]) {
+				if (M.value === e) {
+					$.value = !1;
+					return;
+				}
+				$.value = !1, M.value = e, pe("navigate", e), nr();
+			}
+		}
+		function ar(e) {
 			document.querySelector(`.pd-doc-view [data-heading-id$="-${e}"]`)?.scrollIntoView({
 				behavior: "smooth",
 				block: "start"
 			});
 		}
-		function xn(e, t) {
-			if (w.value === e) {
-				bn(t);
+		function or(e, t) {
+			if (M.value === e) {
+				ar(t);
 				return;
 			}
-			Z(e), c(() => {
-				setTimeout(() => bn(t), 80), setTimeout(() => bn(t), 320);
+			ir(e), l(() => {
+				setTimeout(() => ar(t), 80), setTimeout(() => ar(t), 320);
 			});
 		}
-		function Sn() {
-			w.value = null, yn(), c(() => requestAnimationFrame(() => ve.value?.fit?.()));
-		}
-		ne(() => v.files, (e) => {
-			if (R.value = !1, w.value && !e[w.value] && Sn(), y.value.size) {
-				let t = new Map(y.value);
-				for (let [n, r] of t) e[n] === r ? (t.delete(n), F.delete(n)) : e[n] === void 0 && !F.has(n) && t.delete(n);
-				y.value = t;
+		function sr() {
+			if ($.value && ur.value) {
+				Vt("丢弃未保存的修改？", "正文有未保存的修改，返回图画布将丢弃这些修改。", cr);
+				return;
 			}
-			if (!A.value) return;
-			let t = S.value.boxes, n = new Map(A.value);
+			cr();
+		}
+		function cr() {
+			$.value = !1, M.value = null, nr(), l(() => requestAnimationFrame(() => St.value?.fit?.()));
+		}
+		te(() => x.files, (e) => {
+			if (Ut.value = !1, M.value && !e[M.value] && cr(), w.value.size) {
+				let t = new Map(w.value);
+				for (let [n, r] of t) e[n] === r ? (t.delete(n), B.delete(n)) : e[n] === void 0 && !B.has(n) && t.delete(n);
+				w.value = t;
+			}
+			if (T.value.size) {
+				let t = new Set([...T.value].filter((t) => e[t] !== void 0));
+				t.size !== T.value.size && (T.value = t);
+			}
+			if (!I.value) return;
+			let t = j.value.boxes, n = new Map(I.value);
 			for (let [e, r] of n) {
 				let i = t.find((t) => t.id === e);
 				(!i || i.x === r.x && i.y === r.y) && n.delete(e);
 			}
-			A.value = n.size > 0 ? n : null;
+			I.value = n.size > 0 ? n : null;
 		});
-		let Q = p(!1), $ = p(""), Cn = t(() => w.value !== null && $.value !== (v.files[w.value] ?? ""));
-		function wn() {
-			w.value && ($.value = v.files[w.value] ?? "", Q.value = !0);
+		let $ = h(!1), lr = h(""), ur = t(() => M.value !== null && lr.value !== (x.files[M.value] ?? ""));
+		function dr() {
+			M.value && (lr.value = x.files[M.value] ?? "", $.value = !0);
 		}
-		function Tn(e) {
-			Z(e), wn();
+		function fr(e) {
+			ir(e), dr();
 		}
-		function En() {
-			Q.value = !1;
+		function pr() {
+			$.value = !1;
 		}
-		function Dn() {
-			!w.value || !Cn.value || fe(w.value, $.value, v.files[w.value]);
+		async function mr() {
+			if (!M.value || !ur.value) return;
+			let e = await _e(M.value, lr.value, x.files[M.value]);
+			e.ok || be("保存", M.value, e);
 		}
-		function On(e) {
-			(e.ctrlKey || e.metaKey) && e.key === "s" && (e.preventDefault(), Dn());
+		function hr(e) {
+			(e.ctrlKey || e.metaKey) && e.key === "s" && (e.preventDefault(), mr());
 		}
-		function kn(e, t) {
-			N.value || (e.key === "Enter" || e.key === " ") && (e.preventDefault(), Z(t));
+		function gr(e, t) {
+			if (R.value) {
+				if (z.value !== "select") return;
+				let n = e.shiftKey ? 10 : 1, r = {
+					ArrowLeft: [-n, 0],
+					ArrowRight: [n, 0],
+					ArrowUp: [0, -n],
+					ArrowDown: [0, n]
+				}[e.key];
+				if (!r) return;
+				e.preventDefault(), vr(t, r[0], r[1]);
+				return;
+			}
+			(e.key === "Enter" || e.key === " ") && (e.preventDefault(), ir(t.docPath));
 		}
-		function An(e, t) {
-			if (/^(https?:|mailto:|#)/.test(t)) return null;
-			let n = t.split("#")[0].trim();
-			if (!n.endsWith(".md")) return null;
-			let r = n.startsWith("/") ? n.split("/") : [...e.split("/").slice(0, -1), ...n.split("/")], i = [];
-			for (let e of r) e === "" || e === "." || (e === ".." ? i.pop() : i.push(e));
-			return i.join("/");
+		let _r = null;
+		function vr(e, t, n) {
+			let r = Math.max(0, Math.round(e.x + t)), i = Math.max(0, Math.round(e.y + n));
+			if (r === e.x && i === e.y) return;
+			let a = Date.now(), o = _r?.id === e.id && a - _r.time < 800 ? null : k();
+			_r = {
+				id: e.id,
+				time: a
+			}, jt(e.id, {
+				x: r,
+				y: i
+			});
+			let s = V(e.docPath);
+			s !== void 0 && (H(e.docPath, Ce(s, {
+				x: r,
+				y: i
+			})), o && A(o));
 		}
-		function jn(e) {
-			if (!w.value) return;
-			let t = An(w.value, e);
-			t && Z(t);
+		function yr(e, t) {
+			if (/^(https?:|mailto:)/.test(t)) return null;
+			let [n, r] = t.split("#"), i = n.trim(), a = r?.trim(), o;
+			if (a) try {
+				o = je(decodeURIComponent(a));
+			} catch {
+				o = je(a);
+			}
+			if (!i) return o ? {
+				path: e,
+				anchor: o
+			} : null;
+			if (!i.endsWith(".md")) return null;
+			let s = i.startsWith("/") ? i.split("/") : [...e.split("/").slice(0, -1), ...i.split("/")], c = [];
+			for (let e of s) e === "" || e === "." || (e === ".." ? c.pop() : c.push(e));
+			return {
+				path: c.join("/"),
+				anchor: o
+			};
 		}
-		function Mn(e) {
-			if (!w.value) return;
-			let t = v.files[w.value];
+		function br(e) {
+			if (!M.value) return;
+			let t = yr(M.value, e);
+			t && (t.anchor ? or(t.path, t.anchor) : ir(t.path));
+		}
+		function xr(e) {
+			if (!M.value) return;
+			let t = x.files[M.value];
 			if (t === void 0) return;
-			let n = de(t, e.source, e.id, e.x, e.y);
-			n !== t && fe(w.value, n, t);
+			let n = he(t, e.source, e.id, e.x, e.y);
+			if (n === t) return;
+			let r = M.value;
+			_e(r, n, t).then((e) => {
+				e.ok || be("保存", r, e);
+			});
 		}
 		if (typeof window < "u" && window.location.hash.length > 1) {
 			let e = decodeURIComponent(window.location.hash.slice(1));
-			v.files[e] && (w.value = e);
+			x.files[e] && (M.value = e);
 		}
-		return (t, s) => (f(), i("div", je, [a("header", Me, [
-			s[11] ||= a("span", { class: "pd-graph-brand" }, "📚 ProDoc", -1),
-			w.value ? (f(), i("span", Ne, h(vn.value), 1)) : r("", !0),
-			a("div", Pe, [
-				w.value ? r("", !0) : (f(), i(e, { key: 0 }, [N.value ? (f(), i(e, { key: 1 }, [a("button", {
-					class: "pd-back-btn",
-					disabled: !x.value || R.value,
-					onClick: ht
-				}, "💾 保存", 8, Fe), x.value ? (f(), i("button", {
+		return (t, l) => (m(), i("div", Re, [a("header", ze, [
+			l[14] ||= a("span", { class: "pd-graph-brand" }, "📚 ProDoc", -1),
+			M.value ? (m(), i("span", Be, _(tr.value), 1)) : r("", !0),
+			a("div", Ve, [
+				M.value ? r("", !0) : (m(), i(e, { key: 0 }, [R.value ? (m(), i(e, { key: 1 }, [
+					a("button", {
+						class: "pd-back-btn",
+						disabled: D.value.length === 0,
+						title: "撤销（Ctrl+Z）",
+						"aria-label": "撤销",
+						onClick: Ae
+					}, "↶", 8, He),
+					a("button", {
+						class: "pd-back-btn",
+						disabled: O.value.length === 0,
+						title: "重做（Ctrl+Shift+Z / Ctrl+Y）",
+						"aria-label": "重做",
+						onClick: Me
+					}, "↷", 8, Ue),
+					a("button", {
+						class: "pd-back-btn",
+						disabled: !E.value || Ut.value,
+						onClick: Wt
+					}, "💾 保存", 8, We),
+					E.value ? (m(), i("button", {
+						key: 0,
+						class: "pd-back-btn",
+						disabled: Ut.value,
+						onClick: Gt
+					}, "↩ 放弃更改", 8, Ge)) : (m(), i("button", {
+						key: 1,
+						class: "pd-back-btn pd-back-btn--active",
+						onClick: Kt
+					}, "✓ 完成"))
+				], 64)) : (m(), i("button", {
 					key: 0,
 					class: "pd-back-btn",
-					disabled: R.value,
-					onClick: gt
-				}, "↩ 放弃更改", 8, Ie)) : (f(), i("button", {
-					key: 1,
-					class: "pd-back-btn pd-back-btn--active",
-					onClick: _t
-				}, "✓ 完成"))], 64)) : (f(), i("button", {
-					key: 0,
-					class: "pd-back-btn",
-					onClick: _t
+					onClick: Kt
 				}, "🛠 编辑图")), a("button", {
 					class: "pd-back-btn",
-					onClick: ut
-				}, h(A.value ? "↩ 恢复坐标" : "🧭 分层重排"), 1)], 64)),
-				w.value ? (f(), i(e, { key: 1 }, [Q.value ? (f(), i(e, { key: 1 }, [a("button", {
+					onClick: Pt
+				}, _(I.value ? "↩ 恢复坐标" : "🧭 分层重排"), 1)], 64)),
+				M.value ? (m(), i(e, { key: 1 }, [$.value ? (m(), i(e, { key: 1 }, [a("button", {
 					class: "pd-back-btn",
-					disabled: !Cn.value,
-					onClick: Dn
-				}, "💾 保存", 8, Le), a("button", {
+					disabled: !ur.value,
+					onClick: mr
+				}, "💾 保存", 8, Ke), a("button", {
 					class: "pd-back-btn",
-					onClick: En
-				}, "👁 预览")], 64)) : (f(), i("button", {
+					onClick: pr
+				}, "👁 预览")], 64)) : (m(), i("button", {
 					key: 0,
 					class: "pd-back-btn",
-					onClick: wn
+					onClick: dr
 				}, "✏️ 编辑")), a("button", {
 					class: "pd-back-btn",
-					onClick: Sn
+					onClick: sr
 				}, "🗺 返回图")], 64)) : r("", !0),
-				o(ee(oe), { size: "small" })
-			])
-		]), a("div", Re, [w.value ? (f(), i("div", {
-			key: 1,
-			class: l(["pd-doc-view", { "pd-doc-view--editing": Q.value }])
-		}, [Q.value ? (f(), n(ee(ce), {
-			key: w.value,
-			value: $.value,
-			class: "pd-doc-editor",
-			onChange: s[7] ||= (e) => $.value = e,
-			onKeydown: On
-		}, null, 8, ["value"])) : (f(), n(ee(ue), {
-			key: w.value,
-			content: _e.value[w.value],
-			"show-toc": !0,
-			"flow-editable": !0,
-			onDocLink: jn,
-			onFlowNodeMove: Mn
-		}, null, 8, ["content"]))], 2)) : (f(), n(ee(ae), {
-			key: 0,
-			ref_key: "canvasRef",
-			ref: ve,
-			width: "100%",
-			height: "100%",
-			"show-grid": "",
-			"grid-variant": "dots",
-			"show-fit": "",
-			"min-zoom": .25,
-			"max-zoom": 3
-		}, {
-			default: re(() => [a("div", {
-				ref_key: "stageEl",
-				ref: vt,
-				class: l(["pd-graph-stage", {
-					"pd-graph-stage--dragging": B.value?.moved || U.value || J.value || Y.value?.moved || X.value?.moved,
-					"pd-graph-stage--editing": N.value,
-					"pd-graph-stage--tool-link": N.value && P.value === "link",
-					"pd-graph-stage--tool-node": N.value && P.value === "node"
-				}]),
-				style: u({
-					width: `${T.value.w}px`,
-					height: `${T.value.h}px`
-				}),
-				onPointerdown: Wt,
-				onClick: s[6] ||= (e) => G.value = null
-			}, [
-				(f(!0), i(e, null, m(M.value, (e) => (f(), i("div", {
-					key: "group-" + e.name,
-					class: l(["pd-doc-group", { "pd-dim": lt(e) }]),
-					style: u({
-						left: `${e.x}px`,
-						top: `${e.y}px`,
-						width: `${e.w}px`,
-						height: `${e.h}px`
-					})
-				}, [a("span", {
-					class: "pd-doc-group__label",
-					title: N.value ? `拖动移动整组「${e.name}」` : e.name,
-					"data-nm-no-pan": "",
-					onPointerdown: (t) => ln(t, e)
-				}, h(e.name), 41, ze), N.value ? (f(), i("button", {
-					key: 0,
-					type: "button",
-					class: "pd-doc-group__resize",
-					"aria-label": `调整组「${e.name}」的区域尺寸`,
-					title: "拖动调整区域尺寸",
-					"data-nm-no-pan": "",
-					onPointerdown: _((t) => pn(t, e), ["stop"])
-				}, null, 40, Be)) : r("", !0)], 6))), 128)),
-				O.value.length || Vt.value ? (f(), i("svg", {
-					key: 0,
-					class: "pd-relation-layer",
-					width: T.value.w,
-					height: T.value.h,
-					"aria-label": "文档连线"
-				}, [
-					s[14] ||= a("defs", null, [a("marker", {
-						id: "pd-relation-arrow",
-						markerWidth: "8",
-						markerHeight: "8",
-						refX: "7",
-						refY: "4",
-						orient: "auto",
-						markerUnits: "strokeWidth"
-					}, [a("path", {
-						d: "M 0 0 L 8 4 L 0 8 z",
-						class: "pd-relation-arrow"
-					})])], -1),
-					(f(!0), i(e, null, m(O.value, (e) => (f(), i("g", {
-						key: e.id,
-						class: l(["pd-relation", {
-							"pd-dim": Oe(e),
-							"pd-hot": De(e),
-							"pd-selected": e.id === G.value,
-							"pd-relation--new": e.id === jt.value
-						}])
-					}, [
-						a("title", null, h(e.fromTitle) + " → " + h(e.toTitle) + h(e.label ? `（${e.label}）` : ""), 1),
-						a("path", {
-							class: "pd-relation-hit",
-							d: e.d,
-							fill: "none",
-							onClick: _((t) => qt(e), ["stop"]),
-							onDblclick: _((t) => Yt(e), ["stop"])
-						}, null, 40, He),
-						a("path", {
-							d: e.d,
-							fill: "none",
-							"marker-end": "url(#pd-relation-arrow)",
-							"pointer-events": "none"
-						}, null, 8, Ue),
-						e.label ? (f(), i("text", {
-							key: 0,
-							x: e.labelX,
-							y: e.labelY,
-							"pointer-events": "none"
-						}, h(e.label), 9, We)) : r("", !0)
-					], 2))), 128)),
-					Vt.value ? (f(), i("path", {
-						key: 0,
-						class: "pd-relation-draft",
-						d: Vt.value,
-						fill: "none"
-					}, null, 8, Ge)) : r("", !0),
-					(f(!0), i(e, null, m(V.value, (e, t) => (f(), i("line", {
-						key: "guide" + t,
-						class: "pd-guide",
-						x1: e.axis === "x" ? e.pos : e.start,
-						y1: e.axis === "x" ? e.start : e.pos,
-						x2: e.axis === "x" ? e.pos : e.end,
-						y2: e.axis === "x" ? e.end : e.pos
-					}, null, 8, Ke))), 128)),
-					N.value && K.value ? (f(), i("g", qe, [a("circle", {
-						class: "pd-edge-handle",
-						cx: K.value.x1,
-						cy: K.value.y1,
-						r: "6",
-						onPointerdown: s[0] ||= _((e) => $t(e, K.value, "from"), ["stop"])
-					}, [...s[12] ||= [a("title", null, "拖动调整源框连接边", -1)]], 40, Je), a("circle", {
-						class: "pd-edge-handle",
-						cx: K.value.x2,
-						cy: K.value.y2,
-						r: "6",
-						onPointerdown: s[1] ||= _((e) => $t(e, K.value, "to"), ["stop"])
-					}, [...s[13] ||= [a("title", null, "拖动调整目标框连接边", -1)]], 40, Ye)])) : r("", !0)
-				], 8, Ve)) : r("", !0),
-				N.value && K.value && !q.value ? (f(), i("button", {
-					key: 1,
-					type: "button",
-					class: "pd-edge-delete",
-					style: u({
-						left: `${K.value.labelX}px`,
-						top: `${K.value.labelY}px`
-					}),
-					"aria-label": `删除连线 ${K.value.fromTitle} → ${K.value.toTitle}`,
-					title: "删除连线（Delete）",
-					onClick: _(cn, ["stop"])
-				}, "✕", 12, Xe)) : r("", !0),
-				N.value && K.value && q.value && q.value.edgeId === K.value.id ? ie((f(), i("input", {
+				j.value.warnings.length ? (m(), n(v(se), {
 					key: 2,
-					ref_key: "labelInputEl",
-					ref: Jt,
-					"onUpdate:modelValue": s[2] ||= (e) => q.value.value = e,
-					type: "text",
-					class: "pd-edge-label-input",
-					style: u({
-						left: `${K.value.labelX}px`,
-						top: `${K.value.labelY}px`
+					trigger: "click",
+					position: "bottom",
+					width: 360
+				}, {
+					default: ne(() => [a("span", qe, [s(v(ie), { value: j.value.warnings.length }, {
+						default: ne(() => [...l[13] ||= [a("button", {
+							class: "pd-back-btn",
+							type: "button",
+							title: "解析告警明细"
+						}, "⚠️", -1)]]),
+						_: 1
+					}, 8, ["value"])])]),
+					content: ne(() => [a("ul", Je, [(m(!0), i(e, null, g(j.value.warnings, (e) => (m(), i("li", { key: e }, _(e), 1))), 128))])]),
+					_: 1
+				})) : r("", !0),
+				s(v(ce), { size: "small" })
+			])
+		]), a("div", Ye, [
+			M.value ? (m(), i("div", {
+				key: 1,
+				class: u(["pd-doc-view", { "pd-doc-view--editing": $.value }])
+			}, [$.value ? (m(), n(v(fe), {
+				key: M.value,
+				value: lr.value,
+				class: "pd-doc-editor",
+				onChange: l[8] ||= (e) => lr.value = e,
+				onKeydown: hr
+			}, null, 8, ["value"])) : (m(), n(v(me), {
+				key: M.value,
+				content: xt.value[M.value],
+				"show-toc": !0,
+				"flow-editable": !0,
+				onDocLink: br,
+				onFlowNodeMove: xr
+			}, null, 8, ["content"]))], 2)) : (m(), n(v(ae), {
+				key: 0,
+				ref_key: "canvasRef",
+				ref: St,
+				width: "100%",
+				height: "100%",
+				"show-grid": "",
+				"grid-variant": "dots",
+				"show-fit": "",
+				"min-zoom": .25,
+				"max-zoom": 3
+			}, {
+				default: ne(() => [a("div", {
+					ref_key: "stageEl",
+					ref: qt,
+					class: u(["pd-graph-stage", {
+						"pd-graph-stage--dragging": W.value?.moved || K.value || X.value || Z.value?.moved || Q.value?.moved,
+						"pd-graph-stage--editing": R.value,
+						"pd-graph-stage--tool-link": R.value && z.value === "link",
+						"pd-graph-stage--tool-node": R.value && z.value === "node"
+					}]),
+					style: d({
+						width: `${N.value.w}px`,
+						height: `${N.value.h}px`
 					}),
-					"aria-label": `编辑连线标签 ${K.value.fromTitle} → ${K.value.toTitle}`,
-					placeholder: "连线标签（留空移除）",
-					"data-nm-no-pan": "",
-					onKeydown: [g(_(Xt, ["prevent"]), ["enter"]), g(_(Zt, ["prevent"]), ["esc"])],
-					onBlur: Xt,
-					onClick: s[3] ||= _(() => {}, ["stop"])
-				}, null, 44, Ze)), [[te, q.value.value]]) : r("", !0),
-				(f(!0), i(e, null, m(j.value, (t) => (f(), i("div", {
-					key: t.id,
-					class: l(["pd-doc-box", [`pd-doc-box--d${Math.min(t.depth, 3)}`, {
-						"pd-dim": Ee(t.id),
-						"pd-doc-box--link-target": Ht(t) === "valid",
-						"pd-doc-box--link-invalid": Ht(t) === "invalid"
-					}]]),
-					style: u({
-						left: `${t.x}px`,
-						top: `${t.y}px`,
-						width: `${t.w}px`,
-						height: `${t.h}px`
-					}),
-					role: "link",
-					tabindex: "0",
-					"aria-label": `${t.title}（跳转到文档）`,
-					"data-nm-no-pan": "",
-					onPointerdown: (e) => Et(e, t),
-					onClick: (e) => At(t.docPath),
-					onKeydown: (e) => kn(e, t.docPath),
-					onMouseenter: (e) => we(t.id),
-					onMouseleave: s[5] ||= (e) => we(null)
+					onPointerdown: En,
+					onClick: l[7] ||= (e) => {
+						q.value = null, un.value = null;
+					}
 				}, [
-					a("div", $e, [a("span", et, h(t.title), 1), s[15] ||= a("span", {
-						class: "pd-doc-box__icon",
-						"aria-hidden": "true"
-					}, "↗", -1)]),
-					N.value ? r("", !0) : (f(), i("button", {
+					(m(!0), i(e, null, g(Mt.value, (e) => (m(), i("div", {
+						key: "group-" + e.name,
+						class: u(["pd-doc-group", { "pd-dim": Nt(e) }]),
+						style: d({
+							left: `${e.x}px`,
+							top: `${e.y}px`,
+							width: `${e.w}px`,
+							height: `${e.h}px`
+						})
+					}, [a("span", {
+						class: "pd-doc-group__label",
+						title: R.value ? `拖动移动整组「${e.name}」` : e.name,
+						"data-nm-no-pan": "",
+						onPointerdown: (t) => Wn(t, e)
+					}, _(e.name), 41, Xe), R.value ? (m(), i("button", {
 						key: 0,
 						type: "button",
-						class: "pd-doc-box__edit",
-						"aria-label": `编辑 ${t.title}`,
-						title: "编辑文档",
-						onClick: _((e) => Tn(t.docPath), ["stop"]),
-						onKeydown: [g(_((e) => Tn(t.docPath), ["stop"]), ["enter"]), g(_((e) => Tn(t.docPath), ["stop"]), ["space"])]
-					}, "✏️", 40, tt)),
-					N.value ? (f(), i(e, { key: 1 }, m([
-						"top",
-						"right",
-						"bottom",
-						"left"
-					], (e) => a("button", {
-						key: e,
+						class: "pd-doc-group__resize",
+						"aria-label": `调整组「${e.name}」的区域尺寸`,
+						title: "拖动调整区域尺寸",
+						"data-nm-no-pan": "",
+						onPointerdown: b((t) => Jn(t, e), ["stop"])
+					}, null, 40, Ze)) : r("", !0)], 6))), 128)),
+					P.value.length || Cn.value ? (m(), i("svg", {
+						key: 0,
+						class: "pd-relation-layer",
+						width: N.value.w,
+						height: N.value.h,
+						"aria-label": "文档连线"
+					}, [
+						l[17] ||= a("defs", null, [a("marker", {
+							id: "pd-relation-arrow",
+							markerWidth: "8",
+							markerHeight: "8",
+							refX: "7",
+							refY: "4",
+							orient: "auto",
+							markerUnits: "strokeWidth"
+						}, [a("path", {
+							d: "M 0 0 L 8 4 L 0 8 z",
+							class: "pd-relation-arrow"
+						})])], -1),
+						(m(!0), i(e, null, g(P.value, (e) => (m(), i("g", {
+							key: e.id,
+							class: u(["pd-relation", {
+								"pd-dim": At(e),
+								"pd-hot": kt(e),
+								"pd-selected": e.id === q.value,
+								"pd-relation--new": e.id === fn.value
+							}])
+						}, [
+							a("title", null, _(e.fromTitle) + " → " + _(e.toTitle) + _(e.label ? `（${e.label}）` : ""), 1),
+							a("path", {
+								class: "pd-relation-hit",
+								d: e.d,
+								fill: "none",
+								onClick: b((t) => kn(e), ["stop"]),
+								onDblclick: b((t) => jn(e), ["stop"])
+							}, null, 40, $e),
+							a("path", {
+								d: e.d,
+								fill: "none",
+								"marker-end": "url(#pd-relation-arrow)",
+								"pointer-events": "none"
+							}, null, 8, et),
+							e.label ? (m(), i("text", {
+								key: 0,
+								x: e.labelX,
+								y: e.labelY,
+								"pointer-events": "none"
+							}, _(e.label), 9, tt)) : r("", !0)
+						], 2))), 128)),
+						Cn.value ? (m(), i("path", {
+							key: 0,
+							class: "pd-relation-draft",
+							d: Cn.value,
+							fill: "none"
+						}, null, 8, nt)) : r("", !0),
+						(m(!0), i(e, null, g(G.value, (e, t) => (m(), i("line", {
+							key: "guide" + t,
+							class: "pd-guide",
+							x1: e.axis === "x" ? e.pos : e.start,
+							y1: e.axis === "x" ? e.start : e.pos,
+							x2: e.axis === "x" ? e.pos : e.end,
+							y2: e.axis === "x" ? e.end : e.pos
+						}, null, 8, rt))), 128)),
+						R.value && J.value ? (m(), i("g", it, [a("circle", {
+							class: "pd-edge-handle",
+							cx: J.value.x1,
+							cy: J.value.y1,
+							r: "6",
+							onPointerdown: l[0] ||= b((e) => Fn(e, J.value, "from"), ["stop"])
+						}, [...l[15] ||= [a("title", null, "拖动调整源框连接边", -1)]], 40, at), a("circle", {
+							class: "pd-edge-handle",
+							cx: J.value.x2,
+							cy: J.value.y2,
+							r: "6",
+							onPointerdown: l[1] ||= b((e) => Fn(e, J.value, "to"), ["stop"])
+						}, [...l[16] ||= [a("title", null, "拖动调整目标框连接边", -1)]], 40, ot)])) : r("", !0)
+					], 8, Qe)) : r("", !0),
+					R.value && J.value && !Y.value ? (m(), i("button", {
+						key: 1,
 						type: "button",
-						class: l(["pd-doc-box__link-handle", `pd-doc-box__link-handle--${e}`]),
-						"aria-label": `从 ${t.title} 的${{
-							top: "上",
-							right: "右",
-							bottom: "下",
-							left: "左"
-						}[e]}边创建连线（拖到目标框）`,
-						title: "拖到其他框创建连线",
-						onPointerdown: _((n) => Pt(n, t, e), ["stop"]),
-						onClick: s[4] ||= _(() => {}, ["stop"])
-					}, null, 42, nt)), 64)) : r("", !0),
-					t.blocks.length && !N.value ? (f(), i("div", {
+						class: "pd-edge-delete",
+						style: d({
+							left: `${J.value.delX}px`,
+							top: `${J.value.delY}px`
+						}),
+						"aria-label": `删除连线 ${J.value.fromTitle} → ${J.value.toTitle}`,
+						title: "删除连线（Delete）",
+						onClick: b(Un, ["stop"])
+					}, "✕", 12, st)) : r("", !0),
+					R.value && J.value && Y.value && Y.value.edgeId === J.value.id ? re((m(), i("input", {
 						key: 2,
-						class: l(["pd-doc-blocks-pop", { "pd-doc-blocks-pop--above": mt(t, T.value.h) }])
-					}, [a("div", rt, [(f(!0), i(e, null, m(dt(t), (e) => (f(), i("button", {
-						key: e.anchor,
-						type: "button",
-						class: "pd-doc-blocks-pop__item",
-						title: e.title,
-						"aria-label": `跳转到「${e.title}」分块`,
-						onClick: _((n) => xn(t.docPath, e.anchor), ["stop"]),
-						onKeydown: [g(_((n) => xn(t.docPath, e.anchor), ["stop"]), ["enter"]), g(_((n) => xn(t.docPath, e.anchor), ["stop"]), ["space"])]
-					}, "▸ " + h(e.title), 41, it))), 128)), ft(t) > 0 ? (f(), i("button", {
-						key: 0,
-						type: "button",
-						class: "pd-doc-blocks-pop__item pd-doc-blocks-pop__item--more",
-						"aria-label": `查看全部 ${t.blocks.length} 个分块`,
-						onClick: _((e) => Z(t.docPath), ["stop"])
-					}, "+" + h(ft(t)) + " 更多分块…", 9, at)) : r("", !0)])], 2)) : r("", !0)
-				], 46, Qe))), 128))
-			], 38)]),
-			_: 1
-		}, 512)), !w.value && N.value ? (f(), i("div", ot, [
-			a("button", {
-				type: "button",
-				class: l(["pd-edit-toolbar__btn", { "pd-edit-toolbar__btn--active": P.value === "select" }]),
-				title: "选择工具（Esc）",
-				onClick: s[8] ||= (e) => P.value = "select"
-			}, "🖱 选择", 2),
-			a("button", {
-				type: "button",
-				class: l(["pd-edit-toolbar__btn", { "pd-edit-toolbar__btn--active": P.value === "link" }]),
-				title: "连线工具：从任意框拖到目标框创建连线",
-				onClick: s[9] ||= (e) => P.value = "link"
-			}, "🔗 连线", 2),
-			a("button", {
-				type: "button",
-				class: l(["pd-edit-toolbar__btn", { "pd-edit-toolbar__btn--active": P.value === "node" }]),
-				title: "节点工具：点画布空白创建新文档框",
-				onClick: s[10] ||= (e) => P.value = "node"
-			}, "📄 节点", 2)
-		])) : r("", !0)])]));
+						ref_key: "labelInputEl",
+						ref: An,
+						"onUpdate:modelValue": l[2] ||= (e) => Y.value.value = e,
+						type: "text",
+						class: "pd-edge-label-input",
+						style: d({
+							left: `${J.value.labelX}px`,
+							top: `${J.value.labelY}px`
+						}),
+						"aria-label": `编辑连线标签 ${J.value.fromTitle} → ${J.value.toTitle}`,
+						placeholder: "连线标签（留空移除）",
+						"data-nm-no-pan": "",
+						onKeydown: [y(b(Mn, ["prevent"]), ["enter"]), y(b(Nn, ["prevent"]), ["esc"])],
+						onBlur: Mn,
+						onClick: l[3] ||= b(() => {}, ["stop"])
+					}, null, 44, ct)), [[ee, Y.value.value]]) : r("", !0),
+					(m(!0), i(e, null, g(L.value, (t) => (m(), i("div", {
+						key: t.id,
+						class: u(["pd-doc-box", [`pd-doc-box--d${Math.min(t.depth, 3)}`, {
+							"pd-dim": Ot(t.id),
+							"pd-doc-box--link-target": wn(t) === "valid",
+							"pd-doc-box--link-invalid": wn(t) === "invalid",
+							"pd-doc-box--deleting": T.value.has(t.docPath)
+						}]]),
+						style: d({
+							left: `${t.x}px`,
+							top: `${t.y}px`,
+							width: `${t.w}px`,
+							height: `${t.h}px`
+						}),
+						role: "link",
+						tabindex: "0",
+						"aria-label": `${t.title}（跳转到文档）`,
+						"data-nm-no-pan": "",
+						onPointerdown: (e) => rn(e, t),
+						onClick: (e) => dn(t),
+						onKeydown: (e) => gr(e, t),
+						onMouseenter: (e) => Et(t.id),
+						onMouseleave: l[6] ||= (e) => Et(null)
+					}, [
+						a("div", ut, [a("span", {
+							class: "pd-doc-box__title",
+							title: t.title
+						}, _(t.title), 9, dt), l[18] ||= a("span", {
+							class: "pd-doc-box__icon",
+							"aria-hidden": "true"
+						}, "↗", -1)]),
+						R.value ? r("", !0) : (m(), i("button", {
+							key: 0,
+							type: "button",
+							class: "pd-doc-box__edit",
+							"aria-label": `编辑 ${t.title}`,
+							title: "编辑文档",
+							onClick: b((e) => fr(t.docPath), ["stop"]),
+							onKeydown: [y(b((e) => fr(t.docPath), ["stop"]), ["enter"]), y(b((e) => fr(t.docPath), ["stop"]), ["space"])]
+						}, "✏️", 40, ft)),
+						R.value && c.deleteHandler ? (m(), i("button", {
+							key: 1,
+							type: "button",
+							class: u(["pd-doc-box__delete", { "pd-doc-box__delete--armed": T.value.has(t.docPath) }]),
+							"aria-label": T.value.has(t.docPath) ? `撤销删除 ${t.title}` : `删除 ${t.title}`,
+							title: T.value.has(t.docPath) ? "撤销删除标记" : "标记删除（💾 保存后生效）",
+							onClick: b((e) => Qn(t), ["stop"]),
+							onPointerdown: l[4] ||= b(() => {}, ["stop"])
+						}, _(T.value.has(t.docPath) ? "↩" : "✕"), 43, pt)) : r("", !0),
+						R.value ? (m(), i(e, { key: 2 }, g([
+							"top",
+							"right",
+							"bottom",
+							"left"
+						], (e) => a("button", {
+							key: e,
+							type: "button",
+							class: u(["pd-doc-box__link-handle", `pd-doc-box__link-handle--${e}`]),
+							"aria-label": `从 ${t.title} 的${{
+								top: "上",
+								right: "右",
+								bottom: "下",
+								left: "左"
+							}[e]}边创建连线（拖到目标框）`,
+							title: "拖到其他框创建连线",
+							onPointerdown: b((n) => gn(n, t, e), ["stop"]),
+							onClick: l[5] ||= b(() => {}, ["stop"])
+						}, null, 42, mt)), 64)) : r("", !0),
+						t.blocks.length && !R.value ? (m(), i("div", {
+							key: 3,
+							class: u(["pd-doc-blocks-pop", {
+								"pd-doc-blocks-pop--above": Rt(t, N.value.h),
+								"pd-doc-blocks-pop--force": un.value === t.id
+							}])
+						}, [a("div", ht, [(m(!0), i(e, null, g(Ft(t), (e) => (m(), i("button", {
+							key: e.anchor,
+							type: "button",
+							class: "pd-doc-blocks-pop__item",
+							title: e.title,
+							"aria-label": `跳转到「${e.title}」分块`,
+							onClick: b((n) => or(t.docPath, e.anchor), ["stop"]),
+							onKeydown: [y(b((n) => or(t.docPath, e.anchor), ["stop"]), ["enter"]), y(b((n) => or(t.docPath, e.anchor), ["stop"]), ["space"])]
+						}, "▸ " + _(e.title), 41, gt))), 128)), It(t) > 0 ? (m(), i("button", {
+							key: 0,
+							type: "button",
+							class: "pd-doc-blocks-pop__item pd-doc-blocks-pop__item--more",
+							"aria-label": `查看全部 ${t.blocks.length} 个分块`,
+							onClick: b((e) => ir(t.docPath), ["stop"])
+						}, "+" + _(It(t)) + " 更多分块…", 9, _t)) : r("", !0)])], 2)) : r("", !0)
+					], 46, lt))), 128))
+				], 38)]),
+				_: 1
+			}, 512)),
+			!M.value && R.value ? (m(), i("div", vt, [
+				a("button", {
+					type: "button",
+					class: u(["pd-edit-toolbar__btn", { "pd-edit-toolbar__btn--active": z.value === "select" }]),
+					title: "选择工具（Esc）",
+					onClick: l[9] ||= (e) => z.value = "select"
+				}, "🖱 选择", 2),
+				a("button", {
+					type: "button",
+					class: u(["pd-edit-toolbar__btn", { "pd-edit-toolbar__btn--active": z.value === "link" }]),
+					title: "连线工具：从任意框拖到目标框创建连线",
+					onClick: l[10] ||= (e) => z.value = "link"
+				}, "🔗 连线", 2),
+				a("button", {
+					type: "button",
+					class: u(["pd-edit-toolbar__btn", { "pd-edit-toolbar__btn--active": z.value === "node" }]),
+					title: "节点工具：点画布空白创建新文档框",
+					onClick: l[11] ||= (e) => z.value = "node"
+				}, "📄 节点", 2)
+			])) : r("", !0),
+			s(v(le), {
+				ref_key: "toastRef",
+				ref: ge
+			}, null, 512),
+			s(v(oe), {
+				modelValue: Bt.value,
+				"onUpdate:modelValue": l[12] ||= (e) => Bt.value = e,
+				title: zt.value.title,
+				size: "small",
+				"confirm-label": "确认",
+				"cancel-label": "取消",
+				onConfirm: Ht
+			}, {
+				default: ne(() => [o(_(zt.value.message), 1)]),
+				_: 1
+			}, 8, ["modelValue", "title"])
+		])]));
 	}
 });
 //#endregion
-export { se as DocFlowCanvas, j as DocGraphViewer, v as DocViewer, le as MarkdownRenderer };
+export { de as DocFlowCanvas, bt as DocGraphViewer, x as DocViewer, pe as MarkdownRenderer };
 
 //# sourceMappingURL=index.js.map
