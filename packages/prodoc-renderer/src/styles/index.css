@@ -294,19 +294,31 @@
 }
 
 /* 选中连线的端点手柄（拖动调整连接边） */
+.pd-relation-layer--top {
+  /* 手柄层位于框层之上（框悬停 z-index 为 5）：保证拖手柄命中手柄本身，
+     而不是压在下面的框连接点（否则拖手柄会被误识别为创建连线） */
+  z-index: 6;
+}
+
 .pd-edge-handle {
   fill: var(--nm-surface-raised, var(--nm-bg-color, #e0e0e0));
   stroke: var(--nm-primary-color, #cdfa4e);
   stroke-width: 2.5;
-  cursor: grab;
-  pointer-events: all;
+  pointer-events: none; /* 纯视觉；命中由同组 halo 承担 */
 }
 
-.pd-edge-handle:hover {
+/* 透明加宽命中区：12px 半径覆盖同位置的框连接点（6px 可视手柄不易点中） */
+.pd-edge-handle-halo {
+  fill: transparent;
+  pointer-events: all;
+  cursor: grab;
+}
+
+.pd-edge-handle-grp:hover .pd-edge-handle {
   fill: var(--nm-primary-color, #cdfa4e);
 }
 
-.pd-edge-handle:active {
+.pd-edge-handle-halo:active {
   cursor: grabbing;
 }
 
@@ -471,7 +483,7 @@
   flex-shrink: 0;
 }
 
-/* 框右上角编辑入口：悬停/聚焦时显现 */
+/* 框右上角编辑入口：悬停/聚焦时显现；未显现时不拦截指针 */
 .pd-doc-box__edit {
   position: absolute;
   top: 5px;
@@ -483,12 +495,14 @@
   cursor: pointer;
   background: transparent;
   opacity: 0;
+  pointer-events: none;
   transition: opacity 0.15s ease;
 }
 
 .pd-doc-box:hover .pd-doc-box__edit,
 .pd-doc-box:focus-within .pd-doc-box__edit {
   opacity: 0.85;
+  pointer-events: auto;
 }
 
 .pd-doc-box__edit:hover {
@@ -496,7 +510,8 @@
   transform: scale(1.15);
 }
 
-/* 框右上角删除入口（图编辑模式）：悬停/聚焦时显现；已标记删除时常显并转为撤销 */
+/* 框右上角删除入口（图编辑模式）：悬停/聚焦时显现；已标记删除时常显并转为撤销；
+   未显现时不拦截指针（否则点框右上角会误触删除确认） */
 .pd-doc-box__delete {
   position: absolute;
   top: 5px;
@@ -508,6 +523,7 @@
   cursor: pointer;
   background: transparent;
   opacity: 0;
+  pointer-events: none;
   transition: opacity 0.15s ease, transform 0.15s ease;
 }
 
@@ -515,6 +531,7 @@
 .pd-doc-box:focus-within .pd-doc-box__delete,
 .pd-doc-box__delete--armed {
   opacity: 0.85;
+  pointer-events: auto;
 }
 
 .pd-doc-box__delete:hover {
@@ -534,7 +551,8 @@
   text-decoration: line-through;
 }
 
-/* 连接点：四条边中点各一个，悬停框时错峰弹入，拖到其他框创建连线 */
+/* 连接点：四条边中点各一个，悬停框时错峰弹入，拖到其他框创建连线；
+   未显现时 pointer-events 关闭——不可见的按钮不得拦截指针（否则会盖住连线的端点手柄） */
 .pd-doc-box__link-handle {
   position: absolute;
   width: 12px;
@@ -545,6 +563,7 @@
   background: var(--nm-surface-raised, var(--nm-bg-color, #e0e0e0));
   cursor: crosshair;
   opacity: 0;
+  pointer-events: none;
   transition: opacity 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -575,6 +594,7 @@
 .pd-doc-box:hover .pd-doc-box__link-handle,
 .pd-doc-box:focus-within .pd-doc-box__link-handle {
   opacity: 1;
+  pointer-events: auto;
   animation: pd-link-handle-pop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 

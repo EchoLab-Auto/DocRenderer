@@ -2062,54 +2062,7 @@ if (typeof window !== 'undefined' && window.location.hash.length > 1) {
               :x2="g.axis === 'x' ? g.pos : g.end"
               :y2="g.axis === 'x' ? g.end : g.pos"
             />
-            <!-- 选中连线的端点手柄：拖到目标边调整连接位置 -->
-            <g v-if="graphEditMode && selectedEdge" class="pd-edge-handles">
-              <circle
-                class="pd-edge-handle"
-                :cx="selectedEdge.x1"
-                :cy="selectedEdge.y1"
-                r="6"
-                @pointerdown.stop="onSideHandleDown($event, selectedEdge, 'from')"
-              >
-                <title>拖动调整源框连接边</title>
-              </circle>
-              <circle
-                class="pd-edge-handle"
-                :cx="selectedEdge.x2"
-                :cy="selectedEdge.y2"
-                r="6"
-                @pointerdown.stop="onSideHandleDown($event, selectedEdge, 'to')"
-              >
-                <title>拖动调整目标框连接边</title>
-              </circle>
-            </g>
           </svg>
-          <!-- 选中连线的删除按钮（连线中点法线偏移处，避免压住标签；标签编辑中隐藏） -->
-          <button
-            v-if="graphEditMode && selectedEdge && !labelEdit"
-            type="button"
-            class="pd-edge-delete"
-            :style="{ left: `${selectedEdge.delX}px`, top: `${selectedEdge.delY}px` }"
-            :aria-label="`删除连线 ${selectedEdge.fromTitle} → ${selectedEdge.toTitle}`"
-            :title="`删除连线（Delete）`"
-            @click.stop="removeSelectedEdge"
-          >✕</button>
-          <!-- 连线标签内联编辑输入框（双击连线弹出，位于连线中点） -->
-          <input
-            v-if="graphEditMode && selectedEdge && labelEdit && labelEdit.edgeId === selectedEdge.id"
-            ref="labelInputEl"
-            v-model="labelEdit.value"
-            type="text"
-            class="pd-edge-label-input"
-            :style="{ left: `${selectedEdge.labelX}px`, top: `${selectedEdge.labelY}px` }"
-            :aria-label="`编辑连线标签 ${selectedEdge.fromTitle} → ${selectedEdge.toTitle}`"
-            placeholder="连线标签（留空移除）"
-            data-nm-no-pan
-            @keydown.enter.prevent="commitLabelEdit"
-            @keydown.esc.prevent="cancelLabelEdit"
-            @blur="commitLabelEdit"
-            @click.stop
-          />
           <div
             v-for="box in layoutBoxes"
             :key="box.id"
@@ -2206,6 +2159,68 @@ if (typeof window !== 'undefined' && window.location.hash.length > 1) {
               </div>
             </div>
           </div>
+          <!-- 选中连线的删除按钮（连线中点法线偏移处，避免压住标签；标签编辑中隐藏） -->
+          <button
+            v-if="graphEditMode && selectedEdge && !labelEdit"
+            type="button"
+            class="pd-edge-delete"
+            :style="{ left: `${selectedEdge.delX}px`, top: `${selectedEdge.delY}px` }"
+            :aria-label="`删除连线 ${selectedEdge.fromTitle} → ${selectedEdge.toTitle}`"
+            :title="`删除连线（Delete）`"
+            @click.stop="removeSelectedEdge"
+          >✕</button>
+          <!-- 连线标签内联编辑输入框（双击连线弹出，位于连线中点） -->
+          <input
+            v-if="graphEditMode && selectedEdge && labelEdit && labelEdit.edgeId === selectedEdge.id"
+            ref="labelInputEl"
+            v-model="labelEdit.value"
+            type="text"
+            class="pd-edge-label-input"
+            :style="{ left: `${selectedEdge.labelX}px`, top: `${selectedEdge.labelY}px` }"
+            :aria-label="`编辑连线标签 ${selectedEdge.fromTitle} → ${selectedEdge.toTitle}`"
+            placeholder="连线标签（留空移除）"
+            data-nm-no-pan
+            @keydown.enter.prevent="commitLabelEdit"
+            @keydown.esc.prevent="cancelLabelEdit"
+            @blur="commitLabelEdit"
+            @click.stop
+          />
+          <!-- 选中连线的端点手柄层：渲染在框层之上并带透明加宽命中区——
+               否则手柄与同位置的框连接点重叠且被压在框层下，拖手柄会被误识别为创建连线 -->
+          <svg
+            v-if="graphEditMode && selectedEdge"
+            class="pd-relation-layer pd-relation-layer--top"
+            :width="stage.w"
+            :height="stage.h"
+            aria-hidden="true"
+          >
+            <g class="pd-edge-handle-grp">
+              <circle class="pd-edge-handle" :cx="selectedEdge.x1" :cy="selectedEdge.y1" r="6" />
+              <circle
+                class="pd-edge-handle-halo"
+                :cx="selectedEdge.x1"
+                :cy="selectedEdge.y1"
+                r="12"
+                @pointerdown.stop="onSideHandleDown($event, selectedEdge, 'from')"
+                @click.stop
+              >
+                <title>拖动调整源框连接边</title>
+              </circle>
+            </g>
+            <g class="pd-edge-handle-grp">
+              <circle class="pd-edge-handle" :cx="selectedEdge.x2" :cy="selectedEdge.y2" r="6" />
+              <circle
+                class="pd-edge-handle-halo"
+                :cx="selectedEdge.x2"
+                :cy="selectedEdge.y2"
+                r="12"
+                @pointerdown.stop="onSideHandleDown($event, selectedEdge, 'to')"
+                @click.stop
+              >
+                <title>拖动调整目标框连接边</title>
+              </circle>
+            </g>
+          </svg>
         </div>
       </NeumorphismCanvas>
 
