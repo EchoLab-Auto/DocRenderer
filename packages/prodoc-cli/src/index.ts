@@ -9,13 +9,16 @@
 import path from 'path';
 import fs from 'fs/promises';
 import fsSync from 'fs';
+import { fileURLToPath } from 'url';
 import { startProDocServer } from './server.js';
 
 const PKG_NAME = 'echo-prodoc';
-/** 版本号取根包 package.json（发布版 echo-prodoc 与开发仓库的相对层级一致），取不到则回退 */
+/** 版本号取根包 package.json（发布版 echo-prodoc 与开发仓库的相对层级一致），取不到则回退。
+ *  注意不能用 new URL('../../../package.json', import.meta.url) 的写法：
+ *  构建期会被当静态资产内联成 data: URI，readFileSync 读不到而静默落到回退值 */
 const PKG_VERSION = (() => {
   try {
-    const pkgPath = new URL('../../../package.json', import.meta.url);
+    const pkgPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../package.json');
     return JSON.parse(fsSync.readFileSync(pkgPath, 'utf-8')).version ?? '0.1.1';
   } catch {
     return '0.1.1';
