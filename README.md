@@ -12,6 +12,11 @@ ProDoc 把一个 Markdown 文档目录渲染为一张可交互的**文档图画�
 # 从 npm 全局安装 CLI 工具（推荐）
 npm install -g @echolab-auto/echo-prodoc
 ```
+
+```bash
+npm install -g @echolab-auto/echo-prodoc@0.1.6-dev.1
+```
+
 ### 更新
 
 ```bash
