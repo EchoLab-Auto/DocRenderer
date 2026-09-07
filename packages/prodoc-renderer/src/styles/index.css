@@ -832,7 +832,8 @@
 .pd-doc-view {
   height: 100%;
   overflow-y: auto;
-  padding: 24px 28px 48px;
+  /* 对齐 ui-frame DocViewer 的 .neumorphism-doc-body（32px 28px），保证 TOC 间距一致 */
+  padding: 32px 28px;
   box-sizing: border-box;
 }
 
@@ -844,4 +845,22 @@
 
 .pd-doc-editor {
   height: 100%;
+}
+
+/* 与 DocViewer 的窄屏规则对齐（max-width: 768px → 20px） */
+@media (max-width: 768px) {
+  .pd-doc-view {
+    padding: 20px;
+  }
+}
+
+/*
+ * TOC 卡片内边距对齐 example：example 页中 TOC 卡片嵌套在外层演示卡片里，
+ * NeumorphismCard 的后代选择器 padding 规则（.nm-card:not(.nm-card--no-padding) .nm-card__body）
+ * 级联泄漏给内层卡片补上 --nm-spacing-lg（24px）；本查看器无嵌套卡片，
+ * 这里显式补上相同的内边距，使两边 TOC 边框到文字的距离一致。
+ * 用子选择器（>）避免再向内层泄漏。
+ */
+.pd-doc-view .neumorphism-toc-card > .nm-card__body {
+  padding: var(--nm-spacing-lg, 24px);
 }

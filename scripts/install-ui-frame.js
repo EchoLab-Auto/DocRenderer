@@ -12,7 +12,9 @@
  * 缓存策略：
  *   - 源码缓存在 .cache/ui-frame-src/
  *   - 每次运行都会 fetch 远程并比对 commit hash
- *   - 仅当远程有更新或本地 dist 缺失时才重新构建
+ *   - 仅当远程有更新、本地 dist 缺失、或 dist 构建出处（dist/.built-commit
+ *     标记）与当前源码 commit 不一致时才重新构建——构建失败不会留下
+ *     「源码已新、产物陈旧」的错位状态
  *
  * 构建隔离：
  *   - npm install 在 workspace 根下会触发依赖 hoisting，导致子目录
@@ -30,6 +32,8 @@ const CACHE_DIR = path.join(PROJECT_ROOT, '.cache', 'ui-frame-src');
 const VENDOR_DIR = path.join(PROJECT_ROOT, 'vendor', '@echolab-auto', 'ui-frame');
 const VENDOR_DIST = path.join(VENDOR_DIR, 'dist');
 const NODE_MODULES_DIR = path.join(PROJECT_ROOT, 'node_modules', '@echolab-auto', 'ui-frame');
+/** dist 构建出处标记：记录 dist 由哪个源码 commit 构建而来 */
+const DIST_MARKER = '.built-commit';
 
 /** 安全执行命令 */
 function run(cmd, cwd, options = {}) {
@@ -49,6 +53,23 @@ function run(cmd, cwd, options = {}) {
     }
     return '';
   }
+}
+
+/**
+ * 生成剥离了 allow-scripts 的环境变量副本。
+ *
+ * npm 12 起，项目级安装拒绝 cli/env 层的 allow-scripts（EALLOWSCRIPTS），
+ * 而外层 `npm run` 会把用户 .npmrc 的 allow-scripts 注入为
+ * npm_config_allow_scripts 环境变量——经 npm script 调用本脚本时
+ * 子 npm install 必然报错。这里在调用子 npm 前统一剥离该键。
+ */
+function envWithoutAllowScripts(extra = {}) {
+  const env = {};
+  for (const [key, value] of Object.entries(process.env)) {
+    if (/^npm_config_allow.?scripts$/i.test(key)) continue;
+    env[key] = value;
+  }
+  return { ...env, ...extra };
 }
 
 /** 静默执行命令，返回输出 */
@@ -105,12 +126,24 @@ function hasValidDist(dir) {
   }
 }
 
-/** 确保 vendor 根目录有必要的元数据文件（package.json 等），否则 file: 协议无法解析 */
+/** 读取 dist 的构建出处标记（不存在则返回空串） */
+function readBuiltCommit(distDir) {
+  try {
+    return fs.readFileSync(path.join(distDir, DIST_MARKER), 'utf-8').trim();
+  } catch {
+    return '';
+  }
+}
+
+/** 确保 vendor 根目录有必要的元数据文件（package.json 等），否则 file: 协议无法解析；内容变化时同步更新 */
 function ensureVendorRootFiles() {
   for (const file of ['package.json', 'LICENSE', 'README.md']) {
     const src = path.join(CACHE_DIR, file);
     const dest = path.join(VENDOR_DIR, file);
-    if (fs.existsSync(src) && !fs.existsSync(dest)) {
+    if (!fs.existsSync(src)) continue;
+    const outdated =
+      !fs.existsSync(dest) || fs.readFileSync(src, 'utf-8') !== fs.readFileSync(dest, 'utf-8');
+    if (outdated) {
       fs.mkdirSync(VENDOR_DIR, { recursive: true });
       fs.copyFileSync(src, dest);
       console.log(`📋 Copied ${file} to vendor/@echolab-auto/ui-frame/`);
@@ -171,11 +204,18 @@ function main() {
   }
 
   const cacheDist = path.join(CACHE_DIR, 'dist');
+  const sourceHash = getLocalHash();
 
-  // 2. 判断是否需要重新构建
-  const needBuild = hasUpdate || !hasValidDist(cacheDist);
+  // 2. 判断是否需要重新构建：远程有更新、缓存 dist 缺失，
+  //    或缓存 dist 的构建出处与当前源码 commit 不一致
+  //    （上次构建失败会留下「源码已新、产物陈旧」的错位，标记比对可自愈）
+  const needBuild =
+    hasUpdate || !hasValidDist(cacheDist) || readBuiltCommit(cacheDist) !== sourceHash;
 
-  if (!needBuild && isVendorComplete()) {
+  // vendor 也需与源码 commit 对齐（dist 与 package.json 都可能陈旧）
+  const vendorStale = readBuiltCommit(VENDOR_DIST) !== sourceHash;
+
+  if (!needBuild && !vendorStale && isVendorComplete()) {
     console.log('✅ @echolab-auto/ui-frame vendor already complete, nothing to do.');
     return;
   }
@@ -222,11 +262,10 @@ function main() {
       // npm_config_global=true，导致依赖装到全局 prefix 而非 buildDir。
       console.log('📥 Installing ui-frame dependencies...');
       run('npm install --no-audit --no-fund --global=false', buildDir, {
-        env: {
-          ...process.env,
+        env: envWithoutAllowScripts({
           npm_config_global: 'false',
           npm_config_workspaces: 'false',
-        },
+        }),
       });
 
       // 直接使用本地 vite，避免 npx 缓存问题
@@ -238,11 +277,21 @@ function main() {
         }
         process.exit(1);
       }
-      run(`${viteBin} build && ${viteBin} build --config vite.umd.config.ts`, buildDir);
+      run(`${viteBin} build && ${viteBin} build --config vite.umd.config.ts`, buildDir, {
+        env: envWithoutAllowScripts(),
+      });
 
       // 复制 dist 回缓存目录
       const newDist = path.join(buildDir, 'dist');
       if (hasValidDist(newDist)) {
+        // 与 ui-frame 的 `npm run build` 对齐：补一份 CJS 类型声明
+        // （本脚本直调 vite，跳过了 build 脚本中的 cp index.d.ts index.d.cts）
+        const dts = path.join(newDist, 'index.d.ts');
+        if (fs.existsSync(dts)) {
+          fs.copyFileSync(dts, path.join(newDist, 'index.d.cts'));
+        }
+        // 写入构建出处标记，供下次运行判断 dist 与源码是否一致
+        fs.writeFileSync(path.join(newDist, DIST_MARKER), `${sourceHash}\n`);
         fs.rmSync(cacheDist, { recursive: true, force: true });
         copyDir(newDist, cacheDist);
         console.log('✅ Build succeeded, dist cached.');
