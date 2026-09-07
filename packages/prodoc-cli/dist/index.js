@@ -222,8 +222,8 @@ async function C(n, o = {}) {
 					let r = e.resolve(n);
 					t.watcher.add(r);
 					let i = null, a = async () => {
-						let e = await h(r), n = await g(r, e);
-						c = e, t.ws.send("prodoc:docs-update", c), console.log(`🔄 Documents reloaded (${Object.keys(c).length} file(s)` + (n.length > 0 ? `, wrote coordinates to ${n.length}` : "") + ")");
+						let e = await g(r, await h(r));
+						c = await h(r), t.ws.send("prodoc:docs-update", c), console.log(`🔄 Documents reloaded (${Object.keys(c).length} file(s)` + (e.length > 0 ? `, wrote coordinates to ${e.length}` : "") + ")");
 					}, o = (e) => {
 						!e.startsWith(r) || !e.endsWith(".md") || (i && clearTimeout(i), i = setTimeout(() => {
 							a().catch((e) => console.error("[ProDoc] reload failed:", e));
@@ -315,6 +315,10 @@ async function C(n, o = {}) {
 												e = await t.readFile(c, "utf-8");
 											} catch {
 												e = null;
+											}
+											if (e === o) {
+												i.setHeader("content-type", "application/json"), i.end(JSON.stringify({ success: !0 }));
+												return;
 											}
 											if (e !== s) {
 												i.statusCode = 409, i.setHeader("content-type", "application/json"), i.end(JSON.stringify({

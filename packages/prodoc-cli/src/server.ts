@@ -380,7 +380,9 @@ export async function startProDocServer(
           const reload = async () => {
             const updated = await loadMarkdownFiles(resolvedRoot);
             const positioned = await persistAutoLayout(resolvedRoot, updated);
-            files = updated;
+            // ⚠️ persistAutoLayout 可能写回坐标：必须**重新读取磁盘**作为
+            // 内存 files，否则前端 base 与磁盘不一致 → 保存永远 409。
+            files = await loadMarkdownFiles(resolvedRoot);
             s.ws.send('prodoc:docs-update', files);
             console.log(
               `🔄 Documents reloaded (${Object.keys(files).length} file(s)` +
@@ -489,13 +491,19 @@ export async function startProDocServer(
                       return;
                     }
                     // 冲突检测：客户端声明了基准内容时，磁盘已偏离则拒绝写入
-                    //（过期页面/标签页的保存不会覆盖他人的修改）
+                    //（过期页面/标签页的保存不会覆盖他人的修改）。
+                    // 幂等放行：提交内容与磁盘当前一致（放弃更改/重放保存）直接成功。
                     if (typeof base === 'string') {
                       let current: string | null = null;
                       try {
                         current = await fs.readFile(fullPath, 'utf-8');
                       } catch {
                         current = null;
+                      }
+                      if (current === content) {
+                        res.setHeader('content-type', 'application/json');
+                        res.end(JSON.stringify({ success: true }));
+                        return;
                       }
                       if (current !== base) {
                         res.statusCode = 409;
