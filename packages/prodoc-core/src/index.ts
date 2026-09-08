@@ -12,6 +12,8 @@
 export { parseFrameBlock, writeFramePosition, readFrameLinks, writeFrameLinks, writeFrameGroup,
   asRefs } from './frame.js';
 export type { FrameBlock, FramePosition } from './frame.js';
+export { merge3 } from './merge.js';
+export type { Merge3Result } from './merge.js';
 export {
   buildDocGraph,
   computeLayeredLayout,

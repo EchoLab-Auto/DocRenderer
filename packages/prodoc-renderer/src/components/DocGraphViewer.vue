@@ -41,8 +41,8 @@ import {
   type LinkSide,
 } from '@prodoc/core';
 
-/** 写盘结果：对象形式可携带失败原因（409 冲突 / 其他错误），布尔为兼容旧契约 */
-type SaveResult = { ok: boolean; status?: number; error?: string };
+/** 写盘结果：对象形式可携带失败原因（409 冲突 / 其他错误）与自动合并信息，布尔为兼容旧契约 */
+type SaveResult = { ok: boolean; status?: number; error?: string; merged?: boolean; content?: string };
 
 const props = defineProps<{
   /** 相对路径 → 文件完整内容 */
@@ -83,10 +83,13 @@ async function requestDelete(path: string, base?: string): Promise<SaveResult> {
   return typeof r === 'object' ? r : { ok: r };
 }
 
-/** 写盘失败的统一提示：409 与其他错误区分文案 */
+/** 写盘失败的统一提示：409 与其他错误区分文案（保存走三路合并后 409 即重叠修改无法调和） */
 function notifyWriteFailure(action: '保存' | '删除', path: string, res: SaveResult) {
   if (res.status === 409) {
-    notify(`「${path}」在磁盘上已被其他程序修改，${action}被拒绝。该文件的暂存已保留，可刷新页面同步后重试（或「↩ 放弃更改」丢弃）。`, 'error', 8000);
+    const reason = action === '保存'
+      ? '与磁盘上的外部修改改到了同一区域，无法自动合并'
+      : '在磁盘上已被其他程序修改';
+    notify(`「${path}」${reason}，${action}被拒绝。该文件的暂存已保留，可刷新页面同步后重试（或「↩ 放弃更改」丢弃）。`, 'error', 8000);
   } else {
     notify(`「${path}」${action}失败：${res.error ?? '未知错误'}`, 'error', 6000);
   }
@@ -97,6 +100,13 @@ const pendingDrafts = ref<Map<string, string>>(new Map());
 
 /** 暂存的删除标记：docPath 集合（「💾 保存」时经删除 API 删文件；保存前可撤销） */
 const pendingDeletes = ref<Set<string>>(new Set());
+
+/**
+ * 各暂存文件的真实祖先内容（首次暂存那一刻的磁盘内容；null = 新建文件）。
+ * 保存时以此作为三路合并的基准：热更新推送先于保存到达时，props.files 已是磁盘新内容，
+ * 若直接拿它当基准会把外部修改静默覆盖；用暂存时刻的祖先才能让服务端正确调和。
+ */
+const draftBases = new Map<string, string | null>();
 
 /** 有待保存的图修改（内容暂存 + 删除暂存） */
 const graphDirty = computed(() => pendingDrafts.value.size > 0 || pendingDeletes.value.size > 0);
@@ -109,6 +119,7 @@ interface EditSnapshot {
   newPaths: string[];
   deletes: string[];
   overrides: [string, { x: number; y: number }][] | null;
+  bases: [string, string | null][];
 }
 
 const undoStack = ref<EditSnapshot[]>([]);
@@ -120,6 +131,7 @@ function takeSnapshot(): EditSnapshot {
     newPaths: [...newDraftPaths],
     deletes: [...pendingDeletes.value],
     overrides: relayouted.value ? [...relayouted.value] : null,
+    bases: [...draftBases],
   };
 }
 
@@ -147,6 +159,8 @@ function applySnapshot(s: EditSnapshot) {
   newDraftPaths = new Set(s.newPaths);
   pendingDeletes.value = new Set(s.deletes);
   relayouted.value = s.overrides ? new Map(s.overrides) : null;
+  draftBases.clear();
+  for (const [p, b] of s.bases) draftBases.set(p, b);
 }
 
 function undoEdit() {
@@ -180,7 +194,7 @@ function persistDrafts() {
       v: 1,
       drafts: [...pendingDrafts.value].map(([path, content]) => ({
         path,
-        base: props.files[path] ?? null,
+        base: draftBases.get(path) ?? props.files[path] ?? null,
         content,
       })),
       deletes: [...pendingDeletes.value].map((path) => ({ path, base: props.files[path] ?? null })),
@@ -213,6 +227,7 @@ function restoreDrafts(): number {
       if (item.base !== null && disk !== item.base) continue; // 磁盘已偏离基准
       if (item.base === null && disk !== undefined) continue; // 新建文件却在磁盘出现且内容不同
       drafts.set(item.path, item.content);
+      draftBases.set(item.path, item.base);
       if (disk === undefined) newDraftPaths.add(item.path);
     }
     for (const item of data.deletes ?? []) {
@@ -260,7 +275,17 @@ watch(
 /** 当前打开的文档路径；null 表示处于图画布视图 */
 const currentPath = ref<string | null>(null);
 
-const canvasRef = ref<{ fit?: () => void } | null>(null);
+/** 画布暴露的方法（ui-frame NeumorphismCanvas infinite 模式） */
+interface CanvasApi {
+  fit?: () => void;
+  resetView?: () => void;
+  panBy?: (dx: number, dy: number) => void;
+  getView?: () => { panX: number; panY: number; zoom: number };
+  toCanvasCoords?: (clientX: number, clientY: number) => { x: number; y: number; zoom: number };
+  getViewportRect?: () => DOMRect | null;
+}
+
+const canvasRef = ref<CanvasApi | null>(null);
 
 /** 画布舞台尺寸：容纳所有框与分组区域 + 边距 */
 const stage = computed(() => {
@@ -276,6 +301,37 @@ const stage = computed(() => {
     h = Math.max(h, group.y + group.h + PADDING);
   }
   return { w: Math.max(w, 640), h: Math.max(h, 480) };
+});
+
+/**
+ * 内容包围盒（含负向，±48 边距）：无限画布 fit/复位视图的依据。
+ * 与 stage 不同——stage 从原点向右/下生长供舞台尺寸用，这里要覆盖负象限。
+ */
+const contentBounds = computed(() => {
+  const PADDING = 48;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const box of layoutBoxes.value) {
+    minX = Math.min(minX, box.x);
+    minY = Math.min(minY, box.y);
+    maxX = Math.max(maxX, box.x + box.w);
+    maxY = Math.max(maxY, box.y + box.h);
+  }
+  for (const group of groupRegions.value) {
+    minX = Math.min(minX, group.x);
+    minY = Math.min(minY, group.y);
+    maxX = Math.max(maxX, group.x + group.w);
+    maxY = Math.max(maxY, group.y + group.h);
+  }
+  if (!Number.isFinite(minX)) return { x: 0, y: 0, w: 640, h: 480 };
+  return {
+    x: minX - PADDING,
+    y: minY - PADDING,
+    w: maxX - minX + PADDING * 2,
+    h: maxY - minY + PADDING * 2,
+  };
 });
 
 
@@ -482,13 +538,14 @@ function toggleRelayout() {
   relayouted.value = map;
 }
 
-/** 悬停分块面板：条目、溢出行数与弹出方向（贴近画布底边时向上弹出） */
+/** 悬停分块面板：条目、溢出行数与弹出方向（贴近内容包围盒底边时向上弹出；负坐标框同样正确） */
 const PANEL_ITEM_H = 30;
 const panelBlocks = (box: DocBox) => box.blocks.slice(0, MAX_BLOCK_SLOTS);
 const panelOverflow = (box: DocBox) => Math.max(0, box.blocks.length - MAX_BLOCK_SLOTS);
 const panelHeight = (box: DocBox) =>
   (panelBlocks(box).length + (panelOverflow(box) > 0 ? 1 : 0)) * PANEL_ITEM_H + 12;
-const panelAbove = (box: DocBox, stageH: number) => box.y + box.h + 6 + panelHeight(box) > stageH;
+const panelAbove = (box: DocBox) =>
+  box.y + box.h + 6 + panelHeight(box) > contentBounds.value.y + contentBounds.value.h;
 
 /* ============ 画布编辑：图编辑模式（修改暂存 → 保存统一写回 / 放弃整批丢弃） ============ */
 
@@ -531,7 +588,10 @@ function stageDraft(path: string, next: string) {
   if (next === props.files[path]) {
     map.delete(path);
     newDraftPaths.delete(path);
+    draftBases.delete(path);
   } else {
+    // 首次暂存时锁定祖先内容（后续再次修改同一路径不刷新基准，保持三路合并语义）
+    if (!map.has(path)) draftBases.set(path, props.files[path] ?? null);
     map.set(path, next);
     if (!(path in props.files)) newDraftPaths.add(path);
   }
@@ -547,12 +607,16 @@ async function saveGraphEdits() {
   graphSaving.value = true;
   const failed: string[] = [];
   const failedDeletes: string[] = [];
+  let mergedCount = 0;
   for (const [path, content] of pendingDrafts.value) {
     // 逐个 await：结果顺序与暂存一一对应；失败的保留暂存并 toast 提示
-    const res = await requestSave(path, content, props.files[path]);
+    const base = draftBases.has(path) ? draftBases.get(path) : (props.files[path] ?? null);
+    const res = await requestSave(path, content, base ?? undefined);
     if (!res.ok) {
       failed.push(path);
       notifyWriteFailure('保存', path, res);
+    } else if (res.merged) {
+      mergedCount++;
     }
   }
   for (const path of pendingDeletes.value) {
@@ -568,6 +632,7 @@ async function saveGraphEdits() {
       if (!failed.includes(path)) {
         drafts.delete(path);
         newDraftPaths.delete(path);
+        draftBases.delete(path);
       }
     }
     pendingDrafts.value = drafts;
@@ -579,9 +644,16 @@ async function saveGraphEdits() {
     pendingDrafts.value = new Map();
     pendingDeletes.value = new Set();
     newDraftPaths.clear();
+    draftBases.clear();
     undoStack.value = [];
     redoStack.value = [];
-    notify('图修改已保存', 'success', 2500);
+    notify(
+      mergedCount > 0
+        ? `图修改已保存（${mergedCount} 个文件已自动合并磁盘上的外部修改）`
+        : '图修改已保存',
+      'success',
+      3000,
+    );
   }
   graphSaving.value = false;
 }
@@ -604,6 +676,7 @@ function discardGraphEdits() {
   selectedEdgeId.value = null;
   editTool.value = 'select';
   newDraftPaths.clear();
+  draftBases.clear();
   undoStack.value = [];
   redoStack.value = [];
   graphEditMode.value = false;
@@ -623,15 +696,13 @@ function toggleGraphEdit() {
   }
 }
 
-/** 舞台元素与坐标换算（屏幕 px → 画布坐标，按当前缩放折算） */
+/** 舞台元素与坐标换算（屏幕 px → 画布坐标；委托画布的虚拟平移状态，缩放随之折算） */
 const stageEl = ref<HTMLElement | null>(null);
 
 function toStageCoords(clientX: number, clientY: number) {
-  const el = stageEl.value;
-  if (!el) return { x: 0, y: 0, scale: 1 };
-  const rect = el.getBoundingClientRect();
-  const scale = rect.width / stage.value.w || 1;
-  return { x: (clientX - rect.left) / scale, y: (clientY - rect.top) / scale, scale };
+  const c = canvasRef.value?.toCanvasCoords?.(clientX, clientY);
+  if (c) return { x: c.x, y: c.y, scale: c.zoom };
+  return { x: 0, y: 0, scale: 1 };
 }
 
 /** 框拖拽状态；moved 之前视为点击（保持原有的打开文档行为）。scale 在按下时缓存，避免逐帧强制布局 */
@@ -647,34 +718,22 @@ const dragBox = ref<{
   baseY: number;
   moved: boolean;
   raf: number;
-  /** 边缘自动平移：画布滚动容器与舞台坐标系的累计平移量 */
-  scroller: HTMLElement | null;
+  /** 边缘自动平移：画布坐标系的累计平移量（平移由画布虚拟 pan 执行，无边界） */
   panX: number;
   panY: number;
   /** 拖拽开始前的编辑快照（松手有改动时提交为撤销点） */
   before: EditSnapshot;
 } | null>(null);
 
-/** 向上找到画布的可滚动容器（自动平移的滚动对象；不依赖 ui-frame 内部结构） */
-function findScroller(el: HTMLElement | null): HTMLElement | null {
-  let cur = el?.parentElement ?? null;
-  while (cur) {
-    const style = getComputedStyle(cur);
-    if (/(auto|scroll)/.test(`${style.overflow} ${style.overflowX} ${style.overflowY}`)) return cur;
-    cur = cur.parentElement;
-  }
-  return null;
-}
-
 /**
- * 拖拽边缘自动平移：指针贴近滚动容器边缘（40px 内）时按距离梯度滚动，
- * 返回本次滚动折算的舞台坐标位移（调用方累加进拖拽基准）。
+ * 拖拽边缘自动平移：指针贴近画布视口边缘（40px 内）时按距离梯度平移（无限画布无滚动余量限制），
+ * 返回本次平移折算的舞台坐标位移（调用方累加进拖拽基准）。
  */
-function autoPanStep(clientX: number, clientY: number, scroller: HTMLElement | null, scale: number): { px: number; py: number } {
-  if (!scroller) return { px: 0, py: 0 };
+function autoPanStep(clientX: number, clientY: number, scale: number): { px: number; py: number } {
+  const rect = canvasRef.value?.getViewportRect?.();
+  if (!rect) return { px: 0, py: 0 };
   const EDGE = 40;
   const MAX = 14;
-  const rect = scroller.getBoundingClientRect();
   const ramp = (dist: number) => Math.max(0, Math.min(1, (EDGE - dist) / EDGE));
   let sx = 0;
   let sy = 0;
@@ -682,10 +741,7 @@ function autoPanStep(clientX: number, clientY: number, scroller: HTMLElement | n
   else if (clientX > rect.right - EDGE) sx = MAX * ramp(rect.right - clientX);
   if (clientY < rect.top + EDGE) sy = -MAX * ramp(clientY - rect.top);
   else if (clientY > rect.bottom - EDGE) sy = MAX * ramp(rect.bottom - clientY);
-  if (sx || sy) {
-    scroller.scrollLeft += sx;
-    scroller.scrollTop += sy;
-  }
+  if (sx || sy) canvasRef.value?.panBy?.(-sx, -sy);
   return { px: sx / scale, py: sy / scale };
 }
 
@@ -794,14 +850,14 @@ function collectGuides(
   return guides;
 }
 
-/** 框拖拽吸附：候选位置与其他框的六条特征线比较，返回吸附后坐标与应显示的参考线；坐标钳制不为负（防止框被拖出画布左上边界后丢失） */
+/** 框拖拽吸附：候选位置与其他框的六条特征线比较，返回吸附后坐标与应显示的参考线；无限画布允许负坐标（不再钳制，框可拖入任意象限） */
 function snapPosition(id: string, rawX: number, rawY: number, scale: number) {
   const me = layoutBoxes.value.find((b) => b.id === id);
-  if (!me) return { x: Math.max(0, Math.round(rawX)), y: Math.max(0, Math.round(rawY)), guides: [] as AlignGuide[] };
+  if (!me) return { x: Math.round(rawX), y: Math.round(rawY), guides: [] as AlignGuide[] };
   const others = layoutBoxes.value.filter((b) => b.id !== id);
   const snap = snapDelta({ x: rawX, y: rawY, w: me.w, h: me.h }, others, scale, ALL_LINES);
-  const x = Math.max(0, Math.round(rawX + (snap.dx ?? 0)));
-  const y = Math.max(0, Math.round(rawY + (snap.dy ?? 0)));
+  const x = Math.round(rawX + (snap.dx ?? 0));
+  const y = Math.round(rawY + (snap.dy ?? 0));
   const guides =
     snap.dx !== undefined || snap.dy !== undefined
       ? collectGuides({ x, y, w: me.w, h: me.h }, others, ALL_LINES)
@@ -833,7 +889,6 @@ function onBoxPointerdown(e: PointerEvent, box: DocBox) {
     baseY: box.y,
     moved: false,
     raf: 0,
-    scroller: findScroller(stageEl.value),
     panX: 0,
     panY: 0,
     before: takeSnapshot(),
@@ -857,7 +912,7 @@ function applyBoxDrag() {
   const d = dragBox.value;
   if (!d) return;
   d.raf = 0;
-  const step = autoPanStep(d.lastClientX, d.lastClientY, d.scroller, d.scale);
+  const step = autoPanStep(d.lastClientX, d.lastClientY, d.scale);
   d.panX += step.px;
   d.panY += step.py;
   const dx = (d.lastClientX - d.startClientX) / d.scale + d.panX;
@@ -923,8 +978,6 @@ const linkDraft = ref<{
   lastClientX: number;
   lastClientY: number;
   raf: number;
-  /** 边缘自动平移的滚动容器（端点坐标每帧按 rect 重算，无需累计平移量） */
-  scroller: HTMLElement | null;
   /** 拖出前的编辑快照（创建成功时提交为撤销点） */
   before: EditSnapshot;
 } | null>(null);
@@ -956,7 +1009,6 @@ function startLinkDraft(e: PointerEvent, box: DocBox, side?: LinkSide) {
     lastClientX: e.clientX,
     lastClientY: e.clientY,
     raf: 0,
-    scroller: findScroller(stageEl.value),
     before: takeSnapshot(),
   };
   window.addEventListener('pointermove', onLinkMove);
@@ -981,7 +1033,7 @@ function applyLinkMove() {
   const d = linkDraft.value;
   if (!d) return;
   d.raf = 0;
-  autoPanStep(d.lastClientX, d.lastClientY, d.scroller, 1);
+  autoPanStep(d.lastClientX, d.lastClientY, 1);
   const pt = toStageCoords(d.lastClientX, d.lastClientY);
   const hit = layoutBoxes.value.find(
     (b) => pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.y + b.h,
@@ -1104,10 +1156,10 @@ function onStagePointerup(e: PointerEvent) {
   createNodeAt(pt.x, pt.y);
 }
 
-/** 在画布坐标 (x, y) 处创建新文档框：暂存 untitled-N.md 新文件草稿（点击点居中取整，钳制不出左上边界） */
+/** 在画布坐标 (x, y) 处创建新文档框：暂存 untitled-N.md 新文件草稿（点击点居中取整；无限画布允许负坐标） */
 function createNodeAt(x: number, y: number) {
-  const px = Math.max(0, Math.round(x - BOX_DEFAULT_W / 2));
-  const py = Math.max(0, Math.round(y - BOX_DEFAULT_H / 2));
+  const px = Math.round(x - BOX_DEFAULT_W / 2);
+  const py = Math.round(y - BOX_DEFAULT_H / 2);
   const before = takeSnapshot();
   // 编号取磁盘文件与暂存新文件中未占用的最小 N
   const known = new Set([...Object.keys(props.files), ...pendingDrafts.value.keys()]);
@@ -1331,7 +1383,6 @@ const groupDrag = ref<{
   dy: number;
   moved: boolean;
   raf: number;
-  scroller: HTMLElement | null;
   panX: number;
   panY: number;
   before: EditSnapshot;
@@ -1381,7 +1432,6 @@ function onGroupLabelDown(e: PointerEvent, group: DocGroup) {
     dy: 0,
     moved: false,
     raf: 0,
-    scroller: findScroller(stageEl.value),
     panX: 0,
     panY: 0,
     before: takeSnapshot(),
@@ -1408,7 +1458,7 @@ function applyGroupDrag() {
   const d = groupDrag.value;
   if (!d) return;
   d.raf = 0;
-  const step = autoPanStep(d.lastClientX, d.lastClientY, d.scroller, d.scale);
+  const step = autoPanStep(d.lastClientX, d.lastClientY, d.scale);
   d.panX += step.px;
   d.panY += step.py;
   const rawDx = Math.round((d.lastClientX - d.startClientX) / d.scale + d.panX);
@@ -1424,11 +1474,9 @@ function applyGroupDrag() {
     d.scale,
     ALL_LINES,
   );
-  // 钳制：成员与区域均不可移出左上边界（负坐标写回后无法找回）
-  const minBaseX = Math.min(d.baseRegion.x, ...[...d.basePositions.values()].map((p) => p.x));
-  const minBaseY = Math.min(d.baseRegion.y, ...[...d.basePositions.values()].map((p) => p.y));
-  const dx = Math.max(rawDx + (snap.dx ?? 0), -minBaseX);
-  const dy = Math.max(rawDy + (snap.dy ?? 0), -minBaseY);
+  // 无限画布允许负坐标：成员与区域可移入任意象限（不再钳制）
+  const dx = rawDx + (snap.dx ?? 0);
+  const dy = rawDy + (snap.dy ?? 0);
   groupDrag.value = { ...d, dx, dy, moved: true };
   for (const [id, base] of d.basePositions) {
     setPositionOverride(id, { x: base.x + dx, y: base.y + dy });
@@ -1619,6 +1667,7 @@ function stageDeleteBox(box: DocBox) {
     pendingDrafts.value = drafts;
   }
   newDraftPaths.delete(box.docPath);
+  draftBases.delete(box.docPath);
   if (box.docPath in props.files) {
     pendingDeletes.value = new Set([...pendingDeletes.value, box.docPath]);
   }
@@ -1754,8 +1803,10 @@ watch(
         if (files[p] === c) {
           drafts.delete(p);
           newDraftPaths.delete(p);
+          draftBases.delete(p);
         } else if (files[p] === undefined && !newDraftPaths.has(p)) {
           drafts.delete(p);
+          draftBases.delete(p);
         }
       }
       pendingDrafts.value = drafts;
@@ -1779,6 +1830,9 @@ watch(
 const editing = ref(false);
 const draft = ref('');
 
+/** 正文编辑的祖先内容（进入编辑/上次保存成功时的磁盘版本）——保存时作为三路合并的基准 */
+const editBase = ref('');
+
 const dirty = computed(
   () => currentPath.value !== null && draft.value !== (props.files[currentPath.value] ?? ''),
 );
@@ -1786,6 +1840,7 @@ const dirty = computed(
 function startEdit() {
   if (!currentPath.value) return;
   draft.value = props.files[currentPath.value] ?? '';
+  editBase.value = draft.value;
   editing.value = true;
 }
 
@@ -1801,8 +1856,19 @@ function cancelEdit() {
 
 async function saveEdit() {
   if (!currentPath.value || !dirty.value) return;
-  const res = await requestSave(currentPath.value, draft.value, props.files[currentPath.value]);
-  if (!res.ok) notifyWriteFailure('保存', currentPath.value, res);
+  const res = await requestSave(currentPath.value, draft.value, editBase.value);
+  if (!res.ok) {
+    notifyWriteFailure('保存', currentPath.value, res);
+    return;
+  }
+  if (res.merged && typeof res.content === 'string') {
+    // 服务端三路合并成功：编辑器改以合并结果为内容与新基准，避免脏标记复发
+    draft.value = res.content;
+    editBase.value = res.content;
+    notify('已保存，并自动合并了磁盘上的外部修改', 'success', 4000);
+  } else {
+    editBase.value = draft.value;
+  }
 }
 
 /** 编辑器内 Ctrl/Cmd+S 保存（MarkdownEditor 内部不拦截冒泡） */
@@ -1840,8 +1906,8 @@ function onBoxKeydown(e: KeyboardEvent, box: DocBox) {
 let lastNudge: { id: string; time: number } | null = null;
 
 function nudgeBox(box: DocBox, dx: number, dy: number) {
-  const x = Math.max(0, Math.round(box.x + dx));
-  const y = Math.max(0, Math.round(box.y + dy));
+  const x = Math.round(box.x + dx);
+  const y = Math.round(box.y + dy);
   if (x === box.x && y === box.y) return;
   const now = Date.now();
   const before = lastNudge?.id === box.id && now - lastNudge.time < 800 ? null : takeSnapshot();
@@ -1971,6 +2037,8 @@ if (typeof window !== 'undefined' && window.location.hash.length > 1) {
         show-grid
         grid-variant="dots"
         show-fit
+        infinite
+        :content-bounds="contentBounds"
         :min-zoom="0.25"
         :max-zoom="3"
       >
@@ -2133,7 +2201,7 @@ if (typeof window !== 'undefined' && window.location.hash.length > 1) {
               v-if="box.blocks.length && !graphEditMode"
               class="pd-doc-blocks-pop"
               :class="{
-                'pd-doc-blocks-pop--above': panelAbove(box, stage.h),
+                'pd-doc-blocks-pop--above': panelAbove(box),
                 'pd-doc-blocks-pop--force': touchPanelId === box.id,
               }"
             >

@@ -1,8 +1,10 @@
-/** 写盘结果：对象形式可携带失败原因（409 冲突 / 其他错误），布尔为兼容旧契约 */
+/** 写盘结果：对象形式可携带失败原因（409 冲突 / 其他错误）与自动合并信息，布尔为兼容旧契约 */
 type SaveResult = {
     ok: boolean;
     status?: number;
     error?: string;
+    merged?: boolean;
+    content?: string;
 };
 type __VLS_Props = {
     /** 相对路径 → 文件完整内容 */

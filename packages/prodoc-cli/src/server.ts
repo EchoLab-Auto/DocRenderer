@@ -12,7 +12,7 @@ import path from 'path';
 import { createRequire } from 'module';
 import { fileURLToPath } from 'url';
 import fsSync from 'fs';
-import { buildDocGraph, parseFrameBlock, writeFramePosition } from '@prodoc/core/pure';
+import { buildDocGraph, parseFrameBlock, writeFramePosition, merge3 } from '@prodoc/core/pure';
 
 const require = createRequire(import.meta.url);
 
@@ -142,9 +142,10 @@ function resolveProDocEntry(pkgName: string): string {
   return distEntry.replace(/\\/g, '/');
 }
 
-/** 构建保存处理函数代码（base 为客户端依据的磁盘内容，服务端据此做冲突检测；
- *  返回结构化结果 {ok, status?, error?}——失败原因交给查看器以 toast 展示；
- *  成功即同步本地基准，后续编辑不必等待热更新推送） */
+/** 构建保存处理函数代码（base 为客户端依据的磁盘内容，服务端据此做冲突检测与三路合并；
+ *  返回结构化结果 {ok, status?, error?, merged?, content?}——失败原因交给查看器以 toast 展示；
+ *  成功即同步本地基准（合并成功时以服务端返回的合并结果为准），
+ *  后续编辑不必等待热更新推送） */
 function buildSaveHandler(): string {
   return `async (filePath, content, base) => {
             try {
@@ -155,11 +156,11 @@ function buildSaveHandler(): string {
               });
               const data = await res.json();
               if (data.success) {
-                console.log('[ProDoc] saved:', filePath);
-                // 乐观同步本地基准：磁盘内容现在就是 content，
+                console.log('[ProDoc] saved:', filePath, data.merged ? '(auto-merged)' : '');
+                // 乐观同步本地基准：磁盘内容现在是合并结果（无合并时即提交内容），
                 // 后续编辑/保存以它为基准，不再依赖热更新推送的时序
-                state.files[filePath] = content;
-                return { ok: true };
+                state.files[filePath] = typeof data.content === 'string' ? data.content : content;
+                return { ok: true, merged: data.merged === true, content: data.content };
               }
               return { ok: false, status: res.status, error: data.error };
             } catch (e) {
@@ -490,8 +491,9 @@ export async function startProDocServer(
                       res.end(JSON.stringify({ success: false, error: 'Forbidden: path outside doc root' }));
                       return;
                     }
-                    // 冲突检测：客户端声明了基准内容时，磁盘已偏离则拒绝写入
-                    //（过期页面/标签页的保存不会覆盖他人的修改）。
+                    // 冲突检测：客户端声明了基准内容时，磁盘已偏离则先尝试三路合并
+                    //（base→磁盘 与 base→提交 调和，互不重叠的修改同时采纳，
+                    //  仅双方改到同一区域才拒绝；过期页面不会覆盖他人的修改）。
                     // 幂等放行：提交内容与磁盘当前一致（放弃更改/重放保存）直接成功。
                     if (typeof base === 'string') {
                       let current: string | null = null;
@@ -505,10 +507,27 @@ export async function startProDocServer(
                         res.end(JSON.stringify({ success: true }));
                         return;
                       }
-                      if (current !== base) {
+                      if (current !== null && current !== base) {
+                        const merged = merge3(base, current, content);
+                        if (merged.clean) {
+                          await fs.writeFile(fullPath, merged.result, 'utf-8');
+                          res.setHeader('content-type', 'application/json');
+                          res.end(JSON.stringify({ success: true, merged: true, content: merged.result }));
+                          return;
+                        }
                         res.statusCode = 409;
                         res.setHeader('content-type', 'application/json');
-                        res.end(JSON.stringify({ success: false, error: 'Conflict: file changed on disk' }));
+                        res.end(JSON.stringify({
+                          success: false,
+                          error: `Conflict: ${merged.conflicts} 处修改与磁盘上的外部变更重叠，无法自动合并`,
+                        }));
+                        return;
+                      }
+                      if (current === null) {
+                        // 文件已被外部删除：无可合并对象，拒绝写入
+                        res.statusCode = 409;
+                        res.setHeader('content-type', 'application/json');
+                        res.end(JSON.stringify({ success: false, error: 'Conflict: file deleted on disk' }));
                         return;
                       }
                     }
