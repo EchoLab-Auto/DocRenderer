@@ -1,6 +1,6 @@
 {
   "name": "@echolab-auto/echo-prodoc",
-  "version": "0.1.6-dev.3",
+  "version": "0.1.6-dev.4",
   "description": "ProDoc - 文档渲染与编辑框架",
   "workspaces": [
     "packages/*"
